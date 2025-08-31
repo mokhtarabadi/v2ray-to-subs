@@ -1,4 +1,4 @@
-# Clash Meta Final Configuration for Iran 🇮🇷
+# Clash Meta Final Configuration for Iran 
 # WORKING configuration with metacubexd dashboard + DNS through proxy
 # Optimized for Iran with ISP DNS hijacking prevention
 
@@ -10,15 +10,16 @@ mode: rule
 log-level: info
 ipv6: false
 
-# External Controller & Dashboard (metacubexd) 🎛️
+# External Controller & Dashboard (metacubexd) 
 external-controller: 0.0.0.0:9090
 external-ui: ui
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 secret: ""
 
 # Performance Settings
-unified-delay: true
+unified-delay: false
 tcp-concurrent: true
+find-process-mode: strict
 
 # Profile Settings
 profile:
@@ -41,7 +42,7 @@ tun:
   gso: true
   gso-max-size: 65536
 
-# DNS Configuration - CRITICAL for Iran 🇮🇷
+# DNS Configuration - CRITICAL for Iran 
 # This configuration routes DNS through proxy to prevent ISP hijacking
 dns:
   enable: true
@@ -69,7 +70,7 @@ dns:
     - "+.parsian.com"
     - "+.mellat.ir"
   
-  # 🔑 KEY FEATURE: Route DNS through proxy to bypass ISP filtering
+  # KEY FEATURE: Route DNS through proxy to bypass ISP filtering
   respect-rules: true
   
   # Security settings
@@ -98,11 +99,6 @@ dns:
     - 8.8.8.8
   
   # DNS for direct connections
-  direct-nameserver:
-    - https://1.1.1.1/dns-query
-    - https://8.8.8.8/dns-query
-  
-  # Smart DNS policies for different services
   nameserver-policy:
     # Private networks use direct DNS
     "geosite:private":
@@ -137,150 +133,83 @@ dns:
       - https://cloudflare-dns.com/dns-query
       - https://dns.google/dns-query
 
-# Your Existing Proxies
-proxies:
-  - name: "mahsa"
-    type: socks5
-    server: 127.0.0.1
-    port: 12334
+# Template for proxies - will be populated by script
+proxies: [ ]
 
-  - name: "warp"
-    type: socks5
-    server: 127.0.0.1
-    port: 12334
-
-  - name: "us"
-    type: vless
-    server: 83.229.39.154
-    port: 33103
-    udp: true
-    network: tcp
-    smux:
-      enabled: true
-
-  - name: "ro"
-    type: vless
-    server: 5.182.37.27
-    port: 33103
-    udp: true
-    network: tcp
-    smux:
-      enabled: true
-
-# Proxy Groups - Iran Optimized 🇮🇷
+# Template for proxy groups - will be populated by script  
 proxy-groups:
-  - name: "🚀 PROXY"
+  - name: "PROXY"
     type: select
     proxies:
-      - "🔄 AUTO"
-      - "🌐 MAHSA"
-      - "⚡ WARP"
-      - "🇺🇸 US"
-      - "🇷🇴 RO"
-      - "🔗 RELAY"
-      - "📍 DIRECT"
-
-  - name: "🔄 AUTO"
+      - DIRECT
+  - name: "AUTO"
     type: url-test
     proxies:
-      - "🔗 RELAY"
-      - "🇺🇸 US"
-      - "🇷🇴 RO"
+      - DIRECT
     url: 'https://www.gstatic.com/generate_204'
     interval: 300
     tolerance: 50
 
-  - name: "🌐 MAHSA"
-    type: select
-    proxies:
-      - "mahsa"
-
-  - name: "⚡ WARP"
-    type: select
-    proxies:
-      - "warp"
-
-  - name: "🇺🇸 US"
-    type: select
-    proxies:
-      - "us"
-
-  - name: "🇷🇴 RO"
-    type: select
-    proxies:
-      - "ro"
-
-  - name: "🔗 RELAY"
-    type: relay
-    proxies:
-      - "warp"
-      - "us"
-
-  - name: "📍 DIRECT"
-    type: select
-    proxies:
-      - DIRECT
-
-# Iran-Optimized Rules 🇮🇷
+# Iran-Optimized Rules 
 rules:
   # Local and private networks - direct
-  - GEOIP,PRIVATE,📍 DIRECT,no-resolve
-  - GEOIP,LAN,📍 DIRECT,no-resolve
+  - GEOIP,PRIVATE,DIRECT,no-resolve
+  - GEOIP,LAN,DIRECT,no-resolve
   
   # Iranian IP addresses - direct connection
-  - GEOIP,IR,📍 DIRECT,no-resolve
+  - GEOIP,IR,DIRECT,no-resolve
   
   # Warp-plus process - direct to avoid loops
-  - PROCESS-NAME,warp-plus,📍 DIRECT
-  - PROCESS-NAME,hiddify,📍 DIRECT
+  - PROCESS-NAME,warp-plus,DIRECT
+  - PROCESS-NAME,hiddify,DIRECT
   
-  # 🔑 DNS traffic - ensure all DNS goes through proxy
-  - DST-PORT,53,🚀 PROXY
-  - DST-PORT,853,🚀 PROXY
-  - DOMAIN-SUFFIX,dns.google,🚀 PROXY
-  - DOMAIN-SUFFIX,cloudflare-dns.com,🚀 PROXY
-  - DOMAIN-SUFFIX,1.1.1.1,🚀 PROXY
+  # DNS traffic - ensure all DNS goes through proxy
+  - DST-PORT,53,PROXY
+  - DST-PORT,853,PROXY
+  - DOMAIN-SUFFIX,dns.google,PROXY
+  - DOMAIN-SUFFIX,cloudflare-dns.com,PROXY
+  - DOMAIN-SUFFIX,1.1.1.1,PROXY
   
   # Services commonly blocked in Iran - force through proxy
-  - GEOSITE,GOOGLE,🚀 PROXY
-  - GEOSITE,YOUTUBE,🚀 PROXY
-  - GEOSITE,FACEBOOK,🚀 PROXY
-  - GEOSITE,INSTAGRAM,🚀 PROXY
-  - GEOSITE,TWITTER,🚀 PROXY
-  - GEOSITE,TELEGRAM,🚀 PROXY
-  - GEOSITE,GITHUB,🚀 PROXY
-  - GEOSITE,CLOUDFLARE,🚀 PROXY
-  - GEOSITE,NETFLIX,🚀 PROXY
-  - GEOSITE,SPOTIFY,🚀 PROXY
+  - GEOSITE,GOOGLE,PROXY
+  - GEOSITE,YOUTUBE,PROXY
+  - GEOSITE,FACEBOOK,PROXY
+  - GEOSITE,INSTAGRAM,PROXY
+  - GEOSITE,TWITTER,PROXY
+  - GEOSITE,TELEGRAM,PROXY
+  - GEOSITE,GITHUB,PROXY
+  - GEOSITE,CLOUDFLARE,PROXY
+  - GEOSITE,NETFLIX,PROXY
+  - GEOSITE,SPOTIFY,PROXY
   
   # Block ads (using available rules)
   - GEOSITE,CATEGORY-ADS-ALL,REJECT
   
   # All international domains through proxy (safe for Iran)
-  - GEOSITE,GEOLOCATION-!CN,🚀 PROXY
+  - GEOSITE,GEOLOCATION-!CN,PROXY
   
   # Iranian domains and services - direct connection
-  - DOMAIN-SUFFIX,ir,📍 DIRECT
-  - DOMAIN-SUFFIX,aparat.com,📍 DIRECT
-  - DOMAIN-SUFFIX,digikala.com,📍 DIRECT
-  - DOMAIN-SUFFIX,divar.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,eitaa.com,📍 DIRECT
-  - DOMAIN-SUFFIX,rubika.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,snapp.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,zarinpal.com,📍 DIRECT
-  - DOMAIN-SUFFIX,parsian.com,📍 DIRECT
-  - DOMAIN-SUFFIX,mellat.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,bmi.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,postbank.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,shetab.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,sep.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,irna.ir,📍 DIRECT
-  - DOMAIN-SUFFIX,isna.ir,📍 DIRECT
+  - DOMAIN-SUFFIX,ir,DIRECT
+  - DOMAIN-SUFFIX,aparat.com,DIRECT
+  - DOMAIN-SUFFIX,digikala.com,DIRECT
+  - DOMAIN-SUFFIX,divar.ir,DIRECT
+  - DOMAIN-SUFFIX,eitaa.com,DIRECT
+  - DOMAIN-SUFFIX,rubika.ir,DIRECT
+  - DOMAIN-SUFFIX,snapp.ir,DIRECT
+  - DOMAIN-SUFFIX,zarinpal.com,DIRECT
+  - DOMAIN-SUFFIX,parsian.com,DIRECT
+  - DOMAIN-SUFFIX,mellat.ir,DIRECT
+  - DOMAIN-SUFFIX,bmi.ir,DIRECT
+  - DOMAIN-SUFFIX,postbank.ir,DIRECT
+  - DOMAIN-SUFFIX,shetab.ir,DIRECT
+  - DOMAIN-SUFFIX,sep.ir,DIRECT
+  - DOMAIN-SUFFIX,irna.ir,DIRECT
+  - DOMAIN-SUFFIX,isna.ir,DIRECT
   
   # Default rule - everything else through proxy for safety
-  - MATCH,🚀 PROXY
+  - MATCH,PROXY
 
-# Hosts Override for Iran 🇮🇷
+# Hosts Override for Iran 
 hosts:
   # Ensure DNS servers resolve correctly
   'dns.google': [ 8.8.8.8, 8.8.4.4 ]
