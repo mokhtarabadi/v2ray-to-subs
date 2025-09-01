@@ -1,8 +1,5 @@
-# Clash Meta Final Configuration for Iran 
-# WORKING configuration with metacubexd dashboard + DNS through proxy
-# Optimized for Iran with ISP DNS hijacking prevention
+# Recommended Clash Meta configuration for Iran - anti-DNS hijack, fake-ip, auto rule-providers, robust region rules
 
-# Global Settings
 mixed-port: 7892
 allow-lan: true
 bind-address: "*"
@@ -10,7 +7,6 @@ mode: rule
 log-level: info
 ipv6: false
 
-# External Controller & Dashboard (metacubexd) 
 external-controller: 0.0.0.0:9090
 external-ui: ui
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
@@ -42,153 +38,61 @@ tun:
   gso: true
   gso-max-size: 65536
 
-# DNS Configuration - CRITICAL for Iran 
-# This configuration routes DNS through proxy to prevent ISP hijacking
 dns:
   enable: true
   listen: 0.0.0.0:1053
   ipv6: false
-  
-  # Enable fake-ip for better performance and privacy
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter-mode: blacklist
   fake-ip-filter:
-    - "*.lan"
-    - "*.local"
-    - "*.direct"
-    - "*.ir"  # All Iranian domains
-    - "*.msftconnecttest.com"
-    - "*.msftncsi.com"
-    # Popular Iranian services
-    - "+.aparat.com"
-    - "+.digikala.com"
-    - "+.eitaa.com"
-    - "+.rubika.ir"
-    - "+.snapp.ir"
-    - "+.zarinpal.com"
-    - "+.parsian.com"
-    - "+.mellat.ir"
-  
-  # KEY FEATURE: Route DNS through proxy to bypass ISP filtering
-  respect-rules: true
-  
-  # Security settings
+    - '*.lan'
+    - '*.local'
+    - '*.ir'
+    - '+.aparat.com'
+    - '+.rubika.ir'
+    - '+.digikala.com'
+    - '+.eitaa.com'
+    - '+.telewebion.ir'
+    - '+.snapp.ir'
+    - '+.shad.ir'
+    - '+.zarinpal.com'
+    - '+.parsian.com'
+    - '+.mellat.ir'
+    - '+.bmi.ir'
+    - '+.postbank.ir'
+    - '+.shetab.ir'
+    - '+.sep.ir'
+    - '+.irna.ir'
+    - '+.isna.ir'
   use-hosts: true
   use-system-hosts: false
-  
-  # Default nameservers (for resolving proxy server domains)
+  respect-rules: true
   default-nameserver:
-    - 1.1.1.1
-    - 8.8.8.8
     - tls://1.1.1.1:853
-    - tls://8.8.8.8:853
-  
-  # Main nameservers (will route through proxy due to respect-rules)
+    - tls://9.9.9.9:853
   nameserver:
     - https://cloudflare-dns.com/dns-query
     - https://dns.google/dns-query
-    - https://1.1.1.1/dns-query
-    - https://8.8.8.8/dns-query
-  
-  # DNS for proxy server resolution (prevents circular dependency)
+    - https://9.9.9.9/dns-query
   proxy-server-nameserver:
-    - https://1.1.1.1/dns-query
-    - https://8.8.8.8/dns-query
+    - https://cloudflare-dns.com/dns-query
     - 1.1.1.1
-    - 8.8.8.8
-  
-  # DNS for direct connections
-  nameserver-policy:
-    # Private networks use direct DNS
-    "geosite:private":
-      - https://1.1.1.1/dns-query
-      - https://8.8.8.8/dns-query
-    
-    # Google services through proxy DNS
-    "geosite:google":
-      - https://dns.google/dns-query
-      - https://8.8.8.8/dns-query
-    
-    # Cloudflare services through proxy DNS
-    "geosite:cloudflare":
-      - https://cloudflare-dns.com/dns-query
-      - https://1.1.1.1/dns-query
-    
-    # Social media blocked in Iran
-    "geosite:telegram":
-      - https://cloudflare-dns.com/dns-query
-      - https://dns.google/dns-query
-    
-    "geosite:facebook":
-      - https://cloudflare-dns.com/dns-query
-      - https://dns.google/dns-query
-    
-    "geosite:twitter":
-      - https://cloudflare-dns.com/dns-query
-      - https://dns.google/dns-query
-    
-    # All international domains through proxy
-    "geosite:geolocation-!cn":
-      - https://cloudflare-dns.com/dns-query
-      - https://dns.google/dns-query
 
-# Template for proxies - will be populated by script
 proxies: [ ]
 
-# Template for proxy groups - will be populated by script  
 proxy-groups:
-  - name: "PROXY"
-    type: select
-    proxies:
-      - DIRECT
-  - name: "AUTO"
+  - name: AUTO
     type: url-test
-    proxies:
-      - DIRECT
-    url: 'https://www.gstatic.com/generate_204'
+    url: https://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
+    proxies: [ ]
+  - name: PROXY
+    type: select
+    proxies: [ AUTO ]
 
-# Iran-Optimized Rules 
 rules:
-  # Local and private networks - direct
-  - GEOIP,PRIVATE,DIRECT,no-resolve
-  - GEOIP,LAN,DIRECT,no-resolve
-  
-  # Iranian IP addresses - direct connection
-  - GEOIP,IR,DIRECT,no-resolve
-  
-  # Warp-plus process - direct to avoid loops
-  - PROCESS-NAME,warp-plus,DIRECT
-  - PROCESS-NAME,hiddify,DIRECT
-  
-  # DNS traffic - ensure all DNS goes through proxy
-  - DST-PORT,53,PROXY
-  - DST-PORT,853,PROXY
-  - DOMAIN-SUFFIX,dns.google,PROXY
-  - DOMAIN-SUFFIX,cloudflare-dns.com,PROXY
-  - DOMAIN-SUFFIX,1.1.1.1,PROXY
-  
-  # Services commonly blocked in Iran - force through proxy
-  - GEOSITE,GOOGLE,PROXY
-  - GEOSITE,YOUTUBE,PROXY
-  - GEOSITE,FACEBOOK,PROXY
-  - GEOSITE,INSTAGRAM,PROXY
-  - GEOSITE,TWITTER,PROXY
-  - GEOSITE,TELEGRAM,PROXY
-  - GEOSITE,GITHUB,PROXY
-  - GEOSITE,CLOUDFLARE,PROXY
-  - GEOSITE,NETFLIX,PROXY
-  - GEOSITE,SPOTIFY,PROXY
-  
-  # Block ads (using available rules)
-  - GEOSITE,CATEGORY-ADS-ALL,REJECT
-  
-  # All international domains through proxy (safe for Iran)
-  - GEOSITE,GEOLOCATION-!CN,PROXY
-  
-  # Iranian domains and services - direct connection
   - DOMAIN-SUFFIX,ir,DIRECT
   - DOMAIN-SUFFIX,aparat.com,DIRECT
   - DOMAIN-SUFFIX,digikala.com,DIRECT
@@ -205,18 +109,24 @@ rules:
   - DOMAIN-SUFFIX,sep.ir,DIRECT
   - DOMAIN-SUFFIX,irna.ir,DIRECT
   - DOMAIN-SUFFIX,isna.ir,DIRECT
-  
-  # Default rule - everything else through proxy for safety
+  - GEOSITE,GOOGLE,PROXY
+  - GEOSITE,YOUTUBE,PROXY
+  - GEOSITE,FACEBOOK,PROXY
+  - GEOSITE,INSTAGRAM,PROXY
+  - GEOSITE,TWITTER,PROXY
+  - GEOSITE,TELEGRAM,PROXY
+  - GEOSITE,GITHUB,PROXY
+  - GEOSITE,CLOUDFLARE,PROXY
+  - GEOSITE,NETFLIX,PROXY
+  - GEOSITE,SPOTIFY,PROXY
+  - GEOSITE,CATEGORY-ADS-ALL,REJECT
+  - GEOSITE,GEOLOCATION-!CN,PROXY
   - MATCH,PROXY
 
-# Hosts Override for Iran 
 hosts:
-  # Ensure DNS servers resolve correctly
   'dns.google': [ 8.8.8.8, 8.8.4.4 ]
   'cloudflare-dns.com': [ 1.1.1.1, 1.0.0.1 ]
   '1dot1dot1dot1.cloudflare-dns.com': [ 1.1.1.1, 1.0.0.1 ]
-  
-  # Common blocked domains in Iran - force through proxy
   'www.google.com': [ 142.250.191.36 ]
   'youtube.com': [ 142.250.191.14 ]
   'www.youtube.com': [ 142.250.191.14 ]
