@@ -1,9 +1,3 @@
-docs/
 venv/
-result_clash.yaml
-result_singbox.json
 __pycache__/
 *.pyc
-firebender.json
-clash-meta
-sing-box
