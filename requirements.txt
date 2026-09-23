@@ -1,0 +1,18 @@
+# Core dependencies
+requests>=2.31.0
+PyYAML>=6.0.1
+urllib3>=2.0.7
+
+# Optional dependencies for enhanced functionality
+cryptography>=41.0.7  # For advanced encryption support
+
+# Note: base64 and json are built-in Python standard library modules
+
+# Development dependencies (optional)
+pytest>=7.4.3
+pytest-cov>=4.1.0
+black>=23.11.0
+flake8>=6.1.0
+
+# Logging and debugging
+colorlog>=6.8.0  # Colored logging output

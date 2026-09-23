@@ -1,0 +1,1127 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "udp",
+        "server": "1.1.1.1",
+        "tag": "dns-remote"
+      },
+      {
+        "type": "udp",
+        "server": "8.8.8.8",
+        "tag": "dns-google"
+      },
+      {
+        "type": "udp",
+        "server": "223.5.5.5",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "local",
+        "tag": "dns-local"
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "prefer_ipv4",
+    "independent_cache": true
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 10808
+    },
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "address": [
+        "198.18.0.1/30"
+      ],
+      "auto_route": true,
+      "strict_route": false,
+      "stack": "system",
+      "sniff": false
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | c3505c",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "6cd78ec7-b715-471c-92b4-0c3842caea4b",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/eyJqdW5rIjoiVXRIT2UwaDUiLCJwcm90b2NvbCI6InZsIiwibW9kZSI6InByZWZpeCIsInBhbmVsSVBzIjpbIlsyNjAyOmZjNTk6YjA6NjQ6Ol0iXX0=",
+        "headers": {
+          "Host": "billowing-cloud-d339.sospanel.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "billowing-cloud-d339.sospanel.workers.dev"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | AD753A | a19820",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "b2593749-691c-428c-9481-14979cba3446",
+      "transport": {
+        "type": "ws",
+        "path": "/proxyip=us.xiabibi.cf",
+        "headers": {
+          "Host": "xi.tbv.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "xi.tbv.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 9C8FF6 | d52c79",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "5f4acc06-8cbf-4172-92d2-8f475e51f781",
+      "transport": {
+        "type": "ws",
+        "path": "/vl/qS74oZnpprf6Qgqx",
+        "headers": {
+          "Host": "p9c85ckpnai98sdljzhuwwnolmcmxw88.cdzsqje4u3ms.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "p9c85ckpnai98sdljzhuwwnolmcmxw88.cdzsqje4u3ms.workers.dev",
+        "alpn": [
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 30CA9B | a0a8f4",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "8991a496-1baa-486f-9948-ffe44e68c072",
+      "transport": {
+        "type": "ws",
+        "path": "/pyip=ProxyIP.SG.CMLiussss.net",
+        "headers": {
+          "Host": "soft-band-8da6.426.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "soft-band-8da6.426.workers.dev"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 2DC968 | fb3653",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | BFA791 | bf2e3d",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "9f44d517-29f2-4c6d-cc06-a1268f13da58",
+      "tls": {
+        "enabled": true,
+        "server_name": "kala.bestsellers1.site",
+        "alpn": [
+          "h2"
+        ]
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 575F8C | a0383b",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 26BF39 | b1e068",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "4c0b7280-76bb-495c-9c8b-f05712ebf805",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "youxuanku.kdns.fr"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "youxuanku.kdns.fr"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 38B262 | 40ff7d",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "4c0b7280-76bb-495c-9c8b-f05712ebf805",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "youxuanku.kdns.fr"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "youxuanku.kdns.fr"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 0F5978 | ab23d9",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "9952b71a-6c86-4522-888f-ff9ea9b93536",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "1.hshs8227shhshs.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "1.hshs8227shhshs.workers.dev"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 353f61",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "4c0b7280-76bb-495c-9c8b-f05712ebf805",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "youxuanku.kdns.fr"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "youxuanku.kdns.fr"
+      }
+    },
+    {
+      "tag": "[openproxylist.com] CA 5049268 | d3219c",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "US 🇺🇸 | @Raydikalx | 2e605b",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "b2593749-691c-428c-9481-14979cba3446",
+      "transport": {
+        "type": "ws",
+        "path": "/proxyip=us.xiabibi.cf",
+        "headers": {
+          "Host": "xi.tbv.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "xi.tbv.ccwu.cc"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 08e1d4",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.calmlunch.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.calmlunch.com"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 022f0f",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c18b978e-1c4e-415c-8bea-07942b563a64",
+      "transport": {
+        "type": "ws",
+        "path": "/fp=chrome",
+        "headers": {
+          "Host": "shuma.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "shuma.ccwu.cc"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | add03f",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.calmlunch.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.calmlunch.com",
+        "alpn": [
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | bb4dc1",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "b2593749-691c-428c-9481-14979cba3446",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/proxyip=us.xiabibi.cf",
+        "headers": {
+          "Host": "xi.tbv.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "xi.tbv.ccwu.cc"
+      }
+    },
+    {
+      "tag": "United+States | 9f9d93",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "34ce8760-24ed-41e7-a1f5-aa6c2660a53c",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/pyip=ProxyIP.SG.CMLiussss.net",
+        "headers": {
+          "Host": "quiet-frost-ac61.333-07d.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "quiet-frost-ac61.333-07d.workers.dev"
+      }
+    },
+    {
+      "tag": "By EbraSha 🦅 | ec3ba5",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "JP 🇯🇵 | @Raydikalx | 14fb60",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c18b978e-1c4e-415c-8bea-07942b563a64",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "shuma.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "shuma.ccwu.cc"
+      }
+    },
+    {
+      "tag": "BE 🇧🇪 | @Raydikalx | 7FD27C | ea4c14",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c18b978e-1c4e-415c-8bea-07942b563a64",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "shuma.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "shuma.ccwu.cc"
+      }
+    },
+    {
+      "tag": "US 🇺🇸 | @Raydikalx | AB1DC2 | e379c8",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c18b978e-1c4e-415c-8bea-07942b563a64",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "shuma.ccwu.cc"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "shuma.ccwu.cc"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 28a81d",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "bba95b1f-f48c-454b-897b-a6c6bc307df1",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "edge.yzkvm.top"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "edge.yzkvm.top"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 903E4E | 13f57d",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "47fcef29-ab4e-4aa6-932b-d95a18f28a4e",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "e34bq.oa9r.zl3.hh.vavava.kdns.fr"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "e34bq.oa9r.zl3.hh.vavava.kdns.fr"
+      }
+    },
+    {
+      "tag": "DE 🇩🇪 | @Raydikalx | 7DF8AC | 7a9d94",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "bba95b1f-f48c-454b-897b-a6c6bc307df1",
+      "transport": {
+        "type": "ws",
+        "path": "/fp=chrome",
+        "headers": {
+          "Host": "edge.yzkvm.top"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "edge.yzkvm.top"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 26F144 | 2188c3",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "3c6d1933-b22a-484b-ac8a-63e24f5fba75",
+      "transport": {
+        "type": "ws",
+        "path": "/ujhgfytsrtw563675eud",
+        "headers": {
+          "Host": "server14.9966338.xyz"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "server14.9966338.xyz"
+      }
+    },
+    {
+      "tag": ">>@freeland8::FR | d35f86",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "//assignment",
+        "headers": {
+          "Host": "www.calmlunch.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.calmlunch.com"
+      }
+    },
+    {
+      "tag": "AU 🇦🇺 | @Raydikalx | F56B4F | fe0c08",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "8be20011-59b1-4118-91ed-83e8e6b662cd",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "f.yoptybla.ru"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "f.yoptybla.ru"
+      }
+    },
+    {
+      "tag": "🇩🇪179Mb | Senko Digital | 17275e",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "523e85fa-82b2-4ca5-9ff5-a734a4510197",
+      "tls": {
+        "enabled": true,
+        "server_name": "assets-de1.mirolit.ru"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 76b82a",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.calmlunch.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.calmlunch.com"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 0e3d4f",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "faxf32gkfzoxqv.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 4DE122 | 986b15",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 5BE41E | f23ac1",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "fx3l5i2wdfxln0.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "fx3l5i2wdfxln0.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 4DE122 | b6a927",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77777777-8a3e-6666-b6d1-a9c5f0e8b3a2",
+      "transport": {
+        "type": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+        },
+        "max_early_data": 2560
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "fx3h2kf8xn.fx6hsv0.ccwu.cc"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 51B6CF | 3da173",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "77dc177b-79d9-49ac-92e1-2f1011faa5e3",
+      "transport": {
+        "type": "ws",
+        "path": "/api/v2/b8ee4ba356df307c/stream",
+        "headers": {
+          "Host": "f871a986.69lover.site"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "f871a986.69lover.site",
+        "alpn": [
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | e776a6",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "4e4f1f70-5e56-4a76-bb9d-db087f4690c4",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/tyxyws",
+        "headers": {
+          "Host": "jp3.yohototo.top"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "jp3.yohototo.top"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 703016",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.ignitelimit.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.ignitelimit.com"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 32B6D3 | ada968",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "fd6fb48f-b324-4a82-9dcd-f8bdb1bd5301",
+      "tls": {
+        "enabled": true,
+        "server_name": "denet1.17e1feeuzi.online",
+        "alpn": [
+          "h2"
+        ]
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 3F5E1A | 8f3ebf",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c47eb7ab-2c2d-44e0-80cc-bb104f89a137",
+      "transport": {
+        "type": "ws",
+        "path": "/tunnel",
+        "headers": {
+          "Host": "www.terence-tunnel.org"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.terence-tunnel.org"
+      }
+    },
+    {
+      "tag": "🇫🇷 - FR - @FreeOnlineVPN | 4a49fb",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.calmlunch.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.calmlunch.com"
+      }
+    },
+    {
+      "tag": "🏳[openproxylist.com] trojan- | 890f1d",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.volumeroot.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.volumeroot.com"
+      }
+    },
+    {
+      "tag": "US 🇺🇸 | @Raydikalx | EDC5EE | 401641",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "4e4f1f70-5e56-4a76-bb9d-db087f4690c4",
+      "transport": {
+        "type": "ws",
+        "path": "/tyxyws",
+        "headers": {
+          "Host": "jp3.yohototo.top"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "jp3.yohototo.top"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | D06334 | 2aa478",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c4edb87e-8544-4fa4-bd1c-b0cda9a34b46",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/ws",
+        "headers": {
+          "Host": "a.cwvps.eu.org"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "a.cwvps.eu.org"
+      }
+    },
+    {
+      "tag": "By EbraSha 🧬 | 3d7373",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "91d28760-ecf1-450b-9170-d310111a0e6d",
+      "transport": {
+        "type": "ws",
+        "path": "/api/v2/63e9687fa53e441c/stream",
+        "headers": {
+          "Host": "us9.69lover.my"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "us9.69lover.my",
+        "alpn": [
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "tag": "US 🇺🇸 | @Raydikalx | FB0008 | 8da267",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.ignitelimit.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.ignitelimit.com"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 91DD24 | f97024",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c4edb87e-8544-4fa4-bd1c-b0cda9a34b46",
+      "transport": {
+        "type": "ws",
+        "path": "/ws",
+        "headers": {
+          "Host": "a.cwvps.eu.org"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "a.cwvps.eu.org"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | B6DF98 | b19f1e",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "7a657573-627d-c5d7-4e7b-9e260f5cfff1",
+      "transport": {
+        "type": "ws",
+        "path": "/stream/PANEL_ZEUS/9e260f5cfff1/loc-0",
+        "headers": {
+          "Host": "imzajnekupas.a3-60-morteza.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "imzajnekupas.a3-60-morteza.workers.dev"
+      }
+    },
+    {
+      "tag": "@DeltaKroneckerGithub | 2b3a78",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "b585dc5e-55bf-4a8b-913a-27c9ccac05c3",
+      "transport": {
+        "type": "ws",
+        "path": "/vws/",
+        "headers": {
+          "Host": "bab-6.site"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "bab-6.site"
+      }
+    },
+    {
+      "tag": "49. 🇺🇸 United States | b4764a",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c4edb87e-8544-4fa4-bd1c-b0cda9a34b46",
+      "transport": {
+        "type": "ws",
+        "path": "/ws#/?TELEGRAM--MARAMBASHI--MARAMBASHI?ed=512",
+        "headers": {
+          "Host": "a.cwvps.eu.org"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "a.cwvps.eu.org"
+      }
+    },
+    {
+      "tag": "CA 🇨🇦 | @Raydikalx | 774ACE | 794d5b",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "//assignment",
+        "headers": {
+          "Host": "www.ignitelimit.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.ignitelimit.com"
+      }
+    },
+    {
+      "tag": "By EbraSha ♠️ | ad7869",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "trojan",
+      "password": "humanity",
+      "transport": {
+        "type": "ws",
+        "path": "/assignment",
+        "headers": {
+          "Host": "www.ignitelimit.com"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.ignitelimit.com",
+        "alpn": [
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "tag": "69. 🇺🇸 United States | f737fb",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "c4edb87e-8544-4fa4-bd1c-b0cda9a34b46",
+      "packet_encoding": "xudp",
+      "transport": {
+        "type": "ws",
+        "path": "/ws",
+        "headers": {
+          "Host": "a.cwvps.eu.org"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "a.cwvps.eu.org"
+      }
+    },
+    {
+      "tag": "By EbraSha ⛓️ | 339789",
+      "server": "188.114.97.6",
+      "server_port": 443,
+      "type": "vless",
+      "uuid": "828aa918-2ed3-4541-8519-083f9efeaaf7",
+      "transport": {
+        "type": "ws",
+        "path": "/pyip=proxyip.us.cmliussss.net",
+        "headers": {
+          "Host": "icy-hall-bfba.266-f4e.workers.dev"
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "icy-hall-bfba.266-f4e.workers.dev"
+      }
+    },
+    {
+      "type": "urltest",
+      "tag": "auto",
+      "outbounds": [
+        "@DeltaKroneckerGithub | c3505c",
+        "CA 🇨🇦 | @Raydikalx | AD753A | a19820",
+        "CA 🇨🇦 | @Raydikalx | 9C8FF6 | d52c79",
+        "CA 🇨🇦 | @Raydikalx | 30CA9B | a0a8f4",
+        "CA 🇨🇦 | @Raydikalx | 2DC968 | fb3653",
+        "CA 🇨🇦 | @Raydikalx | BFA791 | bf2e3d",
+        "CA 🇨🇦 | @Raydikalx | 575F8C | a0383b",
+        "CA 🇨🇦 | @Raydikalx | 26BF39 | b1e068",
+        "CA 🇨🇦 | @Raydikalx | 38B262 | 40ff7d",
+        "CA 🇨🇦 | @Raydikalx | 0F5978 | ab23d9",
+        "@DeltaKroneckerGithub | 353f61",
+        "[openproxylist.com] CA 5049268 | d3219c",
+        "US 🇺🇸 | @Raydikalx | 2e605b",
+        "@DeltaKroneckerGithub | 08e1d4",
+        "@DeltaKroneckerGithub | 022f0f",
+        "@DeltaKroneckerGithub | add03f",
+        "@DeltaKroneckerGithub | bb4dc1",
+        "United+States | 9f9d93",
+        "By EbraSha 🦅 | ec3ba5",
+        "JP 🇯🇵 | @Raydikalx | 14fb60",
+        "BE 🇧🇪 | @Raydikalx | 7FD27C | ea4c14",
+        "US 🇺🇸 | @Raydikalx | AB1DC2 | e379c8",
+        "@DeltaKroneckerGithub | 28a81d",
+        "CA 🇨🇦 | @Raydikalx | 903E4E | 13f57d",
+        "DE 🇩🇪 | @Raydikalx | 7DF8AC | 7a9d94",
+        "CA 🇨🇦 | @Raydikalx | 26F144 | 2188c3",
+        ">>@freeland8::FR | d35f86",
+        "AU 🇦🇺 | @Raydikalx | F56B4F | fe0c08",
+        "🇩🇪179Mb | Senko Digital | 17275e",
+        "@DeltaKroneckerGithub | 76b82a",
+        "CA 🇨🇦 | @Raydikalx | 0e3d4f",
+        "CA 🇨🇦 | @Raydikalx | 4DE122 | 986b15",
+        "CA 🇨🇦 | @Raydikalx | 5BE41E | f23ac1",
+        "CA 🇨🇦 | @Raydikalx | 4DE122 | b6a927",
+        "CA 🇨🇦 | @Raydikalx | 51B6CF | 3da173",
+        "@DeltaKroneckerGithub | e776a6",
+        "CA 🇨🇦 | @Raydikalx | 703016",
+        "CA 🇨🇦 | @Raydikalx | 32B6D3 | ada968",
+        "CA 🇨🇦 | @Raydikalx | 3F5E1A | 8f3ebf",
+        "🇫🇷 - FR - @FreeOnlineVPN | 4a49fb",
+        "🏳[openproxylist.com] trojan- | 890f1d",
+        "US 🇺🇸 | @Raydikalx | EDC5EE | 401641",
+        "CA 🇨🇦 | @Raydikalx | D06334 | 2aa478",
+        "By EbraSha 🧬 | 3d7373",
+        "US 🇺🇸 | @Raydikalx | FB0008 | 8da267",
+        "CA 🇨🇦 | @Raydikalx | 91DD24 | f97024",
+        "CA 🇨🇦 | @Raydikalx | B6DF98 | b19f1e",
+        "@DeltaKroneckerGithub | 2b3a78",
+        "49. 🇺🇸 United States | b4764a",
+        "CA 🇨🇦 | @Raydikalx | 774ACE | 794d5b",
+        "By EbraSha ♠️ | ad7869",
+        "69. 🇺🇸 United States | f737fb",
+        "By EbraSha ⛓️ | 339789"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "action": "route",
+        "outbound": "direct",
+        "ip_cidr": [
+          "127.0.0.0/8",
+          "10.0.0.0/8",
+          "172.16.0.0/12",
+          "192.168.0.0/16",
+          "100.64.0.0/10",
+          "198.18.0.0/15",
+          "::1/128",
+          "fc00::/7",
+          "fe80::/10"
+        ]
+      },
+      {
+        "action": "route",
+        "outbound": "direct",
+        "domain_suffix": [
+          ".ir"
+        ]
+      }
+    ],
+    "final": "auto",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-remote"
+  }
+}

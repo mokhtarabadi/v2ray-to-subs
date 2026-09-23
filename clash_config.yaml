@@ -1,0 +1,1200 @@
+# profile-title: Patterniha-F
+# profile-web-page-url: https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt
+# profile-update-interval: 1
+mixed-port: 10808
+allow-lan: true
+bind-address: '*'
+mode: rule
+log-level: info
+ipv6: false
+external-controller: 127.0.0.1:9090
+unified-delay: true
+tcp-concurrent: true
+find-process-mode: strict
+geox-url:
+  geoip: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
+  geosite: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
+  mmdb: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb
+  asn: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb
+geo-auto-update: true
+geo-update-interval: 24
+profile:
+  store-selected: true
+  store-fake-ip: true
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+  - '*.lan'
+  - '*.local'
+  - +.msftconnecttest.com
+  - +.msftncsi.com
+  - time.*.com
+  - ntp.*.com
+  - +.pool.ntp.org
+  - time.windows.com
+  - detectportal.firefox.com
+  - connectivitycheck.gstatic.com
+  - +.stun.*.*
+  - +.stun.*.*.*
+  default-nameserver:
+  - 1.1.1.1
+  - 8.8.8.8
+  nameserver:
+  - https://1.1.1.1/dns-query
+  - https://8.8.8.8/dns-query
+  - https://dns.quad9.net/dns-query
+  proxy-server-nameserver:
+  - 1.1.1.1
+  - 8.8.8.8
+  nameserver-policy:
+    geosite:category-ads-all: rcode://success
+    +.ir: https://dns.alidns.com/dns-query
+tun:
+  enable: true
+  stack: mixed
+  auto-route: true
+  auto-detect-interface: true
+  dns-hijack:
+  - any:53
+  strict-route: false
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports:
+      - 80
+      - 8080
+      - 8880
+    TLS:
+      ports:
+      - 443
+      - 8443
+    QUIC:
+      ports:
+      - 443
+      - 8443
+  skip-domain:
+  - Mijia Cloud
+  - +.market.xiaomi.com
+proxies:
+- name: '@DeltaKroneckerGithub | c3505c'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 6cd78ec7-b715-471c-92b4-0c3842caea4b
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /eyJqdW5rIjoiVXRIT2UwaDUiLCJwcm90b2NvbCI6InZsIiwibW9kZSI6InByZWZpeCIsInBhbmVsSVBzIjpbIlsyNjAyOmZjNTk6YjA6NjQ6Ol0iXX0=
+    headers:
+      Host: billowing-cloud-d339.sospanel.workers.dev
+  tls: true
+  servername: billowing-cloud-d339.sospanel.workers.dev
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | AD753A | a19820
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: b2593749-691c-428c-9481-14979cba3446
+  network: ws
+  ws-opts:
+    path: /proxyip=us.xiabibi.cf
+    headers:
+      Host: xi.tbv.ccwu.cc
+  tls: true
+  servername: xi.tbv.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 9C8FF6 | d52c79
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 5f4acc06-8cbf-4172-92d2-8f475e51f781
+  network: ws
+  ws-opts:
+    path: /vl/qS74oZnpprf6Qgqx
+    headers:
+      Host: p9c85ckpnai98sdljzhuwwnolmcmxw88.cdzsqje4u3ms.workers.dev
+  tls: true
+  servername: p9c85ckpnai98sdljzhuwwnolmcmxw88.cdzsqje4u3ms.workers.dev
+  client-fingerprint: none
+  alpn:
+  - http/1.1
+- name: CA 🇨🇦 | @Raydikalx | 30CA9B | a0a8f4
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 8991a496-1baa-486f-9948-ffe44e68c072
+  network: ws
+  ws-opts:
+    path: /pyip=ProxyIP.SG.CMLiussss.net
+    headers:
+      Host: soft-band-8da6.426.workers.dev
+  tls: true
+  servername: soft-band-8da6.426.workers.dev
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 2DC968 | fb3653
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: fx3h2kf8xn.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: fx3h2kf8xn.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | BFA791 | bf2e3d
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 9f44d517-29f2-4c6d-cc06-a1268f13da58
+  network: xhttp
+  xhttp-opts:
+    path: /Meh?di=443
+    host: kala.bestsellers1.site
+    mode: auto
+    extra:
+      scMaxBufferedPosts: 30
+      scMaxEachPostBytes: '1000000'
+      scStreamUpServerSecs: 20-80
+      xPaddingBytes: 100-1000
+      scMinPostsIntervalMs: '30'
+      xmux:
+        maxConcurrency: 16-32
+        maxConnections: 0
+        cMaxReuseTimes: 0
+        hMaxRequestTimes: 600-900
+        hMaxReusableSecs: 1800-3000
+        hKeepAlivePeriod: 0
+  tls: true
+  servername: kala.bestsellers1.site
+  client-fingerprint: none
+  alpn:
+  - h2
+- name: CA 🇨🇦 | @Raydikalx | 575F8C | a0383b
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 26BF39 | b1e068
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 4c0b7280-76bb-495c-9c8b-f05712ebf805
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: youxuanku.kdns.fr
+  tls: true
+  servername: youxuanku.kdns.fr
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 38B262 | 40ff7d
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 4c0b7280-76bb-495c-9c8b-f05712ebf805
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: youxuanku.kdns.fr
+  tls: true
+  servername: youxuanku.kdns.fr
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 0F5978 | ab23d9
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 9952b71a-6c86-4522-888f-ff9ea9b93536
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: 1.hshs8227shhshs.workers.dev
+  tls: true
+  servername: 1.hshs8227shhshs.workers.dev
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 353f61'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 4c0b7280-76bb-495c-9c8b-f05712ebf805
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: youxuanku.kdns.fr
+  tls: true
+  servername: youxuanku.kdns.fr
+  client-fingerprint: none
+- name: '[openproxylist.com] CA 5049268 | d3219c'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: fx3h2kf8xn.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: fx3h2kf8xn.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: US 🇺🇸 | @Raydikalx | 2e605b
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: b2593749-691c-428c-9481-14979cba3446
+  network: ws
+  ws-opts:
+    path: /proxyip=us.xiabibi.cf
+    headers:
+      Host: xi.tbv.ccwu.cc
+  tls: true
+  servername: xi.tbv.ccwu.cc
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 08e1d4'
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.calmlunch.com
+  tls: true
+  servername: www.calmlunch.com
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 022f0f'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c18b978e-1c4e-415c-8bea-07942b563a64
+  network: ws
+  ws-opts:
+    path: /fp=chrome
+    headers:
+      Host: shuma.ccwu.cc
+  tls: true
+  servername: shuma.ccwu.cc
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | add03f'
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.calmlunch.com
+  tls: true
+  servername: www.calmlunch.com
+  client-fingerprint: none
+  alpn:
+  - http/1.1
+- name: '@DeltaKroneckerGithub | bb4dc1'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: b2593749-691c-428c-9481-14979cba3446
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /proxyip=us.xiabibi.cf
+    headers:
+      Host: xi.tbv.ccwu.cc
+  tls: true
+  servername: xi.tbv.ccwu.cc
+  client-fingerprint: none
+- name: United+States | 9f9d93
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 34ce8760-24ed-41e7-a1f5-aa6c2660a53c
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /pyip=ProxyIP.SG.CMLiussss.net
+    headers:
+      Host: quiet-frost-ac61.333-07d.workers.dev
+  tls: true
+  servername: quiet-frost-ac61.333-07d.workers.dev
+  client-fingerprint: none
+- name: By EbraSha 🦅 | ec3ba5
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: JP 🇯🇵 | @Raydikalx | 14fb60
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c18b978e-1c4e-415c-8bea-07942b563a64
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: shuma.ccwu.cc
+  tls: true
+  servername: shuma.ccwu.cc
+  client-fingerprint: none
+- name: BE 🇧🇪 | @Raydikalx | 7FD27C | ea4c14
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c18b978e-1c4e-415c-8bea-07942b563a64
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: shuma.ccwu.cc
+  tls: true
+  servername: shuma.ccwu.cc
+  client-fingerprint: none
+- name: US 🇺🇸 | @Raydikalx | AB1DC2 | e379c8
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c18b978e-1c4e-415c-8bea-07942b563a64
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: shuma.ccwu.cc
+  tls: true
+  servername: shuma.ccwu.cc
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 28a81d'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: bba95b1f-f48c-454b-897b-a6c6bc307df1
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: edge.yzkvm.top
+  tls: true
+  servername: edge.yzkvm.top
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 903E4E | 13f57d
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 47fcef29-ab4e-4aa6-932b-d95a18f28a4e
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: e34bq.oa9r.zl3.hh.vavava.kdns.fr
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: e34bq.oa9r.zl3.hh.vavava.kdns.fr
+  client-fingerprint: none
+- name: DE 🇩🇪 | @Raydikalx | 7DF8AC | 7a9d94
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: bba95b1f-f48c-454b-897b-a6c6bc307df1
+  network: ws
+  ws-opts:
+    path: /fp=chrome
+    headers:
+      Host: edge.yzkvm.top
+  tls: true
+  servername: edge.yzkvm.top
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 26F144 | 2188c3
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 3c6d1933-b22a-484b-ac8a-63e24f5fba75
+  network: ws
+  ws-opts:
+    path: /ujhgfytsrtw563675eud
+    headers:
+      Host: server14.9966338.xyz
+  tls: true
+  servername: server14.9966338.xyz
+  client-fingerprint: none
+- name: '>>@freeland8::FR | d35f86'
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: //assignment
+    headers:
+      Host: www.calmlunch.com
+  tls: true
+  servername: www.calmlunch.com
+  client-fingerprint: none
+- name: AU 🇦🇺 | @Raydikalx | F56B4F | fe0c08
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 8be20011-59b1-4118-91ed-83e8e6b662cd
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: f.yoptybla.ru
+  tls: true
+  servername: f.yoptybla.ru
+  client-fingerprint: none
+- name: 🇩🇪179Mb | Senko Digital | 17275e
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 523e85fa-82b2-4ca5-9ff5-a734a4510197
+  network: xhttp
+  xhttp-opts:
+    path: /api/v1/7ad9078af72be1d6fe012b0f2ebe9248/
+    host: assets-de1.mirolit.ru
+    mode: packet-up
+  tls: true
+  servername: assets-de1.mirolit.ru
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 76b82a'
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.calmlunch.com
+  tls: true
+  servername: www.calmlunch.com
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 0e3d4f
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: faxf32gkfzoxqv.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 4DE122 | 986b15
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: fx3h2kf8xn.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: fx3h2kf8xn.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 5BE41E | f23ac1
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: fx3l5i2wdfxln0.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: fx3l5i2wdfxln0.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 4DE122 | b6a927
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77777777-8a3e-6666-b6d1-a9c5f0e8b3a2
+  network: ws
+  ws-opts:
+    path: /
+    headers:
+      Host: fx3h2kf8xn.fx6hsv0.ccwu.cc
+    max-early-data: 2560
+    early-data-header-name: Sec-WebSocket-Protocol
+  tls: true
+  servername: fx3h2kf8xn.fx6hsv0.ccwu.cc
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 51B6CF | 3da173
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 77dc177b-79d9-49ac-92e1-2f1011faa5e3
+  network: ws
+  ws-opts:
+    path: /api/v2/b8ee4ba356df307c/stream
+    headers:
+      Host: f871a986.69lover.site
+  tls: true
+  servername: f871a986.69lover.site
+  client-fingerprint: none
+  alpn:
+  - http/1.1
+- name: '@DeltaKroneckerGithub | e776a6'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 4e4f1f70-5e56-4a76-bb9d-db087f4690c4
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /tyxyws
+    headers:
+      Host: jp3.yohototo.top
+  tls: true
+  servername: jp3.yohototo.top
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 703016
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.ignitelimit.com
+  tls: true
+  servername: www.ignitelimit.com
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 32B6D3 | ada968
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: fd6fb48f-b324-4a82-9dcd-f8bdb1bd5301
+  network: xhttp
+  xhttp-opts:
+    path: /meti
+    host: denet1.17e1feeuzi.online
+    mode: stream-one
+  tls: true
+  servername: denet1.17e1feeuzi.online
+  client-fingerprint: none
+  alpn:
+  - h2
+- name: CA 🇨🇦 | @Raydikalx | 3F5E1A | 8f3ebf
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c47eb7ab-2c2d-44e0-80cc-bb104f89a137
+  network: ws
+  ws-opts:
+    path: /tunnel
+    headers:
+      Host: www.terence-tunnel.org
+  tls: true
+  servername: www.terence-tunnel.org
+  client-fingerprint: none
+- name: 🇫🇷 - FR - @FreeOnlineVPN | 4a49fb
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.calmlunch.com
+  tls: true
+  servername: www.calmlunch.com
+  client-fingerprint: none
+- name: 🏳[openproxylist.com] trojan- | 890f1d
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.volumeroot.com
+  tls: true
+  servername: www.volumeroot.com
+  client-fingerprint: none
+- name: US 🇺🇸 | @Raydikalx | EDC5EE | 401641
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 4e4f1f70-5e56-4a76-bb9d-db087f4690c4
+  network: ws
+  ws-opts:
+    path: /tyxyws
+    headers:
+      Host: jp3.yohototo.top
+  tls: true
+  servername: jp3.yohototo.top
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | D06334 | 2aa478
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c4edb87e-8544-4fa4-bd1c-b0cda9a34b46
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /ws
+    headers:
+      Host: a.cwvps.eu.org
+  tls: true
+  servername: a.cwvps.eu.org
+  client-fingerprint: none
+- name: By EbraSha 🧬 | 3d7373
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 91d28760-ecf1-450b-9170-d310111a0e6d
+  network: ws
+  ws-opts:
+    path: /api/v2/63e9687fa53e441c/stream
+    headers:
+      Host: us9.69lover.my
+  tls: true
+  servername: us9.69lover.my
+  client-fingerprint: none
+  alpn:
+  - http/1.1
+- name: US 🇺🇸 | @Raydikalx | FB0008 | 8da267
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.ignitelimit.com
+  tls: true
+  servername: www.ignitelimit.com
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 91DD24 | f97024
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c4edb87e-8544-4fa4-bd1c-b0cda9a34b46
+  network: ws
+  ws-opts:
+    path: /ws
+    headers:
+      Host: a.cwvps.eu.org
+  tls: true
+  servername: a.cwvps.eu.org
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | B6DF98 | b19f1e
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 7a657573-627d-c5d7-4e7b-9e260f5cfff1
+  network: ws
+  ws-opts:
+    path: /stream/PANEL_ZEUS/9e260f5cfff1/loc-0
+    headers:
+      Host: imzajnekupas.a3-60-morteza.workers.dev
+  tls: true
+  servername: imzajnekupas.a3-60-morteza.workers.dev
+  client-fingerprint: none
+- name: '@DeltaKroneckerGithub | 2b3a78'
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: b585dc5e-55bf-4a8b-913a-27c9ccac05c3
+  network: ws
+  ws-opts:
+    path: /vws/
+    headers:
+      Host: bab-6.site
+  tls: true
+  servername: bab-6.site
+  client-fingerprint: none
+- name: 49. 🇺🇸 United States | b4764a
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c4edb87e-8544-4fa4-bd1c-b0cda9a34b46
+  network: ws
+  ws-opts:
+    path: /ws#/?TELEGRAM--MARAMBASHI--MARAMBASHI?ed=512
+    headers:
+      Host: a.cwvps.eu.org
+  tls: true
+  servername: a.cwvps.eu.org
+  client-fingerprint: none
+- name: CA 🇨🇦 | @Raydikalx | 774ACE | 794d5b
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: //assignment
+    headers:
+      Host: www.ignitelimit.com
+  tls: true
+  servername: www.ignitelimit.com
+  client-fingerprint: none
+- name: By EbraSha ♠️ | ad7869
+  type: trojan
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  password: humanity
+  network: ws
+  ws-opts:
+    path: /assignment
+    headers:
+      Host: www.ignitelimit.com
+  tls: true
+  servername: www.ignitelimit.com
+  client-fingerprint: none
+  alpn:
+  - http/1.1
+- name: 69. 🇺🇸 United States | f737fb
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: c4edb87e-8544-4fa4-bd1c-b0cda9a34b46
+  packet-encoding: xudp
+  network: ws
+  ws-opts:
+    path: /ws
+    headers:
+      Host: a.cwvps.eu.org
+  tls: true
+  servername: a.cwvps.eu.org
+  client-fingerprint: none
+- name: By EbraSha ⛓️ | 339789
+  type: vless
+  server: 188.114.97.6
+  port: 443
+  udp: true
+  uuid: 828aa918-2ed3-4541-8519-083f9efeaaf7
+  network: ws
+  ws-opts:
+    path: /pyip=proxyip.us.cmliussss.net
+    headers:
+      Host: icy-hall-bfba.266-f4e.workers.dev
+  tls: true
+  servername: icy-hall-bfba.266-f4e.workers.dev
+  client-fingerprint: none
+proxy-groups:
+- name: PROXY
+  type: select
+  proxies:
+  - Auto
+  - Load Balance
+  - Fallback
+  - '@DeltaKroneckerGithub | c3505c'
+  - CA 🇨🇦 | @Raydikalx | AD753A | a19820
+  - CA 🇨🇦 | @Raydikalx | 9C8FF6 | d52c79
+  - CA 🇨🇦 | @Raydikalx | 30CA9B | a0a8f4
+  - CA 🇨🇦 | @Raydikalx | 2DC968 | fb3653
+  - CA 🇨🇦 | @Raydikalx | BFA791 | bf2e3d
+  - CA 🇨🇦 | @Raydikalx | 575F8C | a0383b
+  - CA 🇨🇦 | @Raydikalx | 26BF39 | b1e068
+  - CA 🇨🇦 | @Raydikalx | 38B262 | 40ff7d
+  - CA 🇨🇦 | @Raydikalx | 0F5978 | ab23d9
+  - '@DeltaKroneckerGithub | 353f61'
+  - '[openproxylist.com] CA 5049268 | d3219c'
+  - US 🇺🇸 | @Raydikalx | 2e605b
+  - '@DeltaKroneckerGithub | 08e1d4'
+  - '@DeltaKroneckerGithub | 022f0f'
+  - '@DeltaKroneckerGithub | add03f'
+  - '@DeltaKroneckerGithub | bb4dc1'
+  - United+States | 9f9d93
+  - By EbraSha 🦅 | ec3ba5
+  - JP 🇯🇵 | @Raydikalx | 14fb60
+  - BE 🇧🇪 | @Raydikalx | 7FD27C | ea4c14
+  - US 🇺🇸 | @Raydikalx | AB1DC2 | e379c8
+  - '@DeltaKroneckerGithub | 28a81d'
+  - CA 🇨🇦 | @Raydikalx | 903E4E | 13f57d
+  - DE 🇩🇪 | @Raydikalx | 7DF8AC | 7a9d94
+  - CA 🇨🇦 | @Raydikalx | 26F144 | 2188c3
+  - '>>@freeland8::FR | d35f86'
+  - AU 🇦🇺 | @Raydikalx | F56B4F | fe0c08
+  - 🇩🇪179Mb | Senko Digital | 17275e
+  - '@DeltaKroneckerGithub | 76b82a'
+  - CA 🇨🇦 | @Raydikalx | 0e3d4f
+  - CA 🇨🇦 | @Raydikalx | 4DE122 | 986b15
+  - CA 🇨🇦 | @Raydikalx | 5BE41E | f23ac1
+  - CA 🇨🇦 | @Raydikalx | 4DE122 | b6a927
+  - CA 🇨🇦 | @Raydikalx | 51B6CF | 3da173
+  - '@DeltaKroneckerGithub | e776a6'
+  - CA 🇨🇦 | @Raydikalx | 703016
+  - CA 🇨🇦 | @Raydikalx | 32B6D3 | ada968
+  - CA 🇨🇦 | @Raydikalx | 3F5E1A | 8f3ebf
+  - 🇫🇷 - FR - @FreeOnlineVPN | 4a49fb
+  - 🏳[openproxylist.com] trojan- | 890f1d
+  - US 🇺🇸 | @Raydikalx | EDC5EE | 401641
+  - CA 🇨🇦 | @Raydikalx | D06334 | 2aa478
+  - By EbraSha 🧬 | 3d7373
+  - US 🇺🇸 | @Raydikalx | FB0008 | 8da267
+  - CA 🇨🇦 | @Raydikalx | 91DD24 | f97024
+  - CA 🇨🇦 | @Raydikalx | B6DF98 | b19f1e
+  - '@DeltaKroneckerGithub | 2b3a78'
+  - 49. 🇺🇸 United States | b4764a
+  - CA 🇨🇦 | @Raydikalx | 774ACE | 794d5b
+  - By EbraSha ♠️ | ad7869
+  - 69. 🇺🇸 United States | f737fb
+  - By EbraSha ⛓️ | 339789
+  icon: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/mmdb/release/flag/Country-IR.svg
+- name: Auto
+  type: url-test
+  proxies: &id001
+  - '@DeltaKroneckerGithub | c3505c'
+  - CA 🇨🇦 | @Raydikalx | AD753A | a19820
+  - CA 🇨🇦 | @Raydikalx | 9C8FF6 | d52c79
+  - CA 🇨🇦 | @Raydikalx | 30CA9B | a0a8f4
+  - CA 🇨🇦 | @Raydikalx | 2DC968 | fb3653
+  - CA 🇨🇦 | @Raydikalx | BFA791 | bf2e3d
+  - CA 🇨🇦 | @Raydikalx | 575F8C | a0383b
+  - CA 🇨🇦 | @Raydikalx | 26BF39 | b1e068
+  - CA 🇨🇦 | @Raydikalx | 38B262 | 40ff7d
+  - CA 🇨🇦 | @Raydikalx | 0F5978 | ab23d9
+  - '@DeltaKroneckerGithub | 353f61'
+  - '[openproxylist.com] CA 5049268 | d3219c'
+  - US 🇺🇸 | @Raydikalx | 2e605b
+  - '@DeltaKroneckerGithub | 08e1d4'
+  - '@DeltaKroneckerGithub | 022f0f'
+  - '@DeltaKroneckerGithub | add03f'
+  - '@DeltaKroneckerGithub | bb4dc1'
+  - United+States | 9f9d93
+  - By EbraSha 🦅 | ec3ba5
+  - JP 🇯🇵 | @Raydikalx | 14fb60
+  - BE 🇧🇪 | @Raydikalx | 7FD27C | ea4c14
+  - US 🇺🇸 | @Raydikalx | AB1DC2 | e379c8
+  - '@DeltaKroneckerGithub | 28a81d'
+  - CA 🇨🇦 | @Raydikalx | 903E4E | 13f57d
+  - DE 🇩🇪 | @Raydikalx | 7DF8AC | 7a9d94
+  - CA 🇨🇦 | @Raydikalx | 26F144 | 2188c3
+  - '>>@freeland8::FR | d35f86'
+  - AU 🇦🇺 | @Raydikalx | F56B4F | fe0c08
+  - 🇩🇪179Mb | Senko Digital | 17275e
+  - '@DeltaKroneckerGithub | 76b82a'
+  - CA 🇨🇦 | @Raydikalx | 0e3d4f
+  - CA 🇨🇦 | @Raydikalx | 4DE122 | 986b15
+  - CA 🇨🇦 | @Raydikalx | 5BE41E | f23ac1
+  - CA 🇨🇦 | @Raydikalx | 4DE122 | b6a927
+  - CA 🇨🇦 | @Raydikalx | 51B6CF | 3da173
+  - '@DeltaKroneckerGithub | e776a6'
+  - CA 🇨🇦 | @Raydikalx | 703016
+  - CA 🇨🇦 | @Raydikalx | 32B6D3 | ada968
+  - CA 🇨🇦 | @Raydikalx | 3F5E1A | 8f3ebf
+  - 🇫🇷 - FR - @FreeOnlineVPN | 4a49fb
+  - 🏳[openproxylist.com] trojan- | 890f1d
+  - US 🇺🇸 | @Raydikalx | EDC5EE | 401641
+  - CA 🇨🇦 | @Raydikalx | D06334 | 2aa478
+  - By EbraSha 🧬 | 3d7373
+  - US 🇺🇸 | @Raydikalx | FB0008 | 8da267
+  - CA 🇨🇦 | @Raydikalx | 91DD24 | f97024
+  - CA 🇨🇦 | @Raydikalx | B6DF98 | b19f1e
+  - '@DeltaKroneckerGithub | 2b3a78'
+  - 49. 🇺🇸 United States | b4764a
+  - CA 🇨🇦 | @Raydikalx | 774ACE | 794d5b
+  - By EbraSha ♠️ | ad7869
+  - 69. 🇺🇸 United States | f737fb
+  - By EbraSha ⛓️ | 339789
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  tolerance: 50
+  lazy: true
+- name: Load Balance
+  type: load-balance
+  proxies: *id001
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  strategy: round-robin
+  lazy: true
+- name: Fallback
+  type: fallback
+  proxies: *id001
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  lazy: true
+rules:
+- IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+- IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+- IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+- IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+- IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+- IP-CIDR,198.18.0.0/15,DIRECT,no-resolve
+- IP-CIDR6,::1/128,DIRECT,no-resolve
+- IP-CIDR6,fc00::/7,DIRECT,no-resolve
+- IP-CIDR6,fe80::/10,DIRECT,no-resolve
+- IP-CIDR6,2001:db8::/32,DIRECT,no-resolve
+- DOMAIN-SUFFIX,lan,DIRECT
+- DOMAIN-SUFFIX,local,DIRECT
+- DOMAIN-SUFFIX,localhost,DIRECT
+- DOMAIN-SUFFIX,localdomain,DIRECT
+- DOMAIN-SUFFIX,doubleclick.net,REJECT
+- DOMAIN-SUFFIX,googlesyndication.com,REJECT
+- DOMAIN-SUFFIX,googleadservices.com,REJECT
+- DOMAIN-SUFFIX,googletagmanager.com,REJECT
+- DOMAIN-SUFFIX,googletagservices.com,REJECT
+- DOMAIN-SUFFIX,tracking.pro,REJECT
+- DOMAIN-SUFFIX,scorecardresearch.com,REJECT
+- DOMAIN-SUFFIX,adnxs.com,REJECT
+- DOMAIN-SUFFIX,adsrvr.org,REJECT
+- DOMAIN-SUFFIX,advertising.com,REJECT
+- DOMAIN-SUFFIX,amazon-adsystem.com,REJECT
+- DOMAIN-SUFFIX,facebook.net,REJECT
+- DOMAIN-KEYWORD,analytics,REJECT
+- DOMAIN-SUFFIX,ir,DIRECT
+- DOMAIN-SUFFIX,co.ir,DIRECT
+- DOMAIN-SUFFIX,net.ir,DIRECT
+- DOMAIN-SUFFIX,org.ir,DIRECT
+- DOMAIN-SUFFIX,ac.ir,DIRECT
+- DOMAIN-SUFFIX,sch.ir,DIRECT
+- DOMAIN-SUFFIX,gov.ir,DIRECT
+- DOMAIN-SUFFIX,snapp.ir,DIRECT
+- DOMAIN-SUFFIX,digikala.com,DIRECT
+- DOMAIN-SUFFIX,digikalaelectron.com,DIRECT
+- DOMAIN-SUFFIX,digimah.com,DIRECT
+- DOMAIN-SUFFIX,digikala.tm,DIRECT
+- DOMAIN-SUFFIX,snappfood.com,DIRECT
+- DOMAIN-SUFFIX,bale.ir,DIRECT
+- DOMAIN-SUFFIX,shaparak.ir,DIRECT
+- DOMAIN-SUFFIX,sep.ir,DIRECT
+- DOMAIN-SUFFIX,asiatech.ir,DIRECT
+- DOMAIN-SUFFIX,shatel.ir,DIRECT
+- DOMAIN-SUFFIX,parspack.com,DIRECT
+- DOMAIN-SUFFIX,hostiran.net,DIRECT
+- DOMAIN-SUFFIX,arvancloud.ir,DIRECT
+- DOMAIN-SUFFIX,arvancloud.com,DIRECT
+- DOMAIN-SUFFIX,iraniancdns.com,DIRECT
+- DOMAIN-SUFFIX,parsdata.com,DIRECT
+- DOMAIN-SUFFIX,idehpay.com,DIRECT
+- DOMAIN-SUFFIX,pasargad.ir,DIRECT
+- DOMAIN-SUFFIX,saderat.ir,DIRECT
+- DOMAIN-SUFFIX,bankmellat.ir,DIRECT
+- DOMAIN-SUFFIX,banksepah.ir,DIRECT
+- DOMAIN-SUFFIX,refah-bank.ir,DIRECT
+- DOMAIN-SUFFIX,samanbank.ir,DIRECT
+- DOMAIN-SUFFIX,cn,DIRECT
+- DOMAIN-SUFFIX,aliyun.com,DIRECT
+- DOMAIN-SUFFIX,taobao.com,DIRECT
+- DOMAIN-SUFFIX,tmail.com,DIRECT
+- DOMAIN-SUFFIX,tmall.com,DIRECT
+- DOMAIN-SUFFIX,alipay.com,DIRECT
+- DOMAIN-SUFFIX,qq.com,DIRECT
+- DOMAIN-SUFFIX,weixin.qq.com,DIRECT
+- DOMAIN-SUFFIX,gtimg.com,DIRECT
+- DOMAIN-SUFFIX,myqcloud.com,DIRECT
+- DOMAIN-SUFFIX,baidu.com,DIRECT
+- DOMAIN-SUFFIX,bdstatic.com,DIRECT
+- DOMAIN-SUFFIX,4399.com,DIRECT
+- DOMAIN-SUFFIX,bilibili.com,DIRECT
+- DOMAIN-SUFFIX,hdslb.com,DIRECT
+- DOMAIN-SUFFIX,cnzz.com,DIRECT
+- DOMAIN-SUFFIX,umeng.com,DIRECT
+- DOMAIN-SUFFIX,ximalaya.com,DIRECT
+- DOMAIN-SUFFIX,iqiyi.com,DIRECT
+- DOMAIN-SUFFIX,letv.com,DIRECT
+- DOMAIN-SUFFIX,sohu.com,DIRECT
+- DOMAIN-SUFFIX,sina.com.cn,DIRECT
+- DOMAIN-SUFFIX,163.com,DIRECT
+- DOMAIN-SUFFIX,126.net,DIRECT
+- DOMAIN-SUFFIX,netease.com,DIRECT
+- DOMAIN-SUFFIX,jd.com,DIRECT
+- DOMAIN-SUFFIX,360.cn,DIRECT
+- DOMAIN-SUFFIX,sogou.com,DIRECT
+- DOMAIN-SUFFIX,weibo.com,DIRECT
+- DOMAIN-SUFFIX,zhihu.com,DIRECT
+- DOMAIN-SUFFIX,pstatp.com,DIRECT
+- DOMAIN-SUFFIX,byteimg.com,DIRECT
+- DOMAIN-SUFFIX,google.com,PROXY
+- DOMAIN-SUFFIX,googleapis.com,PROXY
+- DOMAIN-SUFFIX,gstatic.com,PROXY
+- DOMAIN-SUFFIX,googleusercontent.com,PROXY
+- DOMAIN-SUFFIX,ggpht.com,PROXY
+- DOMAIN-SUFFIX,youtube.com,PROXY
+- DOMAIN-SUFFIX,youtu.be,PROXY
+- DOMAIN-SUFFIX,ytimg.com,PROXY
+- DOMAIN-SUFFIX,googlevideo.com,PROXY
+- DOMAIN-SUFFIX,facebook.com,PROXY
+- DOMAIN-SUFFIX,facebook.net,PROXY
+- DOMAIN-SUFFIX,fbcdn.net,PROXY
+- DOMAIN-SUFFIX,instagram.com,PROXY
+- DOMAIN-SUFFIX,whatsapp.com,PROXY
+- DOMAIN-SUFFIX,whatsapp.net,PROXY
+- DOMAIN-SUFFIX,thread.com,PROXY
+- DOMAIN-SUFFIX,twitter.com,PROXY
+- DOMAIN-SUFFIX,x.com,PROXY
+- DOMAIN-SUFFIX,t.co,PROXY
+- DOMAIN-SUFFIX,twimg.com,PROXY
+- DOMAIN-SUFFIX,telegram.org,PROXY
+- DOMAIN-SUFFIX,telegram.me,PROXY
+- DOMAIN-SUFFIX,t.me,PROXY
+- DOMAIN-SUFFIX,tdesktop.com,PROXY
+- DOMAIN-SUFFIX,telegra.ph,PROXY
+- DOMAIN-KEYWORD,t.me,PROXY
+- DOMAIN-SUFFIX,spotify.com,PROXY
+- DOMAIN-SUFFIX,scdn.co,PROXY
+- DOMAIN-SUFFIX,github.com,PROXY
+- DOMAIN-SUFFIX,githubusercontent.com,PROXY
+- DOMAIN-SUFFIX,github.io,PROXY
+- DOMAIN-SUFFIX,gitlab.com,PROXY
+- DOMAIN-SUFFIX,openai.com,PROXY
+- DOMAIN-SUFFIX,chatgpt.com,PROXY
+- DOMAIN-SUFFIX,oaiusercontent.com,PROXY
+- DOMAIN-SUFFIX,anthropic.com,PROXY
+- DOMAIN-SUFFIX,claude.ai,PROXY
+- DOMAIN-SUFFIX,gemini.google.com,PROXY
+- DOMAIN-SUFFIX,netflix.com,PROXY
+- DOMAIN-SUFFIX,nflxvideo.net,PROXY
+- DOMAIN-SUFFIX,nflximg.net,PROXY
+- DOMAIN-SUFFIX,nflxso.net,PROXY
+- DOMAIN-SUFFIX,twitch.tv,PROXY
+- DOMAIN-SUFFIX,ttvnw.net,PROXY
+- DOMAIN-SUFFIX,discord.com,PROXY
+- DOMAIN-SUFFIX,discordapp.com,PROXY
+- DOMAIN-SUFFIX,discord.gg,PROXY
+- DOMAIN-SUFFIX,discord.media,PROXY
+- DOMAIN-SUFFIX,reddit.com,PROXY
+- DOMAIN-SUFFIX,redd.it,PROXY
+- DOMAIN-SUFFIX,redditstatic.com,PROXY
+- DOMAIN-SUFFIX,redditmedia.com,PROXY
+- DOMAIN-SUFFIX,pinterest.com,PROXY
+- DOMAIN-SUFFIX,pinimg.com,PROXY
+- DOMAIN-SUFFIX,tiktok.com,PROXY
+- DOMAIN-SUFFIX,tiktokv.com,PROXY
+- DOMAIN-SUFFIX,tiktokcdn.com,PROXY
+- DOMAIN-SUFFIX,byteoversea.com,PROXY
+- DOMAIN-SUFFIX,medium.com,PROXY
+- DOMAIN-SUFFIX,wikipedia.org,PROXY
+- DOMAIN-SUFFIX,wikimedia.org,PROXY
+- DOMAIN-SUFFIX,wikiwand.com,PROXY
+- DOMAIN-SUFFIX,cloudflare.com,PROXY
+- DOMAIN-SUFFIX,workers.dev,PROXY
+- DOMAIN-SUFFIX,pages.dev,PROXY
+- DOMAIN-SUFFIX,reg.cloudflare.com,PROXY
+- DOMAIN-SUFFIX,v2ex.com,PROXY
+- DOMAIN-SUFFIX,duckduckgo.com,PROXY
+- DOMAIN-SUFFIX,bing.com,PROXY
+- DOMAIN-SUFFIX,microsoft.com,PROXY
+- DOMAIN-SUFFIX,office.com,PROXY
+- DOMAIN-SUFFIX,office365.com,PROXY
+- DOMAIN-SUFFIX,outlook.com,PROXY
+- DOMAIN-SUFFIX,msn.com,PROXY
+- DOMAIN-SUFFIX,dropbox.com,PROXY
+- DOMAIN-SUFFIX,icloud.com,PROXY
+- DOMAIN-SUFFIX,apple.com,PROXY
+- DOMAIN-SUFFIX,aaplimg.com,PROXY
+- DOMAIN-SUFFIX,amazon.com,PROXY
+- DOMAIN-SUFFIX,amazonaws.com,PROXY
+- DOMAIN-SUFFIX,steamcommunity.com,PROXY
+- DOMAIN-SUFFIX,steampowered.com,PROXY
+- DOMAIN-SUFFIX,store.steampowered.com,PROXY
+- DOMAIN-SUFFIX,signal.org,PROXY
+- DOMAIN-SUFFIX,whispersystems.org,PROXY
+- DOMAIN-SUFFIX,protonmail.com,PROXY
+- DOMAIN-SUFFIX,proton.me,PROXY
+- DOMAIN-SUFFIX,tailscale.com,PROXY
+- DOMAIN-SUFFIX,speedtest.net,PROXY
+- DOMAIN-SUFFIX,fast.com,PROXY
+- GEOIP,CN,DIRECT
+- GEOIP,IR,DIRECT
+- MATCH,PROXY
