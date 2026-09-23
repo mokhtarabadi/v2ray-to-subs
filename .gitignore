@@ -35,6 +35,12 @@ Thumbs.db
 /sing-box
 /singbox
 
+# MetaCubeX dashboard (auto-downloaded by mihomo via external-ui-url) + geo data
+/ui/
+*.metadb
+*.dat
+cache.db
+
 # IDE (project-level .idea/.gitignore handles most of this)
 .idea/workspace.xml
 .idea/shelf/

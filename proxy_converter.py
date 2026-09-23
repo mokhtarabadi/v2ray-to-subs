@@ -1197,6 +1197,12 @@ class ConfigGenerator:
             "keep-alive-interval": 30,
             "unified-delay": True,
             "external-controller": "127.0.0.1:9090",
+            # Official MetaCubeX dashboard (metacubexd): served by mihomo
+            # itself at http://127.0.0.1:9090/ui . "ui" is relative to the
+            # mihomo working dir (mihomo -d <dir>); the zip below is fetched
+            # automatically on first start into that folder.
+            "external-ui": "ui",
+            "external-ui-url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
             "geox-url": {
                 "geoip": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat",
                 "geosite": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat",

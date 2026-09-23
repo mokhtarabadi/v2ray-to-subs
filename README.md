@@ -15,6 +15,11 @@ A comprehensive Python tool that downloads V2Ray subscription links, parses vari
 > Routing policy: proxy/helper processes + private/LAN → `DIRECT`,
 > Iranian sites (`*.ir`, …) and IPs (`GEOIP,IR`) → `DIRECT`, everything
 > else → subscription proxies (`MATCH,PROXY`).
+>
+> **Dashboard:** the generated config serves the official MetaCubeX dashboard
+> at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
+> zip, auto-downloaded by mihomo on first start into `./ui/`, git-ignored).
+> No secret is set, so the same-origin UI connects without auth.
 
 ## Features
 
