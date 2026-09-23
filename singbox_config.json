@@ -112,35 +112,6 @@
       "tag": "mixed-in",
       "listen": "127.0.0.1",
       "listen_port": 10808
-    },
-    {
-      "type": "tun",
-      "tag": "tun-in",
-      "interface_name": "mihomo",
-      "address": [
-        "172.19.0.1/30"
-      ],
-      "stack": "mixed",
-      "mtu": 9000,
-      "auto_route": true,
-      "strict_route": true,
-      "route_exclude_address": [
-        "127.0.0.0/8",
-        "10.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-        "100.64.0.0/10",
-        "198.18.0.0/15",
-        "169.254.0.0/16",
-        "224.0.0.0/4",
-        "240.0.0.0/4",
-        "::1/128",
-        "fc00::/7",
-        "fe80::/10",
-        "2001:db8::/32"
-      ],
-      "endpoint_independent_nat": false,
-      "udp_timeout": "5m"
     }
   ],
   "outbounds": [

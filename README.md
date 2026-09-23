@@ -104,6 +104,11 @@ python proxy_converter.py "https://example.com/sub#MyProfile"
 python proxy_converter.py --only clash
 python proxy_converter.py --only singbox -v
 
+# Defaults: TUN off, loopback-only (allow-lan false, 127.0.0.1 bindings).
+# Opt in when you need system-wide routing or LAN access:
+python proxy_converter.py --tun
+python proxy_converter.py --tun --allow-lan
+
 # Validate outputs
 mihomo -t -f clash_config.yaml
 sing-box check -c singbox_config.json

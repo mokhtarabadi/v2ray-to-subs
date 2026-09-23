@@ -2,8 +2,8 @@
 # profile-web-page-url: https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt
 # profile-update-interval: 1
 mixed-port: 7890
-allow-lan: true
-bind-address: '*'
+allow-lan: false
+bind-address: 127.0.0.1
 mode: rule
 log-level: info
 ipv6: false
@@ -25,7 +25,7 @@ profile:
   store-fake-ip: true
 dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 127.0.0.1:1053
   ipv6: false
   cache-algorithm: arc
   enhanced-mode: fake-ip
@@ -72,7 +72,7 @@ dns:
     geosite:category-ads-all: rcode://success
     +.ir: https://dns.alidns.com/dns-query
 tun:
-  enable: true
+  enable: false
   stack: mixed
   device: mihomo
   auto-route: true

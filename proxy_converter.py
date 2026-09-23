@@ -841,11 +841,14 @@ def _unique_name(name: str, used: set) -> str:
 class ConfigGenerator:
     """Generates complete mihomo (Clash.Meta) and sing-box configurations."""
 
-    def __init__(self) -> None:
+    def __init__(self, tun_enabled: bool = False, allow_lan: bool = False) -> None:
         self.url_test_url = "https://www.gstatic.com/generate_204"
         self.url_test_interval = 300
         self.url_test_tolerance = 50
         self.subscription_title: Optional[str] = None
+        # TUN is opt-in (needs root/CAP_NET_ADMIN); loopback-only by default.
+        self.tun_enabled = tun_enabled
+        self.allow_lan = allow_lan
 
     # ------------------------------------------------------------------
     # Shared helpers
@@ -1185,8 +1188,9 @@ class ConfigGenerator:
         # sidecar), and Iran/CN bypass rules are added.
         config: Dict[str, Any] = {
             "mixed-port": 7890,
-            "allow-lan": True,
-            "bind-address": "*",
+            "allow-lan": self.allow_lan,
+            # Loopback-only by default; "*" only when LAN access is opted in.
+            "bind-address": "*" if self.allow_lan else "127.0.0.1",
             "mode": "rule",
             "log-level": "info",
             "ipv6": False,
@@ -1217,9 +1221,10 @@ class ConfigGenerator:
             "dns": {
                 "enable": True,
                 # 1053 avoids systemd-resolved/dnsmasq port-53 conflict;
-                # TUN dns-hijack (any:53) still intercepts all port-53
-                # queries and forwards them here, so fake-ip keeps working.
-                "listen": "0.0.0.0:1053",
+                # with TUN enabled, dns-hijack (any:53) still intercepts all
+                # port-53 queries and forwards them here, so fake-ip keeps
+                # working. Loopback-only; LAN needs --allow-lan + TUN.
+                "listen": "127.0.0.1:1053",
                 "ipv6": False,
                 "cache-algorithm": "arc",
                 "enhanced-mode": "fake-ip",
@@ -1253,7 +1258,8 @@ class ConfigGenerator:
                 },
             },
             "tun": {
-                "enable": True,
+                # Opt-in via --tun (needs root/CAP_NET_ADMIN).
+                "enable": self.tun_enabled,
                 # mixed: TCP via system stack, UDP via gvisor (recommended).
                 "stack": "mixed",
                 "device": "mihomo",
@@ -1656,24 +1662,30 @@ class ConfigGenerator:
                 "listen": "127.0.0.1",
                 "listen_port": 10808,
             },
-            {
-                "type": "tun",
-                "tag": "tun-in",
-                "interface_name": "mihomo",
-                # Outside the fake-ip pool (198.18.0.0/15) to avoid overlap.
-                "address": ["172.19.0.1/30"],
-                # mixed: TCP via system stack, UDP via gvisor (recommended).
-                "stack": "mixed",
-                "mtu": 9000,
-                "auto_route": True,
-                "strict_route": True,
-                # Exclude private/LAN from TUN routing -> stays DIRECT and
-                # avoids proxy loops (mirrors mihomo route-exclude-address).
-                "route_exclude_address": PRIVATE_CIDRS + PRIVATE_CIDRS_V6,
-                "endpoint_independent_nat": False,
-                "udp_timeout": "5m",
-            },
         ]
+        if self.tun_enabled:
+            # Opt-in via --tun (needs root/CAP_NET_ADMIN). sing-box
+            # inbounds have no "enabled" flag, so TUN is only emitted
+            # when requested.
+            inbounds.append(
+                {
+                    "type": "tun",
+                    "tag": "tun-in",
+                    "interface_name": "mihomo",
+                    # Outside the fake-ip pool (198.18.0.0/15) to avoid overlap.
+                    "address": ["172.19.0.1/30"],
+                    # mixed: TCP via system stack, UDP via gvisor (recommended).
+                    "stack": "mixed",
+                    "mtu": 9000,
+                    "auto_route": True,
+                    "strict_route": True,
+                    # Exclude private/LAN from TUN routing -> stays DIRECT and
+                    # avoids proxy loops (mirrors mihomo route-exclude-address).
+                    "route_exclude_address": PRIVATE_CIDRS + PRIVATE_CIDRS_V6,
+                    "endpoint_independent_nat": False,
+                    "udp_timeout": "5m",
+                }
+            )
 
         final = "auto" if proxy_tags else "direct"
         # Mirrors the mihomo rule order: loop avoidance → private →
@@ -1830,6 +1842,8 @@ def run(
     clash_out: str = "clash_config.yaml",
     singbox_out: str = "singbox_config.json",
     outputs: str = "both",
+    tun_enabled: bool = False,
+    allow_lan: bool = False,
 ) -> int:
     downloader = SubscriptionDownloader()
     content = downloader.download_subscription(url)
@@ -1842,7 +1856,7 @@ def run(
         logger.error("No proxies parsed from subscription")
         return 1
 
-    generator = ConfigGenerator()
+    generator = ConfigGenerator(tun_enabled=tun_enabled, allow_lan=allow_lan)
     generator.subscription_title = title
 
     if outputs in ("clash", "both"):
@@ -1900,6 +1914,16 @@ def main() -> None:
         default="both",
         help="Which outputs to generate",
     )
+    ap.add_argument(
+        "--tun",
+        action="store_true",
+        help="Enable TUN inbound (needs root/CAP_NET_ADMIN; off by default)",
+    )
+    ap.add_argument(
+        "--allow-lan",
+        action="store_true",
+        help="Allow LAN connections and bind to all interfaces (loopback-only by default)",
+    )
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -1912,6 +1936,8 @@ def main() -> None:
             clash_out=args.clash_out,
             singbox_out=args.singbox_out,
             outputs=args.only,
+            tun_enabled=args.tun,
+            allow_lan=args.allow_lan,
         )
     )
 
