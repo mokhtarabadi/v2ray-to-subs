@@ -161,11 +161,37 @@ The tool can parse subscription links from various sources:
 
 ### Example Subscription URLs
 ```bash
-# Example public subscriptions
+# Default subscription (also the manager.sh default)
+https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F
+
+# Other public subscriptions (fragment #Name becomes the profile title)
 https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt
 https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vmess.txt
 https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt
 ```
+
+## manager.sh (easy use)
+
+The repo ships a `manager.sh` wrapper (same style as `~/Desktop/mihomo/manager.sh`).
+It defaults to the Patterniha subscription above, loopback-only bindings, TUN off:
+
+```bash
+./manager.sh generate                                  # both configs, defaults
+./manager.sh generate --tun                            # + TUN inbound
+./manager.sh generate --tun --allow-lan                # + LAN clients
+./manager.sh tun "https://example.com/sub#MyProfile"   # TUN + custom sub
+./manager.sh clash | ./manager.sh singbox              # single output
+./manager.sh check                                     # mihomo -t + sing-box check
+./manager.sh deploy --tun                              # regenerate + install to ~/Desktop/mihomo
+./manager.sh help                                      # full usage
+```
+
+`deploy` backs up `~/Desktop/mihomo/config.yaml`, installs the fresh
+`clash_config.yaml`, and runs its `check`. Activate with:
+```bash
+cd ~/Desktop/mihomo && sudo ./manager.sh restart
+```
+then open the dashboard at <http://127.0.0.1:9090/ui>.
 
 ## Generated Configuration Structure
 
