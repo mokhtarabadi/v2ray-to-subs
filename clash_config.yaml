@@ -1,21 +1,21 @@
 # profile-title: Patterniha-F
 # profile-web-page-url: https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt
 # profile-update-interval: 1
-mixed-port: 10808
+mixed-port: 7890
 allow-lan: true
 bind-address: '*'
 mode: rule
 log-level: info
 ipv6: false
-external-controller: 127.0.0.1:9090
-unified-delay: true
+find-process-mode: always
 tcp-concurrent: true
-find-process-mode: strict
+keep-alive-interval: 30
+unified-delay: true
+external-controller: 127.0.0.1:9090
 geox-url:
   geoip: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
   geosite: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
   mmdb: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb
-  asn: https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb
 geo-auto-update: true
 geo-update-interval: 24
 profile:
@@ -25,64 +25,94 @@ dns:
   enable: true
   listen: 0.0.0.0:1053
   ipv6: false
+  cache-algorithm: arc
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: blacklist
   fake-ip-filter:
   - '*.lan'
   - '*.local'
+  - localhost.ptlogin2.qq.com
   - +.msftconnecttest.com
   - +.msftncsi.com
   - time.*.com
-  - ntp.*.com
+  - time.*.gov
+  - time.*.edu.cn
+  - +.ntp.org.cn
   - +.pool.ntp.org
-  - time.windows.com
   - detectportal.firefox.com
   - connectivitycheck.gstatic.com
-  - +.stun.*.*
-  - +.stun.*.*.*
   default-nameserver:
-  - 1.1.1.1
+  - 223.5.5.5
+  - 114.114.114.114
   - 8.8.8.8
   nameserver:
-  - https://1.1.1.1/dns-query
-  - https://8.8.8.8/dns-query
-  - https://dns.quad9.net/dns-query
+  - https://doh.pub/dns-query
+  - https://dns.alidns.com/dns-query
+  - tls://8.8.8.8
+  - 223.5.5.5
   proxy-server-nameserver:
-  - 1.1.1.1
-  - 8.8.8.8
+  - https://doh.pub/dns-query
+  fallback:
+  - tls://1.1.1.1
+  - tls://8.8.4.4
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+    - 240.0.0.0/4
+    domain:
+    - +.google.com
+    - +.facebook.com
+    - +.youtube.com
+    - +.twitter.com
   nameserver-policy:
     geosite:category-ads-all: rcode://success
     +.ir: https://dns.alidns.com/dns-query
 tun:
   enable: true
   stack: mixed
+  device: mihomo
   auto-route: true
+  auto-redirect: false
   auto-detect-interface: true
   dns-hijack:
   - any:53
-  strict-route: false
+  - tcp://any:53
+  mtu: 9000
+  gso: true
+  gso-max-size: 65536
+  strict-route: true
+  endpoint-independent-nat: false
+  route-exclude-address:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 127.0.0.0/8
+  - 169.254.0.0/16
+  - 224.0.0.0/4
+  - 240.0.0.0/4
 sniffer:
   enable: true
-  force-dns-mapping: true
   parse-pure-ip: true
-  override-destination: true
+  override-destination: false
   sniff:
-    HTTP:
-      ports:
-      - 80
-      - 8080
-      - 8880
     TLS:
       ports:
       - 443
       - 8443
+    HTTP:
+      ports:
+      - 80
+      - 8080-8880
+      override-destination: true
     QUIC:
       ports:
       - 443
-      - 8443
+  force-domain:
+  - +.v2ex.com
   skip-domain:
   - Mijia Cloud
-  - +.market.xiaomi.com
 proxies:
 - name: '@DeltaKroneckerGithub | c3505c'
   type: vless
@@ -1015,20 +1045,35 @@ proxy-groups:
   interval: 300
   lazy: true
 rules:
+- PROCESS-NAME,xray,DIRECT
+- PROCESS-NAME,sing-box,DIRECT
+- PROCESS-NAME,PattN,DIRECT
+- PROCESS-NAME,v2rayn,DIRECT
+- PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/xray/xray,DIRECT
+- PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/sing_box/sing-box,DIRECT
+- PROCESS-PATH,/opt/v2rayN/PattN,DIRECT
+- PROCESS-NAME-WILDCARD,*sing-box*,DIRECT
+- PROCESS-NAME-REGEX,(?i)v2ray.*|PattN,DIRECT
+- DOMAIN-SUFFIX,lan,DIRECT
+- DOMAIN,lan,DIRECT
+- GEOIP,private,DIRECT,no-resolve
+- GEOIP,lan,DIRECT,no-resolve
+- DOMAIN-SUFFIX,local,DIRECT
+- DOMAIN-SUFFIX,localhost,DIRECT
+- DOMAIN-SUFFIX,localdomain,DIRECT
 - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
 - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
 - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
 - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
 - IP-CIDR,198.18.0.0/15,DIRECT,no-resolve
+- IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+- IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+- IP-CIDR,240.0.0.0/4,DIRECT,no-resolve
 - IP-CIDR6,::1/128,DIRECT,no-resolve
 - IP-CIDR6,fc00::/7,DIRECT,no-resolve
 - IP-CIDR6,fe80::/10,DIRECT,no-resolve
 - IP-CIDR6,2001:db8::/32,DIRECT,no-resolve
-- DOMAIN-SUFFIX,lan,DIRECT
-- DOMAIN-SUFFIX,local,DIRECT
-- DOMAIN-SUFFIX,localhost,DIRECT
-- DOMAIN-SUFFIX,localdomain,DIRECT
 - DOMAIN-SUFFIX,doubleclick.net,REJECT
 - DOMAIN-SUFFIX,googlesyndication.com,REJECT
 - DOMAIN-SUFFIX,googleadservices.com,REJECT
@@ -1040,39 +1085,20 @@ rules:
 - DOMAIN-SUFFIX,adsrvr.org,REJECT
 - DOMAIN-SUFFIX,advertising.com,REJECT
 - DOMAIN-SUFFIX,amazon-adsystem.com,REJECT
-- DOMAIN-SUFFIX,facebook.net,REJECT
 - DOMAIN-KEYWORD,analytics,REJECT
 - DOMAIN-SUFFIX,ir,DIRECT
-- DOMAIN-SUFFIX,co.ir,DIRECT
-- DOMAIN-SUFFIX,net.ir,DIRECT
-- DOMAIN-SUFFIX,org.ir,DIRECT
-- DOMAIN-SUFFIX,ac.ir,DIRECT
-- DOMAIN-SUFFIX,sch.ir,DIRECT
-- DOMAIN-SUFFIX,gov.ir,DIRECT
-- DOMAIN-SUFFIX,snapp.ir,DIRECT
 - DOMAIN-SUFFIX,digikala.com,DIRECT
 - DOMAIN-SUFFIX,digikalaelectron.com,DIRECT
 - DOMAIN-SUFFIX,digimah.com,DIRECT
 - DOMAIN-SUFFIX,digikala.tm,DIRECT
 - DOMAIN-SUFFIX,snappfood.com,DIRECT
-- DOMAIN-SUFFIX,bale.ir,DIRECT
-- DOMAIN-SUFFIX,shaparak.ir,DIRECT
-- DOMAIN-SUFFIX,sep.ir,DIRECT
-- DOMAIN-SUFFIX,asiatech.ir,DIRECT
-- DOMAIN-SUFFIX,shatel.ir,DIRECT
 - DOMAIN-SUFFIX,parspack.com,DIRECT
 - DOMAIN-SUFFIX,hostiran.net,DIRECT
-- DOMAIN-SUFFIX,arvancloud.ir,DIRECT
 - DOMAIN-SUFFIX,arvancloud.com,DIRECT
 - DOMAIN-SUFFIX,iraniancdns.com,DIRECT
 - DOMAIN-SUFFIX,parsdata.com,DIRECT
 - DOMAIN-SUFFIX,idehpay.com,DIRECT
-- DOMAIN-SUFFIX,pasargad.ir,DIRECT
-- DOMAIN-SUFFIX,saderat.ir,DIRECT
-- DOMAIN-SUFFIX,bankmellat.ir,DIRECT
-- DOMAIN-SUFFIX,banksepah.ir,DIRECT
-- DOMAIN-SUFFIX,refah-bank.ir,DIRECT
-- DOMAIN-SUFFIX,samanbank.ir,DIRECT
+- GEOIP,IR,DIRECT
 - DOMAIN-SUFFIX,cn,DIRECT
 - DOMAIN-SUFFIX,aliyun.com,DIRECT
 - DOMAIN-SUFFIX,taobao.com,DIRECT
@@ -1085,14 +1111,9 @@ rules:
 - DOMAIN-SUFFIX,myqcloud.com,DIRECT
 - DOMAIN-SUFFIX,baidu.com,DIRECT
 - DOMAIN-SUFFIX,bdstatic.com,DIRECT
-- DOMAIN-SUFFIX,4399.com,DIRECT
 - DOMAIN-SUFFIX,bilibili.com,DIRECT
 - DOMAIN-SUFFIX,hdslb.com,DIRECT
-- DOMAIN-SUFFIX,cnzz.com,DIRECT
-- DOMAIN-SUFFIX,umeng.com,DIRECT
-- DOMAIN-SUFFIX,ximalaya.com,DIRECT
 - DOMAIN-SUFFIX,iqiyi.com,DIRECT
-- DOMAIN-SUFFIX,letv.com,DIRECT
 - DOMAIN-SUFFIX,sohu.com,DIRECT
 - DOMAIN-SUFFIX,sina.com.cn,DIRECT
 - DOMAIN-SUFFIX,163.com,DIRECT
@@ -1103,8 +1124,7 @@ rules:
 - DOMAIN-SUFFIX,sogou.com,DIRECT
 - DOMAIN-SUFFIX,weibo.com,DIRECT
 - DOMAIN-SUFFIX,zhihu.com,DIRECT
-- DOMAIN-SUFFIX,pstatp.com,DIRECT
-- DOMAIN-SUFFIX,byteimg.com,DIRECT
+- GEOIP,CN,DIRECT
 - DOMAIN-SUFFIX,google.com,PROXY
 - DOMAIN-SUFFIX,googleapis.com,PROXY
 - DOMAIN-SUFFIX,gstatic.com,PROXY
@@ -1195,6 +1215,4 @@ rules:
 - DOMAIN-SUFFIX,tailscale.com,PROXY
 - DOMAIN-SUFFIX,speedtest.net,PROXY
 - DOMAIN-SUFFIX,fast.com,PROXY
-- GEOIP,CN,DIRECT
-- GEOIP,IR,DIRECT
 - MATCH,PROXY

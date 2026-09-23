@@ -6,14 +6,9 @@
   "dns": {
     "servers": [
       {
-        "type": "udp",
-        "server": "1.1.1.1",
-        "tag": "dns-remote"
-      },
-      {
-        "type": "udp",
-        "server": "8.8.8.8",
-        "tag": "dns-google"
+        "type": "fakeip",
+        "tag": "dns-fakeip",
+        "inet4_range": "198.18.0.0/15"
       },
       {
         "type": "udp",
@@ -21,11 +16,93 @@
         "tag": "dns-direct"
       },
       {
+        "type": "tls",
+        "server": "8.8.8.8",
+        "tag": "dns-remote"
+      },
+      {
+        "type": "https",
+        "server": "doh.pub",
+        "tag": "dns-doh",
+        "path": "/dns-query",
+        "domain_resolver": "dns-direct"
+      },
+      {
         "type": "local",
         "tag": "dns-local"
       }
     ],
-    "final": "dns-remote",
+    "rules": [
+      {
+        "action": "route",
+        "server": "dns-direct",
+        "domain_suffix": [
+          ".lan",
+          ".local",
+          ".localhost",
+          ".localdomain",
+          "localhost.ptlogin2.qq.com",
+          "msftconnecttest.com",
+          "msftncsi.com",
+          "ntp.org.cn",
+          "pool.ntp.org",
+          "detectportal.firefox.com",
+          "connectivitycheck.gstatic.com"
+        ]
+      },
+      {
+        "action": "route",
+        "server": "dns-direct",
+        "domain_suffix": [
+          ".ir",
+          "digikala.com",
+          "digikalaelectron.com",
+          "digimah.com",
+          "digikala.tm",
+          "snappfood.com",
+          "parspack.com",
+          "hostiran.net",
+          "arvancloud.com",
+          "iraniancdns.com",
+          "parsdata.com",
+          "idehpay.com",
+          ".cn",
+          "aliyun.com",
+          "taobao.com",
+          "tmail.com",
+          "tmall.com",
+          "alipay.com",
+          "qq.com",
+          "weixin.qq.com",
+          "gtimg.com",
+          "myqcloud.com",
+          "baidu.com",
+          "bdstatic.com",
+          "bilibili.com",
+          "hdslb.com",
+          "iqiyi.com",
+          "sohu.com",
+          "sina.com.cn",
+          "163.com",
+          "126.net",
+          "netease.com",
+          "jd.com",
+          "360.cn",
+          "sogou.com",
+          "weibo.com",
+          "zhihu.com"
+        ]
+      },
+      {
+        "action": "route",
+        "server": "dns-fakeip",
+        "query_type": [
+          "A",
+          "AAAA"
+        ]
+      }
+    ],
+    "final": "dns-doh",
     "strategy": "prefer_ipv4",
     "independent_cache": true
   },
@@ -39,13 +116,31 @@
     {
       "type": "tun",
       "tag": "tun-in",
+      "interface_name": "mihomo",
       "address": [
-        "198.18.0.1/30"
+        "172.19.0.1/30"
       ],
+      "stack": "mixed",
+      "mtu": 9000,
       "auto_route": true,
-      "strict_route": false,
-      "stack": "system",
-      "sniff": false
+      "strict_route": true,
+      "route_exclude_address": [
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "198.18.0.0/15",
+        "169.254.0.0/16",
+        "224.0.0.0/4",
+        "240.0.0.0/4",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+        "2001:db8::/32"
+      ],
+      "endpoint_independent_nat": false,
+      "udp_timeout": "5m"
     }
   ],
   "outbounds": [
@@ -1100,28 +1195,88 @@
       {
         "action": "route",
         "outbound": "direct",
-        "ip_cidr": [
-          "127.0.0.0/8",
-          "10.0.0.0/8",
-          "172.16.0.0/12",
-          "192.168.0.0/16",
-          "100.64.0.0/10",
-          "198.18.0.0/15",
-          "::1/128",
-          "fc00::/7",
-          "fe80::/10"
+        "process_name": [
+          "xray",
+          "sing-box",
+          "PattN",
+          "v2rayn"
         ]
       },
       {
         "action": "route",
         "outbound": "direct",
+        "process_path_regex": [
+          "(?i)v2ray.*|PattN",
+          ".*sing-box.*"
+        ]
+      },
+      {
+        "action": "route",
+        "outbound": "direct",
+        "ip_is_private": true
+      },
+      {
+        "action": "route",
+        "outbound": "direct",
         "domain_suffix": [
-          ".ir"
+          ".ir",
+          "digikala.com",
+          "digikalaelectron.com",
+          "digimah.com",
+          "digikala.tm",
+          "snappfood.com",
+          "parspack.com",
+          "hostiran.net",
+          "arvancloud.com",
+          "iraniancdns.com",
+          "parsdata.com",
+          "idehpay.com",
+          ".cn",
+          "aliyun.com",
+          "taobao.com",
+          "tmail.com",
+          "tmall.com",
+          "alipay.com",
+          "qq.com",
+          "weixin.qq.com",
+          "gtimg.com",
+          "myqcloud.com",
+          "baidu.com",
+          "bdstatic.com",
+          "bilibili.com",
+          "hdslb.com",
+          "iqiyi.com",
+          "sohu.com",
+          "sina.com.cn",
+          "163.com",
+          "126.net",
+          "netease.com",
+          "jd.com",
+          "360.cn",
+          "sogou.com",
+          "weibo.com",
+          "zhihu.com"
+        ]
+      },
+      {
+        "action": "reject",
+        "domain_suffix": [
+          "doubleclick.net",
+          "googlesyndication.com",
+          "googleadservices.com",
+          "googletagmanager.com",
+          "googletagservices.com",
+          "tracking.pro",
+          "scorecardresearch.com",
+          "adnxs.com",
+          "adsrvr.org",
+          "advertising.com",
+          "amazon-adsystem.com"
         ]
       }
     ],
     "final": "auto",
     "auto_detect_interface": true,
-    "default_domain_resolver": "dns-remote"
+    "default_domain_resolver": "dns-direct"
   }
 }

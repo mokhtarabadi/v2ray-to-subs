@@ -2,6 +2,20 @@
 
 A comprehensive Python tool that downloads V2Ray subscription links, parses various proxy formats, and generates optimized configurations for SingBox and Clash with automatic URL testing and load balancing.
 
+> **Direct-mihomo mode (no xray needed):** the generated `clash_config.yaml`
+> carries the subscription nodes itself and mirrors the TUN + Fake-IP +
+> DNS-hijack setup from `~/Desktop/mihomo` (mixed `:7890`, TUN `stack: mixed`
+> with `dns-hijack: any:53`, DNS on `:1053`, `find-process-mode: always`,
+> PROCESS + private/LAN bypass). Copy it over the Desktop config and restart:
+> ```bash
+> python3 proxy_converter.py
+> cp clash_config.yaml ~/Desktop/mihomo/config.yaml
+> cd ~/Desktop/mihomo && ./manager.sh check && sudo ./manager.sh restart
+> ```
+> Routing policy: proxy/helper processes + private/LAN → `DIRECT`,
+> Iranian sites (`*.ir`, …) and IPs (`GEOIP,IR`) → `DIRECT`, everything
+> else → subscription proxies (`MATCH,PROXY`).
+
 ## Features
 
 - **Multi-Protocol Support**: VMess, VLESS, Trojan, Shadowsocks, Hysteria, TUIC
@@ -93,20 +107,31 @@ sing-box check -c singbox_config.json
 ## Configuration Features
 
 ### SingBox Configuration
-- **Mixed Inbound**: HTTP/SOCKS5 proxy on port 10801
-- **TUN Inbound**: System-wide transparent proxy
+- **Mixed Inbound**: HTTP/SOCKS5 proxy on `127.0.0.1:10808`
+- **TUN Inbound**: `stack: mixed`, `mtu: 9000`, `strict-route`, private
+  subnets in `route_exclude_address` (loop-free system-wide proxy)
+- **DNS**: FakeIP by default (`198.18.0.0/15`) with real-IP exceptions for
+  LAN/NTP/Iran/CN; hijacked port-53 handled via `hijack-dns`
+- **Routing**: sniff → hijack-dns → process bypass (xray/sing-box/PattN) →
+  `ip_is_private` → Iran/CN suffixes → `final: auto` (urltest)
 - **URL Test Outbound**: Automatic proxy selection based on latency
-- **Smart Routing**: DNS and traffic routing rules
 - **Auto Interface Detection**: Prevents routing loops
 
 ### Clash Configuration
-- **Mixed Port**: HTTP/SOCKS5 proxy on port 10801
+- **Mixed Port**: HTTP/SOCKS5 proxy on port 7890 (matches `~/Desktop/mihomo`)
+- **TUN**: `stack: mixed`, `device: mihomo`, `dns-hijack: [any:53, tcp://any:53]`,
+  `route-exclude-address` for private/LAN (mirrors Desktop setup)
+- **DNS**: Fake-IP on `0.0.0.0:1053`, DoH/DoT resolvers, fallback + filter
+  (mirrors Desktop setup)
+- **Sniffer**: TLS/HTTP/QUIC with Desktop ports and skip lists
 - **Proxy Groups**:
-  - `URL-Test`: Automatic selection based on latency
-  - `Load-Balance`: Consistent hashing load balancing
-  - `Proxy`: Manual selection group
-- **Smart Rules**: Domain-based routing for common services
-- **DNS Configuration**: Custom DNS servers with fallback
+  - `PROXY`: Manual selection group
+  - `Auto`: url-test, automatic selection based on latency
+  - `Load Balance`: Round-robin load balancing
+  - `Fallback`: Failover group
+- **Rules** (first match wins): PROCESS bypass → private/LAN → ads REJECT →
+  Iran bypass (sites + `GEOIP,IR`) → CN bypass (sites + `GEOIP,CN`) →
+  foreign services → `MATCH,PROXY`
 
 ### Load Balancing and URL Testing
 - **Test URL**: `https://www.gstatic.com/generate_204`

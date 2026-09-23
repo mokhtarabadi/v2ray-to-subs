@@ -27,6 +27,119 @@ DEFAULT_SUBSCRIPTION_URL = (
     "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
 )
 
+# ---------------------------------------------------------------------------
+# Shared bypass policy.
+#
+# Mirrors /home/mohammad/Desktop/mihomo usage (mihomo as TUN + Fake-IP +
+# DNS-hijack front-end): private/LAN always DIRECT, Iranian sites/IPs always
+# DIRECT, everything else goes through the subscription proxies. No xray
+# sidecar needed — mihomo/sing-box dial the nodes directly.
+# ---------------------------------------------------------------------------
+
+# Processes that must never be routed back into the tunnel (loop avoidance).
+# Covers the legacy xray/PattN sidecar if still running, plus our own cores.
+LOOPBACK_PROCESS_NAMES = ["xray", "sing-box", "PattN", "v2rayn"]
+LOOPBACK_PROCESS_PATHS = [
+    "/home/mohammad/.local/share/v2rayN/bin/xray/xray",
+    "/home/mohammad/.local/share/v2rayN/bin/sing_box/sing-box",
+    "/opt/v2rayN/PattN",
+]
+
+# Subnets excluded from TUN routing AND forced DIRECT at rule level.
+PRIVATE_CIDRS = [
+    "127.0.0.0/8",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "100.64.0.0/10",
+    "198.18.0.0/15",
+    "169.254.0.0/16",
+    "224.0.0.0/4",
+    "240.0.0.0/4",
+]
+PRIVATE_CIDRS_V6 = [
+    "::1/128",
+    "fc00::/7",
+    "fe80::/10",
+    "2001:db8::/32",
+]
+
+# Iranian infrastructure that must bypass the proxy (domain suffixes).
+IRAN_DIRECT_SUFFIXES = [
+    ".ir",
+    "digikala.com",
+    "digikalaelectron.com",
+    "digimah.com",
+    "digikala.tm",
+    "snappfood.com",
+    "parspack.com",
+    "hostiran.net",
+    "arvancloud.com",
+    "iraniancdns.com",
+    "parsdata.com",
+    "idehpay.com",
+]
+
+# Chinese infrastructure that must bypass the proxy.
+CN_DIRECT_SUFFIXES = [
+    ".cn",
+    "aliyun.com",
+    "taobao.com",
+    "tmail.com",
+    "tmall.com",
+    "alipay.com",
+    "qq.com",
+    "weixin.qq.com",
+    "gtimg.com",
+    "myqcloud.com",
+    "baidu.com",
+    "bdstatic.com",
+    "bilibili.com",
+    "hdslb.com",
+    "iqiyi.com",
+    "sohu.com",
+    "sina.com.cn",
+    "163.com",
+    "126.net",
+    "netease.com",
+    "jd.com",
+    "360.cn",
+    "sogou.com",
+    "weibo.com",
+    "zhihu.com",
+]
+
+# Domains that must resolve to real IPs (never fake-ip): LAN + NTP + probes.
+REALIP_SUFFIXES = [
+    "*.lan",
+    "*.local",
+    "localhost.ptlogin2.qq.com",
+    "+.msftconnecttest.com",
+    "+.msftncsi.com",
+    "time.*.com",
+    "time.*.gov",
+    "time.*.edu.cn",
+    "+.ntp.org.cn",
+    "+.pool.ntp.org",
+    "detectportal.firefox.com",
+    "connectivitycheck.gstatic.com",
+]
+
+# Trackers/ads rejected before anything else.
+ADS_REJECT_SUFFIXES = [
+    "doubleclick.net",
+    "googlesyndication.com",
+    "googleadservices.com",
+    "googletagmanager.com",
+    "googletagservices.com",
+    "tracking.pro",
+    "scorecardresearch.com",
+    "adnxs.com",
+    "adsrvr.org",
+    "advertising.com",
+    "amazon-adsystem.com",
+]
+
 # mihomo client-fingerprint accepted values
 UTLS_FINGERPRINTS = {
     "chrome",
@@ -1066,22 +1179,28 @@ class ConfigGenerator:
 
         rules = self._clash_rules()
 
+        # NOTE: field-for-field aligned with /home/mohammad/Desktop/mihomo
+        # config.yaml (verified mihomo v1.19.31 setup). Differences from it are
+        # intentional: proxies/groups come from the subscription (no xray
+        # sidecar), and Iran/CN bypass rules are added.
         config: Dict[str, Any] = {
-            "mixed-port": 10808,
+            "mixed-port": 7890,
             "allow-lan": True,
             "bind-address": "*",
             "mode": "rule",
             "log-level": "info",
             "ipv6": False,
-            "external-controller": "127.0.0.1:9090",
-            "unified-delay": True,
+            # "always" is required for PROCESS-NAME/PATH rules; strict may
+            # skip them, off disables them entirely.
+            "find-process-mode": "always",
             "tcp-concurrent": True,
-            "find-process-mode": "strict",
+            "keep-alive-interval": 30,
+            "unified-delay": True,
+            "external-controller": "127.0.0.1:9090",
             "geox-url": {
                 "geoip": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat",
                 "geosite": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat",
                 "mmdb": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb",
-                "asn": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb",
             },
             "geo-auto-update": True,
             "geo-update-interval": 24,
@@ -1091,31 +1210,37 @@ class ConfigGenerator:
             },
             "dns": {
                 "enable": True,
+                # 1053 avoids systemd-resolved/dnsmasq port-53 conflict;
+                # TUN dns-hijack (any:53) still intercepts all port-53
+                # queries and forwards them here, so fake-ip keeps working.
                 "listen": "0.0.0.0:1053",
                 "ipv6": False,
+                "cache-algorithm": "arc",
                 "enhanced-mode": "fake-ip",
                 "fake-ip-range": "198.18.0.1/16",
-                "fake-ip-filter": [
-                    "*.lan",
-                    "*.local",
-                    "+.msftconnecttest.com",
-                    "+.msftncsi.com",
-                    "time.*.com",
-                    "ntp.*.com",
-                    "+.pool.ntp.org",
-                    "time.windows.com",
-                    "detectportal.firefox.com",
-                    "connectivitycheck.gstatic.com",
-                    "+.stun.*.*",
-                    "+.stun.*.*.*",
-                ],
-                "default-nameserver": ["1.1.1.1", "8.8.8.8"],
+                "fake-ip-filter-mode": "blacklist",
+                "fake-ip-filter": list(REALIP_SUFFIXES),
+                # Plain IPs only: used to resolve DoH/DoT hostnames themselves.
+                "default-nameserver": ["223.5.5.5", "114.114.114.114", "8.8.8.8"],
                 "nameserver": [
-                    "https://1.1.1.1/dns-query",
-                    "https://8.8.8.8/dns-query",
-                    "https://dns.quad9.net/dns-query",
+                    "https://doh.pub/dns-query",
+                    "https://dns.alidns.com/dns-query",
+                    "tls://8.8.8.8",
+                    "223.5.5.5",
                 ],
-                "proxy-server-nameserver": ["1.1.1.1", "8.8.8.8"],
+                "proxy-server-nameserver": ["https://doh.pub/dns-query"],
+                "fallback": ["tls://1.1.1.1", "tls://8.8.4.4"],
+                "fallback-filter": {
+                    "geoip": True,
+                    "geoip-code": "CN",
+                    "ipcidr": ["240.0.0.0/4"],
+                    "domain": [
+                        "+.google.com",
+                        "+.facebook.com",
+                        "+.youtube.com",
+                        "+.twitter.com",
+                    ],
+                },
                 "nameserver-policy": {
                     "geosite:category-ads-all": "rcode://success",
                     "+.ir": "https://dns.alidns.com/dns-query",
@@ -1123,23 +1248,43 @@ class ConfigGenerator:
             },
             "tun": {
                 "enable": True,
+                # mixed: TCP via system stack, UDP via gvisor (recommended).
                 "stack": "mixed",
+                "device": "mihomo",
                 "auto-route": True,
+                # Linux iptables/nftables auto redirect; keep false on a
+                # desktop (auto-route alone is enough), true on routers.
+                "auto-redirect": False,
                 "auto-detect-interface": True,
-                "dns-hijack": ["any:53"],
-                "strict-route": False,
+                "dns-hijack": ["any:53", "tcp://any:53"],
+                "mtu": 9000,
+                "gso": True,
+                "gso-max-size": 65536,
+                "strict-route": True,
+                "endpoint-independent-nat": False,
+                # Exclude private/LAN from TUN routing -> stays DIRECT and
+                # avoids proxy loops (covers local upstream ports too).
+                "route-exclude-address": [
+                    "10.0.0.0/8",
+                    "172.16.0.0/12",
+                    "192.168.0.0/16",
+                    "127.0.0.0/8",
+                    "169.254.0.0/16",
+                    "224.0.0.0/4",
+                    "240.0.0.0/4",
+                ],
             },
             "sniffer": {
                 "enable": True,
-                "force-dns-mapping": True,
                 "parse-pure-ip": True,
-                "override-destination": True,
+                "override-destination": False,
                 "sniff": {
-                    "HTTP": {"ports": [80, 8080, 8880]},
                     "TLS": {"ports": [443, 8443]},
-                    "QUIC": {"ports": [443, 8443]},
+                    "HTTP": {"ports": [80, "8080-8880"], "override-destination": True},
+                    "QUIC": {"ports": [443]},
                 },
-                "skip-domain": ["Mijia Cloud", "+.market.xiaomi.com"],
+                "force-domain": ["+.v2ex.com"],
+                "skip-domain": ["Mijia Cloud"],
             },
             "proxies": clash_proxies,
             "proxy-groups": proxy_groups,
@@ -1147,105 +1292,46 @@ class ConfigGenerator:
         }
         return config
 
-    @staticmethod
-    def _clash_rules() -> List[str]:
-        return [
-            # Local / private networks
-            "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
-            "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
-            "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
-            "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
-            "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
-            "IP-CIDR,198.18.0.0/15,DIRECT,no-resolve",
-            "IP-CIDR6,::1/128,DIRECT,no-resolve",
-            "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
-            "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
-            "IP-CIDR6,2001:db8::/32,DIRECT,no-resolve",
-            # Broadcast / special
+    @classmethod
+    def _clash_rules(cls) -> List[str]:
+        # First match wins — order mirrors Desktop/mihomo usage:
+        # 0) loop avoidance, 1) private/LAN, 2) ads, 3) Iran bypass,
+        # 4) CN bypass, 5) foreign → PROXY, 6) geo fallbacks, 7) MATCH.
+        rules: List[str] = [
+            # 0) Bypass proxy/helper processes to avoid routing loops.
+            # (Covers the legacy xray/PattN sidecar if still running, and
+            # our own cores. Requires find-process-mode: always.)
+            "PROCESS-NAME,xray,DIRECT",
+            "PROCESS-NAME,sing-box,DIRECT",
+            "PROCESS-NAME,PattN,DIRECT",
+            "PROCESS-NAME,v2rayn,DIRECT",
+            "PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/xray/xray,DIRECT",
+            "PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/sing_box/sing-box,DIRECT",
+            "PROCESS-PATH,/opt/v2rayN/PattN,DIRECT",
+            "PROCESS-NAME-WILDCARD,*sing-box*,DIRECT",
+            "PROCESS-NAME-REGEX,(?i)v2ray.*|PattN,DIRECT",
+            # 1) LAN / private bypass (Desktop pattern)
             "DOMAIN-SUFFIX,lan,DIRECT",
+            "DOMAIN,lan,DIRECT",
+            "GEOIP,private,DIRECT,no-resolve",
+            "GEOIP,lan,DIRECT,no-resolve",
             "DOMAIN-SUFFIX,local,DIRECT",
             "DOMAIN-SUFFIX,localhost,DIRECT",
             "DOMAIN-SUFFIX,localdomain,DIRECT",
-            # Common ads / trackers
-            "DOMAIN-SUFFIX,doubleclick.net,REJECT",
-            "DOMAIN-SUFFIX,googlesyndication.com,REJECT",
-            "DOMAIN-SUFFIX,googleadservices.com,REJECT",
-            "DOMAIN-SUFFIX,googletagmanager.com,REJECT",
-            "DOMAIN-SUFFIX,googletagservices.com,REJECT",
-            "DOMAIN-SUFFIX,tracking.pro,REJECT",
-            "DOMAIN-SUFFIX,scorecardresearch.com,REJECT",
-            "DOMAIN-SUFFIX,adnxs.com,REJECT",
-            "DOMAIN-SUFFIX,adsrvr.org,REJECT",
-            "DOMAIN-SUFFIX,advertising.com,REJECT",
-            "DOMAIN-SUFFIX,amazon-adsystem.com,REJECT",
-            "DOMAIN-SUFFIX,facebook.net,REJECT",
-            "DOMAIN-KEYWORD,analytics,REJECT",
-            # Iran local services → DIRECT
-            "DOMAIN-SUFFIX,ir,DIRECT",
-            "DOMAIN-SUFFIX,co.ir,DIRECT",
-            "DOMAIN-SUFFIX,net.ir,DIRECT",
-            "DOMAIN-SUFFIX,org.ir,DIRECT",
-            "DOMAIN-SUFFIX,ac.ir,DIRECT",
-            "DOMAIN-SUFFIX,sch.ir,DIRECT",
-            "DOMAIN-SUFFIX,gov.ir,DIRECT",
-            "DOMAIN-SUFFIX,snapp.ir,DIRECT",
-            "DOMAIN-SUFFIX,digikala.com,DIRECT",
-            "DOMAIN-SUFFIX,digikalaelectron.com,DIRECT",
-            "DOMAIN-SUFFIX,digimah.com,DIRECT",
-            "DOMAIN-SUFFIX,digikala.tm,DIRECT",
-            "DOMAIN-SUFFIX,snappfood.com,DIRECT",
-            "DOMAIN-SUFFIX,bale.ir,DIRECT",
-            "DOMAIN-SUFFIX,shaparak.ir,DIRECT",
-            "DOMAIN-SUFFIX,sep.ir,DIRECT",
-            "DOMAIN-SUFFIX,asiatech.ir,DIRECT",
-            "DOMAIN-SUFFIX,shatel.ir,DIRECT",
-            "DOMAIN-SUFFIX,parspack.com,DIRECT",
-            "DOMAIN-SUFFIX,hostiran.net,DIRECT",
-            "DOMAIN-SUFFIX,arvancloud.ir,DIRECT",
-            "DOMAIN-SUFFIX,arvancloud.com,DIRECT",
-            "DOMAIN-SUFFIX,iraniancdns.com,DIRECT",
-            "DOMAIN-SUFFIX,parsdata.com,DIRECT",
-            "DOMAIN-SUFFIX,idehpay.com,DIRECT",
-            "DOMAIN-SUFFIX,pasargad.ir,DIRECT",
-            "DOMAIN-SUFFIX,saderat.ir,DIRECT",
-            "DOMAIN-SUFFIX,bankmellat.ir,DIRECT",
-            "DOMAIN-SUFFIX,banksepah.ir,DIRECT",
-            "DOMAIN-SUFFIX,refah-bank.ir,DIRECT",
-            "DOMAIN-SUFFIX,samanbank.ir,DIRECT",
-            # China local → DIRECT
-            "DOMAIN-SUFFIX,cn,DIRECT",
-            "DOMAIN-SUFFIX,aliyun.com,DIRECT",
-            "DOMAIN-SUFFIX,taobao.com,DIRECT",
-            "DOMAIN-SUFFIX,tmail.com,DIRECT",
-            "DOMAIN-SUFFIX,tmall.com,DIRECT",
-            "DOMAIN-SUFFIX,alipay.com,DIRECT",
-            "DOMAIN-SUFFIX,qq.com,DIRECT",
-            "DOMAIN-SUFFIX,weixin.qq.com,DIRECT",
-            "DOMAIN-SUFFIX,gtimg.com,DIRECT",
-            "DOMAIN-SUFFIX,myqcloud.com,DIRECT",
-            "DOMAIN-SUFFIX,baidu.com,DIRECT",
-            "DOMAIN-SUFFIX,bdstatic.com,DIRECT",
-            "DOMAIN-SUFFIX,4399.com,DIRECT",
-            "DOMAIN-SUFFIX,bilibili.com,DIRECT",
-            "DOMAIN-SUFFIX,hdslb.com,DIRECT",
-            "DOMAIN-SUFFIX,cnzz.com,DIRECT",
-            "DOMAIN-SUFFIX,umeng.com,DIRECT",
-            "DOMAIN-SUFFIX,ximalaya.com,DIRECT",
-            "DOMAIN-SUFFIX,iqiyi.com,DIRECT",
-            "DOMAIN-SUFFIX,letv.com,DIRECT",
-            "DOMAIN-SUFFIX,sohu.com,DIRECT",
-            "DOMAIN-SUFFIX,sina.com.cn,DIRECT",
-            "DOMAIN-SUFFIX,163.com,DIRECT",
-            "DOMAIN-SUFFIX,126.net,DIRECT",
-            "DOMAIN-SUFFIX,netease.com,DIRECT",
-            "DOMAIN-SUFFIX,jd.com,DIRECT",
-            "DOMAIN-SUFFIX,360.cn,DIRECT",
-            "DOMAIN-SUFFIX,sogou.com,DIRECT",
-            "DOMAIN-SUFFIX,weibo.com,DIRECT",
-            "DOMAIN-SUFFIX,zhihu.com,DIRECT",
-            "DOMAIN-SUFFIX,pstatp.com,DIRECT",
-            "DOMAIN-SUFFIX,byteimg.com,DIRECT",
-            # Foreign services → PROXY
+        ]
+        rules += [f"IP-CIDR,{c},DIRECT,no-resolve" for c in PRIVATE_CIDRS]
+        rules += [f"IP-CIDR6,{c},DIRECT,no-resolve" for c in PRIVATE_CIDRS_V6]
+        # 2) Ads / trackers
+        rules += [f"DOMAIN-SUFFIX,{d},REJECT" for d in ADS_REJECT_SUFFIXES]
+        rules.append("DOMAIN-KEYWORD,analytics,REJECT")
+        # 3) Iran bypass: sites + IPs
+        rules += [f"DOMAIN-SUFFIX,{d.lstrip('.')},DIRECT" for d in IRAN_DIRECT_SUFFIXES]
+        rules.append("GEOIP,IR,DIRECT")
+        # 4) China bypass: sites + IPs
+        rules += [f"DOMAIN-SUFFIX,{d.lstrip('.')},DIRECT" for d in CN_DIRECT_SUFFIXES]
+        rules.append("GEOIP,CN,DIRECT")
+        # 5) Foreign services → PROXY
+        rules += [
             "DOMAIN-SUFFIX,google.com,PROXY",
             "DOMAIN-SUFFIX,googleapis.com,PROXY",
             "DOMAIN-SUFFIX,gstatic.com,PROXY",
@@ -1336,12 +1422,10 @@ class ConfigGenerator:
             "DOMAIN-SUFFIX,tailscale.com,PROXY",
             "DOMAIN-SUFFIX,speedtest.net,PROXY",
             "DOMAIN-SUFFIX,fast.com,PROXY",
-            # GeoIP (requires geoip/metadb — downloaded via geox-url)
-            "GEOIP,CN,DIRECT",
-            "GEOIP,IR,DIRECT",
-            # Fallback
-            "MATCH,PROXY",
         ]
+        # 6) Final catch-all (Desktop pattern: everything else → PROXY)
+        rules.append("MATCH,PROXY")
+        return rules
 
     # ------------------------------------------------------------------
     # sing-box
@@ -1569,53 +1653,81 @@ class ConfigGenerator:
             {
                 "type": "tun",
                 "tag": "tun-in",
-                "address": ["198.18.0.1/30"],
+                "interface_name": "mihomo",
+                # Outside the fake-ip pool (198.18.0.0/15) to avoid overlap.
+                "address": ["172.19.0.1/30"],
+                # mixed: TCP via system stack, UDP via gvisor (recommended).
+                "stack": "mixed",
+                "mtu": 9000,
                 "auto_route": True,
-                "strict_route": False,
-                "stack": "system",
-                "sniff": False,
+                "strict_route": True,
+                # Exclude private/LAN from TUN routing -> stays DIRECT and
+                # avoids proxy loops (mirrors mihomo route-exclude-address).
+                "route_exclude_address": PRIVATE_CIDRS + PRIVATE_CIDRS_V6,
+                "endpoint_independent_nat": False,
+                "udp_timeout": "5m",
             },
         ]
 
         final = "auto" if proxy_tags else "direct"
+        # Mirrors the mihomo rule order: loop avoidance → private →
+        # Iran bypass → MATCH (final). sing-box `geoip` is deprecated in
+        # favor of rule-sets, so Iran/IP bypass here is domain_suffix +
+        # ip_is_private based (no downloads needed).
         rules: List[Dict[str, Any]] = [
             {"action": "sniff"},
             {"protocol": "dns", "action": "hijack-dns"},
             {
                 "action": "route",
                 "outbound": "direct",
-                "ip_cidr": [
-                    "127.0.0.0/8",
-                    "10.0.0.0/8",
-                    "172.16.0.0/12",
-                    "192.168.0.0/16",
-                    "100.64.0.0/10",
-                    "198.18.0.0/15",
-                    "::1/128",
-                    "fc00::/7",
-                    "fe80::/10",
-                ],
+                "process_name": LOOPBACK_PROCESS_NAMES,
             },
             {
                 "action": "route",
                 "outbound": "direct",
-                "domain_suffix": [".ir"],
+                "process_path_regex": ["(?i)v2ray.*|PattN", ".*sing-box.*"],
+            },
+            {
+                "action": "route",
+                "outbound": "direct",
+                "ip_is_private": True,
+            },
+            {
+                "action": "route",
+                "outbound": "direct",
+                "domain_suffix": IRAN_DIRECT_SUFFIXES + CN_DIRECT_SUFFIXES,
+            },
+            {
+                "action": "reject",
+                "domain_suffix": [d.lstrip("+") for d in ADS_REJECT_SUFFIXES],
             },
         ]
 
+        # Fake-IP by default (like mihomo enhanced-mode: fake-ip): hijacked
+        # DNS gets fake IPs via the query_type rule; LAN/NTP/Iran/CN get
+        # real IPs from dns-direct. `final` must be a real resolver —
+        # sing-box forbids fakeip as the default server.
+        realip_suffixes = [
+            ".lan",
+            ".local",
+            ".localhost",
+            ".localdomain",
+            "localhost.ptlogin2.qq.com",
+            "msftconnecttest.com",
+            "msftncsi.com",
+            "ntp.org.cn",
+            "pool.ntp.org",
+            "detectportal.firefox.com",
+            "connectivitycheck.gstatic.com",
+        ]
         config: Dict[str, Any] = {
             "log": {"level": "info", "timestamp": True},
             "dns": {
                 "servers": [
                     {
-                        "type": "udp",
-                        "server": "1.1.1.1",
-                        "tag": "dns-remote",
-                    },
-                    {
-                        "type": "udp",
-                        "server": "8.8.8.8",
-                        "tag": "dns-google",
+                        "type": "fakeip",
+                        "tag": "dns-fakeip",
+                        "inet4_range": "198.18.0.0/15",
                     },
                     {
                         "type": "udp",
@@ -1623,11 +1735,42 @@ class ConfigGenerator:
                         "tag": "dns-direct",
                     },
                     {
+                        "type": "tls",
+                        "server": "8.8.8.8",
+                        "tag": "dns-remote",
+                    },
+                    {
+                        "type": "https",
+                        "server": "doh.pub",
+                        "tag": "dns-doh",
+                        "path": "/dns-query",
+                        # DoH hostname itself must resolve via a plain-IP
+                        # server (mirrors mihomo default-nameserver).
+                        "domain_resolver": "dns-direct",
+                    },
+                    {
                         "type": "local",
                         "tag": "dns-local",
                     },
                 ],
-                "final": "dns-remote",
+                "rules": [
+                    {
+                        "action": "route",
+                        "server": "dns-direct",
+                        "domain_suffix": realip_suffixes,
+                    },
+                    {
+                        "action": "route",
+                        "server": "dns-direct",
+                        "domain_suffix": IRAN_DIRECT_SUFFIXES + CN_DIRECT_SUFFIXES,
+                    },
+                    {
+                        "action": "route",
+                        "server": "dns-fakeip",
+                        "query_type": ["A", "AAAA"],
+                    },
+                ],
+                "final": "dns-doh",
                 "strategy": "prefer_ipv4",
                 "independent_cache": True,
             },
@@ -1637,7 +1780,9 @@ class ConfigGenerator:
                 "rules": rules,
                 "final": final,
                 "auto_detect_interface": True,
-                "default_domain_resolver": "dns-remote",
+                # Must be a REAL resolver (not fakeip): used to resolve
+                # proxy node domain names (SNI/host).
+                "default_domain_resolver": "dns-direct",
             },
         }
         return config
