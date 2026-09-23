@@ -19,7 +19,19 @@ A comprehensive Python tool that downloads V2Ray subscription links, parses vari
 > **Dashboard:** the generated config serves the official MetaCubeX dashboard
 > at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
 > zip, auto-downloaded by mihomo on first start into `./ui/`, git-ignored).
-> No secret is set, so the same-origin UI connects without auth.
+> No secret is set by default, so the same-origin UI connects without auth.
+> To protect the controller (required when exposing it, e.g. via a
+> Cloudflare Tunnel hostname), set a secret — via flag or env:
+>
+> ```bash
+> python3 proxy_converter.py --controller-secret "YOUR-SECRET"
+> MIHOMO_CONTROLLER_SECRET="YOUR-SECRET" python3 proxy_converter.py
+> ```
+>
+> This emits `secret: YOUR-SECRET` next to `external-controller`; the
+> dashboard then asks for it (or send `Authorization: Bearer YOUR-SECRET`
+> to the REST API). Generate one with `openssl rand -hex 32` and keep it
+> out of git (env var or a `chmod 600` file).
 
 ## Features
 

@@ -13,6 +13,9 @@ TMP="$(mktemp /tmp/mihomo-subs-XXXXXX.yaml)"
 cleanup() { rm -f "$TMP"; }
 trap cleanup EXIT
 
+# Controller secret lives in a chmod-600 file, never in git.
+export MIHOMO_CONTROLLER_SECRET="$(cat "$CONF_DIR/.controller_secret")"
+
 echo "[refresh] generating to $TMP ..."
 "$PY" "$CONVERTER" --only clash --clash-out "$TMP"
 

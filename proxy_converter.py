@@ -12,6 +12,7 @@ import argparse
 import base64
 import json
 import logging
+import os
 import re
 import urllib.parse
 import urllib.request
@@ -841,7 +842,12 @@ def _unique_name(name: str, used: set) -> str:
 class ConfigGenerator:
     """Generates complete mihomo (Clash.Meta) and sing-box configurations."""
 
-    def __init__(self, tun_enabled: bool = False, allow_lan: bool = False) -> None:
+    def __init__(
+        self,
+        tun_enabled: bool = False,
+        allow_lan: bool = False,
+        controller_secret: str = "",
+    ) -> None:
         self.url_test_url = "https://www.gstatic.com/generate_204"
         self.url_test_interval = 300
         self.url_test_tolerance = 50
@@ -849,6 +855,8 @@ class ConfigGenerator:
         # TUN is opt-in (needs root/CAP_NET_ADMIN); loopback-only by default.
         self.tun_enabled = tun_enabled
         self.allow_lan = allow_lan
+        # Empty = no `secret` key emitted (backwards compatible default).
+        self.controller_secret = controller_secret or ""
 
     # ------------------------------------------------------------------
     # Shared helpers
@@ -1201,6 +1209,10 @@ class ConfigGenerator:
             "keep-alive-interval": 30,
             "unified-delay": True,
             "external-controller": "127.0.0.1:9090",
+            # Controller auth: emitted only when a secret is provided
+            # (--controller-secret / MIHOMO_CONTROLLER_SECRET). Empty default
+            # keeps the old no-auth behaviour.
+            **({"secret": self.controller_secret} if self.controller_secret else {}),
             # Official MetaCubeX dashboard (metacubexd): served by mihomo
             # itself at http://127.0.0.1:9090/ui . "ui" is relative to the
             # mihomo working dir (mihomo -d <dir>); the zip below is fetched
@@ -1844,6 +1856,7 @@ def run(
     outputs: str = "both",
     tun_enabled: bool = False,
     allow_lan: bool = False,
+    controller_secret: str = "",
 ) -> int:
     downloader = SubscriptionDownloader()
     content = downloader.download_subscription(url)
@@ -1856,7 +1869,11 @@ def run(
         logger.error("No proxies parsed from subscription")
         return 1
 
-    generator = ConfigGenerator(tun_enabled=tun_enabled, allow_lan=allow_lan)
+    generator = ConfigGenerator(
+        tun_enabled=tun_enabled,
+        allow_lan=allow_lan,
+        controller_secret=controller_secret,
+    )
     generator.subscription_title = title
 
     if outputs in ("clash", "both"):
@@ -1924,6 +1941,11 @@ def main() -> None:
         action="store_true",
         help="Allow LAN connections and bind to all interfaces (loopback-only by default)",
     )
+    ap.add_argument(
+        "--controller-secret",
+        default=os.environ.get("MIHOMO_CONTROLLER_SECRET", ""),
+        help="mihomo external-controller secret (or set MIHOMO_CONTROLLER_SECRET env). Empty = no auth (default).",
+    )
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -1938,6 +1960,7 @@ def main() -> None:
             outputs=args.only,
             tun_enabled=args.tun,
             allow_lan=args.allow_lan,
+            controller_secret=args.controller_secret,
         )
     )
 
