@@ -1191,9 +1191,13 @@ class ConfigGenerator:
                         "type": "load-balance",
                         "proxies": auto_members,
                         "url": self.url_test_url,
-                        "interval": self.url_test_interval,
-                        "strategy": "round-robin",
-                        "lazy": True,
+                        # 60s active checks over ~7k nodes: dead nodes drop
+                        # out fast; consistent-hashing spreads destinations
+                        # across all healthy nodes instead of rotating one
+                        # connection stream through the top few.
+                        "interval": 60,
+                        "strategy": "consistent-hashing",
+                        "lazy": False,
                     },
                     {
                         "name": "Fallback",
