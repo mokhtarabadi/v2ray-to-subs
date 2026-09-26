@@ -157,6 +157,26 @@ UTLS_FINGERPRINTS = {
 }
 
 
+class _QuotedStr(str):
+    """A string that PyYAML always emits double-quoted.
+
+    Needed for REALITY public-key / short-id: values like "2e00" are
+    valid hex but dump unquoted by PyYAML while Go-YAML (mihomo) reads
+    them as float 2.0, failing with "invalid REALITY short ID".
+    """
+
+
+def _quoted_str_representer(dumper: yaml.Dumper, data: _QuotedStr):  # type: ignore[type-arg]
+    return dumper.represent_scalar("tag:yaml.org,2002:str", str(data), style='"')
+
+
+yaml.add_representer(_QuotedStr, _quoted_str_representer)
+try:
+    yaml.SafeDumper.add_representer(_QuotedStr, _quoted_str_representer)  # type: ignore[attr-defined]
+except Exception:
+    pass
+
+
 def _unquote(value: Optional[str]) -> str:
     if not value:
         return ""
@@ -882,9 +902,9 @@ class ConfigGenerator:
         if alpn:
             block["alpn"] = alpn
         if cfg.security == "reality" and cfg.pbk:
-            reality: Dict[str, Any] = {"public-key": cfg.pbk}
+            reality: Dict[str, Any] = {"public-key": _QuotedStr(cfg.pbk)}
             if cfg.sid is not None:
-                reality["short-id"] = cfg.sid
+                reality["short-id"] = _QuotedStr(cfg.sid)
             block["reality-opts"] = reality
         return block
 

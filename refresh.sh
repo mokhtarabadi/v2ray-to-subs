@@ -16,8 +16,21 @@ trap cleanup EXIT
 # Controller secret lives in a chmod-600 file, never in git.
 export MIHOMO_CONTROLLER_SECRET="$(cat "$CONF_DIR/.controller_secret")"
 
+# Subscription source: $1 or $SUB_URL wins, else converter default.
+# Lets the systemd unit pin a custom sub without editing code.
+SUB_URL="${1:-${SUB_URL:-}}"
+if [ -n "$SUB_URL" ]; then
+  echo "[refresh] source: $SUB_URL"
+else
+  echo "[refresh] source: converter default"
+fi
+
 echo "[refresh] generating to $TMP ..."
-"$PY" "$CONVERTER" --only clash --clash-out "$TMP"
+if [ -n "$SUB_URL" ]; then
+  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP"
+else
+  "$PY" "$CONVERTER" --only clash --clash-out "$TMP"
+fi
 
 echo "[refresh] validating with mihomo -t ..."
 mihomo -t -f "$TMP"
