@@ -1,9 +1,9 @@
 # Task [03]: Harden proxy health checks to filter dead nodes
 
-**File:** `tasks/qa/03-harden-proxy-health-checks.md`
+**File:** `tasks/completed/03-harden-proxy-health-checks.md`
 **Source:** manager
 **Type:** improvement
-**Status:** open
+**Status:** closed
 
 ## Goal
 
@@ -64,40 +64,5 @@ Manager: "we need to configure mihomo to test all proxies in balance or other pr
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/proxy_converter.py b/proxy_converter.py
-index abfb43b..45391a1 100644
---- a/proxy_converter.py
-+++ b/proxy_converter.py
-@@ -1185,6 +1185,11 @@ class ConfigGenerator:
-                         "interval": self.url_test_interval,
-                         "tolerance": self.url_test_tolerance,
-                         "lazy": True,
-+                        # gstatic answers 204; without this mihomo expects
-+                        # 200, so checks can never pass and dead nodes stay
-+                        # in rotation. Drop nodes after 3 straight failures.
-+                        "expected-status": 204,
-+                        "max-failed-times": 3,
-                     },
-                     {
-                         "name": "Load Balance",
-@@ -1198,6 +1203,8 @@ class ConfigGenerator:
-                         "interval": 60,
-                         "strategy": "consistent-hashing",
-                         "lazy": False,
-+                        "expected-status": 204,
-+                        "max-failed-times": 3,
-                     },
-                     {
-                         "name": "Fallback",
-@@ -1206,6 +1213,8 @@ class ConfigGenerator:
-                         "url": self.url_test_url,
-                         "interval": self.url_test_interval,
-                         "lazy": True,
-+                        "expected-status": 204,
-+                        "max-failed-times": 3,
-                     },
-                 ]
-             )
-```
+**Factual Git Diff:** Stored in Commit Hash: `2277bc8e2f2a0d8485e6854c1ececaaad3e26c44`
 <!-- END_GIT_DIFF -->
