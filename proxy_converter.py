@@ -1185,6 +1185,11 @@ class ConfigGenerator:
                         "interval": self.url_test_interval,
                         "tolerance": self.url_test_tolerance,
                         "lazy": True,
+                        # gstatic answers 204; without this mihomo expects
+                        # 200, so checks can never pass and dead nodes stay
+                        # in rotation. Drop nodes after 3 straight failures.
+                        "expected-status": 204,
+                        "max-failed-times": 3,
                     },
                     {
                         "name": "Load Balance",
@@ -1198,6 +1203,8 @@ class ConfigGenerator:
                         "interval": 60,
                         "strategy": "consistent-hashing",
                         "lazy": False,
+                        "expected-status": 204,
+                        "max-failed-times": 3,
                     },
                     {
                         "name": "Fallback",
@@ -1206,6 +1213,8 @@ class ConfigGenerator:
                         "url": self.url_test_url,
                         "interval": self.url_test_interval,
                         "lazy": True,
+                        "expected-status": 204,
+                        "max-failed-times": 3,
                     },
                 ]
             )
