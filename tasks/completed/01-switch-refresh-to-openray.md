@@ -1,9 +1,9 @@
 # Task [01]: Switch refresh to OpenRay vless feed
 
-**File:** `tasks/qa/01-switch-refresh-to-openray.md`
+**File:** `tasks/completed/01-switch-refresh-to-openray.md`
 **Source:** manager
 **Type:** improvement
-**Status:** open
+**Status:** closed
 
 ## Goal
 
@@ -68,76 +68,5 @@ Manager asked to set default link to https://raw.githubusercontent.com/sakha1370
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/proxy_converter.py b/proxy_converter.py
-index 28b65e1..2f48768 100644
---- a/proxy_converter.py
-+++ b/proxy_converter.py
-@@ -157,6 +157,26 @@ UTLS_FINGERPRINTS = {
- }
- 
- 
-+class _QuotedStr(str):
-+    """A string that PyYAML always emits double-quoted.
-+
-+    Needed for REALITY public-key / short-id: values like "2e00" are
-+    valid hex but dump unquoted by PyYAML while Go-YAML (mihomo) reads
-+    them as float 2.0, failing with "invalid REALITY short ID".
-+    """
-+
-+
-+def _quoted_str_representer(dumper: yaml.Dumper, data: _QuotedStr):  # type: ignore[type-arg]
-+    return dumper.represent_scalar("tag:yaml.org,2002:str", str(data), style='"')
-+
-+
-+yaml.add_representer(_QuotedStr, _quoted_str_representer)
-+try:
-+    yaml.SafeDumper.add_representer(_QuotedStr, _quoted_str_representer)  # type: ignore[attr-defined]
-+except Exception:
-+    pass
-+
-+
- def _unquote(value: Optional[str]) -> str:
-     if not value:
-         return ""
-@@ -882,9 +902,9 @@ class ConfigGenerator:
-         if alpn:
-             block["alpn"] = alpn
-         if cfg.security == "reality" and cfg.pbk:
--            reality: Dict[str, Any] = {"public-key": cfg.pbk}
-+            reality: Dict[str, Any] = {"public-key": _QuotedStr(cfg.pbk)}
-             if cfg.sid is not None:
--                reality["short-id"] = cfg.sid
-+                reality["short-id"] = _QuotedStr(cfg.sid)
-             block["reality-opts"] = reality
-         return block
- 
-diff --git a/refresh.sh b/refresh.sh
-index 83fc493..ac32654 100755
---- a/refresh.sh
-+++ b/refresh.sh
-@@ -16,8 +16,21 @@ trap cleanup EXIT
- # Controller secret lives in a chmod-600 file, never in git.
- export MIHOMO_CONTROLLER_SECRET="$(cat "$CONF_DIR/.controller_secret")"
- 
-+# Subscription source: $1 or $SUB_URL wins, else converter default.
-+# Lets the systemd unit pin a custom sub without editing code.
-+SUB_URL="${1:-${SUB_URL:-}}"
-+if [ -n "$SUB_URL" ]; then
-+  echo "[refresh] source: $SUB_URL"
-+else
-+  echo "[refresh] source: converter default"
-+fi
-+
- echo "[refresh] generating to $TMP ..."
--"$PY" "$CONVERTER" --only clash --clash-out "$TMP"
-+if [ -n "$SUB_URL" ]; then
-+  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP"
-+else
-+  "$PY" "$CONVERTER" --only clash --clash-out "$TMP"
-+fi
- 
- echo "[refresh] validating with mihomo -t ..."
- mihomo -t -f "$TMP"
-```
+**Factual Git Diff:** Stored in Commit Hash: `5bfba0f43d0a3a1ec57a4821663cea067e0e1424`
 <!-- END_GIT_DIFF -->
