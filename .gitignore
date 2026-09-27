@@ -48,6 +48,9 @@ cache.db
 # Custom Context MCP reports
 context-reports/
 
+# Brain session transcripts (per-project runtime state)
+tasks/.sessions/
+
 # External balancer runtime state (SQLite, rebuilt by retest)
 data/*.db
 data/*.db-journal
