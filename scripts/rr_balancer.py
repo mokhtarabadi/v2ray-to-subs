@@ -204,6 +204,67 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     return 0
 
 
+def _mark_failed(conn: sqlite3.Connection, name: str, max_fails: int, now: int) -> None:
+    """Mark one node failed (retest readmits it if alive)."""
+    cur = conn.cursor()
+    row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
+    if row is None:
+        print("skip: unknown node %r, rotating anyway" % name)
+    else:
+        cur.execute(
+            "UPDATE nodes SET status = 'failed', fails = ?, last_check = ? "
+            "WHERE name = ?",
+            (max_fails, now, name),
+        )
+        conn.commit()
+        print("skip: marked %s failed (retest readmits it if alive)" % name)
+
+
+def _relabel_latest(conn: sqlite3.Connection, reason: str) -> None:
+    """Relabel the newest rotation row when rotate just logged 'rotate'."""
+    conn.execute(
+        "UPDATE rotation_log SET reason = ? "
+        "WHERE id = (SELECT MAX(id) FROM rotation_log) AND reason = 'rotate'",
+        (reason,),
+    )
+    conn.commit()
+
+
+def cmd_skip(args: argparse.Namespace, api: ClashAPI) -> int:
+    """Mark a flagged node failed, then rotate to the next alive node."""
+    now = utc_now_epoch()
+    conn = connect_db(args.db)
+    pool_names, _ = api.group_members(args.group)
+    seed_names(conn, pool_names)
+    _mark_failed(conn, args.name, args.max_fails, now)
+    conn.close()
+    rc = cmd_rotate(args, api)
+    if rc == 0:
+        conn = connect_db(args.db)
+        _relabel_latest(conn, "manual-skip")
+        conn.close()
+    return rc
+
+
+def cmd_next(args: argparse.Namespace, api: ClashAPI) -> int:
+    """Skip whatever node is currently selected, then rotate onward."""
+    now = utc_now_epoch()
+    conn = connect_db(args.db)
+    pool_names, current = api.group_members(args.group)
+    seed_names(conn, pool_names)
+    if not current:
+        print("next: no current selection reported, rotating anyway")
+    else:
+        _mark_failed(conn, current, args.max_fails, now)
+    conn.close()
+    rc = cmd_rotate(args, api)
+    if rc == 0:
+        conn = connect_db(args.db)
+        _relabel_latest(conn, "manual-next")
+        conn.close()
+    return rc
+
+
 def check_one(
     api: ClashAPI, name: str, test_url: str, timeout_ms: int
 ) -> Tuple[str, Optional[int]]:
@@ -297,21 +358,31 @@ def build_parser() -> argparse.ArgumentParser:
     ret.add_argument("--max-fails", type=int, default=3)
     ret.add_argument("--test-url", default="https://www.gstatic.com/generate_204")
     ret.add_argument("--timeout-ms", type=int, default=3000)
+
+    skp = sub.add_parser("skip", help="mark a node failed and rotate now")
+    skp.add_argument("name", help="proxy name to skip (e.g. the 429-flagged node)")
+    skp.add_argument("--stale-after", type=int, default=3600)
+    skp.add_argument("--max-fails", type=int, default=3)
+
+    nxt = sub.add_parser("next", help="skip the current node and rotate now")
+    nxt.add_argument("--stale-after", type=int, default=3600)
+    nxt.add_argument("--max-fails", type=int, default=3)
     return ap
 
 
 def validate_args(args: argparse.Namespace) -> Optional[str]:
     """Reject numeric CLI values that crash or misbehave. Returns error or None."""
+    if args.cmd in ("retest", "skip", "next"):
+        if args.max_fails < 1:
+            return "--max-fails must be >= 1"
     if args.cmd == "retest":
         if args.batch < 1:
             return "--batch must be >= 1"
         if args.workers < 1:
             return "--workers must be >= 1"
-        if args.max_fails < 1:
-            return "--max-fails must be >= 1"
         if args.timeout_ms < 500:
             return "--timeout-ms must be >= 500"
-    if args.cmd == "rotate" and args.stale_after < 60:
+    if args.cmd in ("rotate", "skip", "next") and args.stale_after < 60:
         return "--stale-after must be >= 60"
     return None
 
@@ -329,6 +400,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     api = ClashAPI(args.controller, secret)
     if args.cmd == "rotate":
         return cmd_rotate(args, api)
+    if args.cmd == "skip":
+        return cmd_skip(args, api)
+    if args.cmd == "next":
+        return cmd_next(args, api)
     return cmd_retest(args, api)
 
 

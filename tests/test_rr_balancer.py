@@ -194,6 +194,60 @@ class ValidateArgsTest(unittest.TestCase):
         args = Args(cmd="rotate")
         self.assertIsNone(rr_balancer.validate_args(args))
 
+    def test_skip_marks_failed_and_advances(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_skip(Args(cmd="skip", name="n1", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+        conn = sqlite3.connect(path)
+        st = conn.execute("SELECT status FROM nodes WHERE name='n1'").fetchone()[0]
+        self.assertEqual(st, "failed")
+        reason = conn.execute(
+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0]
+        self.assertEqual(reason, "manual-skip")
+        conn.close()
+
+    def test_rejects_bad_skip_numbers(self):
+        args = Args(cmd="skip", name="n1", stale_after=59)
+        self.assertIsNotNone(rr_balancer.validate_args(args))
+        args = Args(cmd="skip", name="n1", max_fails=0)
+        self.assertIsNotNone(rr_balancer.validate_args(args))
+
+    def test_next_skips_current_selection(self):
+        conn, path = make_db()
+        api = FakeAPI({"cur": 50, "n2": 5})
+        api.group_members = lambda group: (["cur", "n2"], "cur")
+        mark(conn, "cur", "alive", delay=50, uses=3)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_next(Args(cmd="next", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+        conn = sqlite3.connect(path)
+        st = conn.execute("SELECT status FROM nodes WHERE name='cur'").fetchone()[0]
+        self.assertEqual(st, "failed")
+        reason = conn.execute(
+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0]
+        self.assertEqual(reason, "manual-next")
+        conn.close()
+
+    def test_next_without_current_rotates_anyway(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        api.group_members = lambda group: (["n1", "n2"], None)
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_next(Args(cmd="next", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n1"))
+
 
 class ConnectDbTest(unittest.TestCase):
     def test_wal_and_busy_timeout(self):
