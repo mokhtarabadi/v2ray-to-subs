@@ -21,12 +21,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
-DEFAULT_SUBSCRIPTION_URL = (
-    "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
-)
+DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
 
 # ---------------------------------------------------------------------------
 # Shared bypass policy.
@@ -206,7 +206,9 @@ def _parse_bool(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def _ws_early_data(path: Optional[str]) -> Tuple[Optional[str], Optional[int], Optional[str]]:
+def _ws_early_data(
+    path: Optional[str],
+) -> Tuple[Optional[str], Optional[int], Optional[str]]:
     """Split WebSocket path early-data (?ed=) and early-data header (?eh=).
 
     Returns (clean_path, max_early_data, early_data_header_name).
@@ -385,6 +387,10 @@ class SubscriptionDownloader:
 class ProxyParser:
     """Parses share-link formats (v2rayNG / v2rayN / Xray conventions)."""
 
+    def __init__(self, unique_host: bool = False) -> None:
+        self.unique_host = unique_host
+        self.host_dup = 0
+
     SCHEMES = (
         "vmess://",
         "vless://",
@@ -426,7 +432,9 @@ class ProxyParser:
         return content
 
     @staticmethod
-    def _name_from(parsed: urllib.parse.ParseResult, default: str, params: Dict[str, List[str]]) -> str:
+    def _name_from(
+        parsed: urllib.parse.ParseResult, default: str, params: Dict[str, List[str]]
+    ) -> str:
         frag = _unquote(parsed.fragment)
         if frag:
             return frag
@@ -534,13 +542,15 @@ class ProxyParser:
             host=str(data.get("host") or "") or None,
             path=str(data.get("path") or "") or None,
             service_name=str(data.get("path") or "") or None if net == "grpc" else None,
-            security="tls" if str(data.get("tls") or "").lower().endswith("tls") else (
-                "reality" if str(data.get("tls") or "").lower() == "reality" else ""
-            ),
+            security="tls"
+            if str(data.get("tls") or "").lower().endswith("tls")
+            else ("reality" if str(data.get("tls") or "").lower() == "reality" else ""),
             sni=str(data.get("sni") or "") or None,
             alpn=str(data.get("alpn") or "") or None,
             fp=str(data.get("fp") or "") or None,
-            insecure=_parse_bool(str(data.get("insecure") or data.get("allowInsecure") or "")),
+            insecure=_parse_bool(
+                str(data.get("insecure") or data.get("allowInsecure") or "")
+            ),
             pbk=str(data.get("pbk") or "") or None,
             sid=str(data.get("sid") or "") or None,
         )
@@ -580,8 +590,10 @@ class ProxyParser:
         ProxyParser._apply_common(cfg, params)
         security = (params.get("security") or ["tls"])[0].lower()
         if security in ("tls", "reality", "xtls", "none"):
-            cfg.security = "none" if security == "none" else (
-                "reality" if security == "reality" else "tls"
+            cfg.security = (
+                "none"
+                if security == "none"
+                else ("reality" if security == "reality" else "tls")
             )
         return cfg
 
@@ -756,7 +768,9 @@ class ProxyParser:
             vals = params.get(key)
             return _unquote(vals[0]) if vals else None
 
-        cfg.congestion_control = get("congestion_control") or get("congestion-control") or "cubic"
+        cfg.congestion_control = (
+            get("congestion_control") or get("congestion-control") or "cubic"
+        )
         cfg.udp_relay_mode = get("udp_relay_mode") or get("udp-relay-mode") or "native"
         cfg.heartbeat = get("heartbeat") or get("heartbeat-interval")
         if not cfg.password and get("password"):
@@ -805,6 +819,8 @@ class ProxyParser:
         content = self.decode_base64_content(content)
         proxies: List[ProxyConfig] = []
         seen_raw: set = set()
+        seen_hosts: set = set()
+        self.host_dup = 0
 
         for raw_line in content.splitlines():
             line = raw_line.strip().strip("\r").strip()
@@ -839,6 +855,12 @@ class ProxyParser:
                 if proxy and proxy.server and proxy.port:
                     if not proxy.name:
                         proxy.name = f"{proxy.protocol}-{len(proxies)}"
+                    if self.unique_host:
+                        key = proxy.server.strip().lower()
+                        if key in seen_hosts:
+                            self.host_dup += 1
+                            continue
+                        seen_hosts.add(key)
                     proxies.append(proxy)
             except Exception as exc:
                 logger.error("Failed to parse proxy line: %s (%s)", exc, line[:80])
@@ -1000,7 +1022,9 @@ class ConfigGenerator:
             return out
 
         if network in ("kcp", "mkcp", "quic"):
-            logger.debug("Transport %s not supported by mihomo export; using tcp", network)
+            logger.debug(
+                "Transport %s not supported by mihomo export; using tcp", network
+            )
             return out
 
         # tcp / default: omit network key
@@ -1219,7 +1243,9 @@ class ConfigGenerator:
                 ]
             )
         else:
-            proxy_groups.append({"name": "PROXY", "type": "select", "proxies": ["DIRECT"]})
+            proxy_groups.append(
+                {"name": "PROXY", "type": "select", "proxies": ["DIRECT"]}
+            )
 
         rules = self._clash_rules()
 
@@ -1560,7 +1586,9 @@ class ConfigGenerator:
             return None
         return None
 
-    def _singbox_outbound(self, proxy: ProxyConfig, tag: str) -> Optional[Dict[str, Any]]:
+    def _singbox_outbound(
+        self, proxy: ProxyConfig, tag: str
+    ) -> Optional[Dict[str, Any]]:
         outbound: Dict[str, Any] = {
             "tag": tag,
             "server": proxy.server,
@@ -1575,7 +1603,9 @@ class ConfigGenerator:
             if proxy.packet_encoding:
                 pe = proxy.packet_encoding.lower()
                 if pe in ("xudp", "packetaddr", "packet"):
-                    outbound["packet_encoding"] = "xudp" if pe == "xudp" else "packetaddr"
+                    outbound["packet_encoding"] = (
+                        "xudp" if pe == "xudp" else "packetaddr"
+                    )
         elif isinstance(proxy, VLESSConfig):
             outbound["type"] = "vless"
             outbound["uuid"] = proxy.uuid
@@ -1601,12 +1631,18 @@ class ConfigGenerator:
         elif isinstance(proxy, Hysteria2Config):
             outbound["type"] = "hysteria2"
             outbound["password"] = proxy.password
-            tls = self._singbox_tls(proxy) or {"enabled": True, "server_name": proxy.sni or proxy.server}
+            tls = self._singbox_tls(proxy) or {
+                "enabled": True,
+                "server_name": proxy.sni or proxy.server,
+            }
             if proxy.insecure:
                 tls["insecure"] = True
             outbound["tls"] = tls
             if proxy.obfs:
-                outbound["obfs"] = {"type": proxy.obfs, "password": proxy.obfs_password or ""}
+                outbound["obfs"] = {
+                    "type": proxy.obfs,
+                    "password": proxy.obfs_password or "",
+                }
             if proxy.up:
                 outbound["up_mbps"] = _mbps(proxy.up)
             if proxy.down:
@@ -1624,7 +1660,10 @@ class ConfigGenerator:
                     outbound["auth_str"] = proxy.auth
             outbound["up_mbps"] = _mbps(proxy.up) or 100
             outbound["down_mbps"] = _mbps(proxy.down) or 100
-            tls = self._singbox_tls(proxy) or {"enabled": True, "server_name": proxy.sni or proxy.server}
+            tls = self._singbox_tls(proxy) or {
+                "enabled": True,
+                "server_name": proxy.sni or proxy.server,
+            }
             if proxy.insecure:
                 tls["insecure"] = True
             if proxy.obfs:
@@ -1642,7 +1681,10 @@ class ConfigGenerator:
                 outbound["password"] = proxy.password
             outbound["congestion_control"] = proxy.congestion_control
             outbound["udp_relay_mode"] = proxy.udp_relay_mode
-            tls = self._singbox_tls(proxy) or {"enabled": True, "server_name": proxy.sni or proxy.server}
+            tls = self._singbox_tls(proxy) or {
+                "enabled": True,
+                "server_name": proxy.sni or proxy.server,
+            }
             if proxy.insecure:
                 tls["insecure"] = True
             alpn = _split_alpn(proxy.alpn)
@@ -1890,17 +1932,24 @@ def run(
     tun_enabled: bool = False,
     allow_lan: bool = False,
     controller_secret: str = "",
+    unique_host: bool = False,
 ) -> int:
     downloader = SubscriptionDownloader()
     content = downloader.download_subscription(url)
     title = downloader.last_title
     logger.info("Subscription title: %s", title or "(none)")
 
-    parser = ProxyParser()
+    parser = ProxyParser(unique_host=unique_host)
     proxies = parser.parse_subscription_content(content)
     if not proxies:
         logger.error("No proxies parsed from subscription")
         return 1
+    if unique_host:
+        logger.info(
+            "Unique-host dedup: %d unique, %d host duplicates skipped",
+            len(proxies),
+            parser.host_dup,
+        )
 
     generator = ConfigGenerator(
         tun_enabled=tun_enabled,
@@ -1980,6 +2029,12 @@ def main() -> None:
         help="mihomo external-controller secret (or set MIHOMO_CONTROLLER_SECRET env). Empty = no auth (default).",
     )
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument(
+        "--unique-host",
+        action="store_true",
+        default=False,
+        help="Keep only the first proxy per server host.",
+    )
     args = ap.parse_args()
 
     if args.verbose:
@@ -1994,6 +2049,7 @@ def main() -> None:
             tun_enabled=args.tun,
             allow_lan=args.allow_lan,
             controller_secret=args.controller_secret,
+            unique_host=args.unique_host,
         )
     )
 
