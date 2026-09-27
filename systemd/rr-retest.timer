@@ -1,0 +1,11 @@
+[Unit]
+Description=Retest mihomo proxy pool every 30 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=rr-retest.service
+
+[Install]
+WantedBy=timers.target

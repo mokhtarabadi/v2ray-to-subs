@@ -1,0 +1,11 @@
+[Unit]
+Description=Rotate mihomo PROXY selection every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=rr-rotate.service
+
+[Install]
+WantedBy=timers.target

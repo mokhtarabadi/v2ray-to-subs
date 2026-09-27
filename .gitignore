@@ -44,3 +44,12 @@ cache.db
 # IDE (project-level .idea/.gitignore handles most of this)
 .idea/workspace.xml
 .idea/shelf/
+
+# Custom Context MCP reports
+context-reports/
+
+# External balancer runtime state (SQLite, rebuilt by retest)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm

@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.
+
+### Fixed
+- Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
+- Balancer hotfix (task 04, QA round): all-fail batches no longer mass-mark nodes (infra-outage guard); numeric CLI args validated with exit 2; SQLite opened in WAL mode with 10s busy timeout for concurrent timers.
 - `AGENTS.md` project context hub and `docs/conventions.md` (datetime standard, SOLID guidelines, ledger standard, shell protocol).
 
 ## [2026-09-26]

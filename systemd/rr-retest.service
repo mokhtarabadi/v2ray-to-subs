@@ -1,0 +1,8 @@
+[Unit]
+Description=Retest mihomo proxy pool batch (external balancer)
+Wants=network-online.target
+After=network-online.target mihomo-subs.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/v2ray-to-subs/.venv/bin/python %h/v2ray-to-subs/scripts/rr_balancer.py retest --batch 250
