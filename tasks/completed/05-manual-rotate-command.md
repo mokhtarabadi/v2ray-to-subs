@@ -1,9 +1,9 @@
 # Task [05]: Manual rotate command for flagged proxies
 
-**File:** `tasks/qa/05-manual-rotate-command.md`
+**File:** `tasks/completed/05-manual-rotate-command.md`
 **Source:** manager
 **Type:** feature
-**Status:** open
+**Status:** closed
 
 ## Goal
 
@@ -78,140 +78,14 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 - Live run (manager rate-limited on US-27076): `skip` marked it failed and rotated to US-24409 (11ms); controller `now` confirms; traffic verified with fresh exit IP. Manager unblocked without waiting for the timer.
 - Follow-up (manager: install globally so bare `rr` auto-rotates the current active node): added `next` subcommand — refactored the skip body into `_mark_failed` + `_relabel_latest` helpers reused by both; `cmd_next` reads the current selection via `group_members`, marks it failed (or rotates anyway with reason `manual-next` when none reported); parser/dispatch/`validate_args` extended. TDD: 2 new tests RED first (AttributeError + errors), then GREEN — 15 tests OK. Installed `~/.local/bin/rr` wrapper (execs repo script, defaults to `next`; script made executable for its `python3` shebang). Live bare-`rr` run: skipped NL-12614, rotated to NL-12363 (5ms); controller confirms; traffic works with fresh exit IP. Note: the wrapper lives outside the repo (home dir) and is not committed; repo side is the `next` subcommand itself.
 
+- Bridge-QA (task_id 05, include_diff): VERDICT QA_PASSED. F1 SQL injection blocked (parameterized queries); F2 unknown node warns + rotates; F3 empty controller selection rotates; F4 bad numerics rejected; F5 empty rotation_log relabel is zero-row no-op. Non-blocking: M1 unknown-skip untested (delegates to tested rotate), M2 rotate-failure-after-mark untested (relabel correctly skipped on nonzero rc), M3 home launcher outside repo. Live evidence confirmed (skip US-27076->US-24409, next NL-12614->NL-12363, traffic OK). Routed to Code Reviewer per verdict.
+
+- Code Review (bridge, task_id 05): APPROVED technically, status PO_REVIEW_PENDING. No blocking issues; A1 (context-manager DB use, test placement) deferred to next touch, no change required now. Relayed to Manager; file stays in tasks/qa pending exact closure words.
+- Closure approved, moving to completed via single issuance. Manager accept quote: "Approved for closure".
+- Closure executed: file moved qa to completed, CHANGELOG entries confirmed present (skip + next, no duplication), all TODOs/AC/DoD boxes checked against recorded evidence. No source changes in closure, only this file relocation.
+
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index e4442e6..b9eb4ac 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
- ### Added
- 
- - External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.
-+- Manual `skip NAME` subcommand (task 05): marks a flagged node failed and immediately rotates to the next alive node, so a rate-limited exit can be escaped without waiting for the timer.
- 
- ### Fixed
- - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
-diff --git a/scripts/rr_balancer.py b/scripts/rr_balancer.py
-index e31e561..2ba6737 100644
---- a/scripts/rr_balancer.py
-+++ b/scripts/rr_balancer.py
-@@ -204,6 +204,39 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
-     return 0
- 
- 
-+def cmd_skip(args: argparse.Namespace, api: ClashAPI) -> int:
-+    """Mark a flagged node failed, then rotate to the next alive node."""
-+    now = utc_now_epoch()
-+    conn = connect_db(args.db)
-+    pool_names, _ = api.group_members(args.group)
-+    seed_names(conn, pool_names)
-+    cur = conn.cursor()
-+    row = cur.execute(
-+        "SELECT status FROM nodes WHERE name = ?", (args.name,)
-+    ).fetchone()
-+    if row is None:
-+        print("skip: unknown node %r, rotating anyway" % args.name)
-+    else:
-+        cur.execute(
-+            "UPDATE nodes SET status = 'failed', fails = ?, last_check = ? "
-+            "WHERE name = ?",
-+            (args.max_fails, now, args.name),
-+        )
-+        conn.commit()
-+        print("skip: marked %s failed (retest readmits it if alive)" % args.name)
-+    conn.close()
-+    rc = cmd_rotate(args, api)
-+    if rc == 0:
-+        conn = connect_db(args.db)
-+        conn.execute(
-+            "UPDATE rotation_log SET reason = 'manual-skip' "
-+            "WHERE id = (SELECT MAX(id) FROM rotation_log) AND reason = 'rotate'"
-+        )
-+        conn.commit()
-+        conn.close()
-+    return rc
-+
-+
- def check_one(
-     api: ClashAPI, name: str, test_url: str, timeout_ms: int
- ) -> Tuple[str, Optional[int]]:
-@@ -297,21 +330,27 @@ def build_parser() -> argparse.ArgumentParser:
-     ret.add_argument("--max-fails", type=int, default=3)
-     ret.add_argument("--test-url", default="https://www.gstatic.com/generate_204")
-     ret.add_argument("--timeout-ms", type=int, default=3000)
-+
-+    skp = sub.add_parser("skip", help="mark a node failed and rotate now")
-+    skp.add_argument("name", help="proxy name to skip (e.g. the 429-flagged node)")
-+    skp.add_argument("--stale-after", type=int, default=3600)
-+    skp.add_argument("--max-fails", type=int, default=3)
-     return ap
- 
- 
- def validate_args(args: argparse.Namespace) -> Optional[str]:
-     """Reject numeric CLI values that crash or misbehave. Returns error or None."""
-+    if args.cmd in ("retest", "skip"):
-+        if args.max_fails < 1:
-+            return "--max-fails must be >= 1"
-     if args.cmd == "retest":
-         if args.batch < 1:
-             return "--batch must be >= 1"
-         if args.workers < 1:
-             return "--workers must be >= 1"
--        if args.max_fails < 1:
--            return "--max-fails must be >= 1"
-         if args.timeout_ms < 500:
-             return "--timeout-ms must be >= 500"
--    if args.cmd == "rotate" and args.stale_after < 60:
-+    if args.cmd in ("rotate", "skip") and args.stale_after < 60:
-         return "--stale-after must be >= 60"
-     return None
- 
-@@ -329,6 +368,8 @@ def main(argv: Optional[List[str]] = None) -> int:
-     api = ClashAPI(args.controller, secret)
-     if args.cmd == "rotate":
-         return cmd_rotate(args, api)
-+    if args.cmd == "skip":
-+        return cmd_skip(args, api)
-     return cmd_retest(args, api)
- 
- 
-diff --git a/tests/test_rr_balancer.py b/tests/test_rr_balancer.py
-index fdbad25..ecde032 100644
---- a/tests/test_rr_balancer.py
-+++ b/tests/test_rr_balancer.py
-@@ -194,6 +194,30 @@ class ValidateArgsTest(unittest.TestCase):
-         args = Args(cmd="rotate")
-         self.assertIsNone(rr_balancer.validate_args(args))
- 
-+    def test_skip_marks_failed_and_advances(self):
-+        conn, path = make_db()
-+        api = FakeAPI({"n1": 2, "n2": 5})
-+        mark(conn, "n1", "alive", delay=2, uses=0)
-+        mark(conn, "n2", "alive", delay=5, uses=0)
-+        conn.close()
-+        rc = rr_balancer.cmd_skip(Args(cmd="skip", name="n1", db=path), api)
-+        self.assertEqual(rc, 0)
-+        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
-+        conn = sqlite3.connect(path)
-+        st = conn.execute("SELECT status FROM nodes WHERE name='n1'").fetchone()[0]
-+        self.assertEqual(st, "failed")
-+        reason = conn.execute(
-+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
-+        ).fetchone()[0]
-+        self.assertEqual(reason, "manual-skip")
-+        conn.close()
-+
-+    def test_rejects_bad_skip_numbers(self):
-+        args = Args(cmd="skip", name="n1", stale_after=59)
-+        self.assertIsNotNone(rr_balancer.validate_args(args))
-+        args = Args(cmd="skip", name="n1", max_fails=0)
-+        self.assertIsNotNone(rr_balancer.validate_args(args))
-+
- 
- class ConnectDbTest(unittest.TestCase):
-     def test_wal_and_busy_timeout(self):
-```
+**Factual Git Diff:** Stored in Commit Hash: `295887528dbc3c15df97f78390a3699ee2903601`
 <!-- END_GIT_DIFF -->
