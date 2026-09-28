@@ -27,9 +27,9 @@ fi
 
 echo "[refresh] generating to $TMP ..."
 if [ -n "$SUB_URL" ]; then
-  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP"
+  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP" --unique-host
 else
-  "$PY" "$CONVERTER" --only clash --clash-out "$TMP"
+  "$PY" "$CONVERTER" --only clash --clash-out "$TMP" --unique-host
 fi
 
 echo "[refresh] validating with mihomo -t ..."

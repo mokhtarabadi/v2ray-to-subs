@@ -278,7 +278,8 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
     added, pruned = seed_names(conn, pool_names)
     cur = conn.cursor()
     cur.execute(
-        "SELECT name FROM nodes ORDER BY last_check ASC LIMIT ?",
+        "SELECT name FROM nodes ORDER BY (status = 'alive') DESC, "
+        "last_check ASC LIMIT ?",
         (args.batch,),
     )
     batch = [row[0] for row in cur.fetchall()]
@@ -350,10 +351,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     rot = sub.add_parser("rotate", help="select next alive node")
-    rot.add_argument("--stale-after", type=int, default=3600)
+    rot.add_argument("--stale-after", type=int, default=7200)
 
     ret = sub.add_parser("retest", help="check oldest batch of nodes")
-    ret.add_argument("--batch", type=int, default=250)
+    ret.add_argument("--batch", type=int, default=500)
     ret.add_argument("--workers", type=int, default=20)
     ret.add_argument("--max-fails", type=int, default=3)
     ret.add_argument("--test-url", default="https://www.gstatic.com/generate_204")
@@ -361,11 +362,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     skp = sub.add_parser("skip", help="mark a node failed and rotate now")
     skp.add_argument("name", help="proxy name to skip (e.g. the 429-flagged node)")
-    skp.add_argument("--stale-after", type=int, default=3600)
+    skp.add_argument("--stale-after", type=int, default=7200)
     skp.add_argument("--max-fails", type=int, default=3)
 
     nxt = sub.add_parser("next", help="skip the current node and rotate now")
-    nxt.add_argument("--stale-after", type=int, default=3600)
+    nxt.add_argument("--stale-after", type=int, default=7200)
     nxt.add_argument("--max-fails", type=int, default=3)
     return ap
 
