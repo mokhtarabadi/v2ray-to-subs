@@ -1,9 +1,9 @@
 # Task [08]: Wire unique-host into live refresh and tune freshness coverage
 
-**File:** `tasks/qa/08-live-dedup-and-freshness-tuning.md`
+**File:** `tasks/completed/08-live-dedup-and-freshness-tuning.md`
 **Source:** manager
 **Type:** improvement
-**Status:** open
+**Status:** closed
 
 ## Goal
 
@@ -64,6 +64,9 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 
 ## Execution Log & Reasoning
 
+- Closure: Manager said Approved for closure. Single-issuance move qa to completed via git mv plus custom_context_commit_and_clean_task. Unsatisfied AC left open for runtime watch, not force-checked.
+
+
 - Planning: Seat Check → Software Architect single seat (trigger-word miss stated, Designer/debug skipped). Brainstorm: not required — single-domain additive reversible change.
 - Brain plan rounds (task_id 08): round 1 returned plan + discovery ask; ran one direct discovery round (refresh.sh call lines 29-32, balancer alive_pool 152-160, retest query 275-300, stale_after default 3600 lines 353/364, batch default 250 line 356, retest timer 30min); round 2 locked final plan. Brainstorm: not required — single service path with verified lines and no cross-domain conflict.
 - Locked plan: E1 refresh.sh both branches gain --unique-host; E2 stale-after 3600→7200 (2 lines), batch 250→500; E3 retest ORDER BY alive-first then oldest; E4 retest service --batch 500, timers unchanged. No proxy_converter.py edit needed.
@@ -72,88 +75,12 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 - Live refresh with OpenRay URL: 3771 unique, 3417 host duplicates skipped (pool ~7230 → ~3770, roughly half); mihomo -t successful; installed; service restarted active. New coverage math: ~3770 nodes / 500 per 30min ≈ 3.8h vs ~14.5h before.
 - Note: balancer DB still holds pre-dedup names; seed_names prunes/adds automatically on next rotate/retest runs. AC noop-watch and pool self-sustain left open for runtime observation, not code.
 
+- Bridge-QA (brain_turn task_id 08, include_diff): VERDICT QA_PASSED. V1 alive-first starvation risk, V2 batch-500 overlap risk, V3 mass-prune on first sync — all non-blocking observations. M1-M3 missing-test notes (defaults, alive-first order proof, multi-cycle logs). Live evidence confirmed (3771 unique, mihomo -t, 15 tests, timers scheduled). Routed to Code Reviewer.
+
+- Code Review (bridge, task_id 08): APPROVED technically, status PO_REVIEW_PENDING. No blocking issues; I1 (retest help text drift) and I2 (no defaults assertions) both Low, R1/R2 deferred to next touch, no hotfix needed. Relayed to Manager; file stays in tasks/qa pending exact closure words.
+
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index 929260e..22c3c74 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
- - External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.
- - Manual `skip NAME` subcommand (task 05): marks a flagged node failed and immediately rotates to the next alive node, so a rate-limited exit can be escaped without waiting for the timer.
- - Manual `next` subcommand + `~/.local/bin/rr` launcher (task 05 follow-up): bare `rr` auto-detects the currently active node via the controller, marks it failed, and rotates immediately.
-+- Live dedup + freshness tuning (task 08): `refresh.sh` generates with `--unique-host` (live pool ~7230 → 3771); retest batch 250→500 with alive-first ordering; stale window 1h→2h; retest coverage ~14.5h → ~3.8h.
- - `--unique-host` converter flag (task 07, default off): parse-time dedup keeps only the first proxy per server host (case/whitespace normalized) and logs unique vs duplicate counts; both Clash and sing-box outputs consume the same filtered list.
- 
- ### Fixed
-diff --git a/refresh.sh b/refresh.sh
-index ac32654..b82e6cd 100755
---- a/refresh.sh
-+++ b/refresh.sh
-@@ -27,9 +27,9 @@ fi
- 
- echo "[refresh] generating to $TMP ..."
- if [ -n "$SUB_URL" ]; then
--  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP"
-+  "$PY" "$CONVERTER" "$SUB_URL" --only clash --clash-out "$TMP" --unique-host
- else
--  "$PY" "$CONVERTER" --only clash --clash-out "$TMP"
-+  "$PY" "$CONVERTER" --only clash --clash-out "$TMP" --unique-host
- fi
- 
- echo "[refresh] validating with mihomo -t ..."
-diff --git a/scripts/rr_balancer.py b/scripts/rr_balancer.py
-index 4573843..fd5b5f1 100755
---- a/scripts/rr_balancer.py
-+++ b/scripts/rr_balancer.py
-@@ -278,7 +278,8 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
-     added, pruned = seed_names(conn, pool_names)
-     cur = conn.cursor()
-     cur.execute(
--        "SELECT name FROM nodes ORDER BY last_check ASC LIMIT ?",
-+        "SELECT name FROM nodes ORDER BY (status = 'alive') DESC, "
-+        "last_check ASC LIMIT ?",
-         (args.batch,),
-     )
-     batch = [row[0] for row in cur.fetchall()]
-@@ -350,10 +351,10 @@ def build_parser() -> argparse.ArgumentParser:
-     sub = ap.add_subparsers(dest="cmd", required=True)
- 
-     rot = sub.add_parser("rotate", help="select next alive node")
--    rot.add_argument("--stale-after", type=int, default=3600)
-+    rot.add_argument("--stale-after", type=int, default=7200)
- 
-     ret = sub.add_parser("retest", help="check oldest batch of nodes")
--    ret.add_argument("--batch", type=int, default=250)
-+    ret.add_argument("--batch", type=int, default=500)
-     ret.add_argument("--workers", type=int, default=20)
-     ret.add_argument("--max-fails", type=int, default=3)
-     ret.add_argument("--test-url", default="https://www.gstatic.com/generate_204")
-@@ -361,11 +362,11 @@ def build_parser() -> argparse.ArgumentParser:
- 
-     skp = sub.add_parser("skip", help="mark a node failed and rotate now")
-     skp.add_argument("name", help="proxy name to skip (e.g. the 429-flagged node)")
--    skp.add_argument("--stale-after", type=int, default=3600)
-+    skp.add_argument("--stale-after", type=int, default=7200)
-     skp.add_argument("--max-fails", type=int, default=3)
- 
-     nxt = sub.add_parser("next", help="skip the current node and rotate now")
--    nxt.add_argument("--stale-after", type=int, default=3600)
-+    nxt.add_argument("--stale-after", type=int, default=7200)
-     nxt.add_argument("--max-fails", type=int, default=3)
-     return ap
- 
-diff --git a/systemd/rr-retest.service b/systemd/rr-retest.service
-index e63d94b..d5adfdd 100644
---- a/systemd/rr-retest.service
-+++ b/systemd/rr-retest.service
-@@ -5,4 +5,4 @@ After=network-online.target mihomo-subs.service
- 
- [Service]
- Type=oneshot
--ExecStart=%h/v2ray-to-subs/.venv/bin/python %h/v2ray-to-subs/scripts/rr_balancer.py retest --batch 250
-+ExecStart=%h/v2ray-to-subs/.venv/bin/python %h/v2ray-to-subs/scripts/rr_balancer.py retest --batch 500
-```
+**Factual Git Diff:** Stored in Commit Hash: `1b6666f5cecb556fd2a3d5270c58f1b5a761484f`
 <!-- END_GIT_DIFF -->
