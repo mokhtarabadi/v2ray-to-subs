@@ -78,9 +78,7 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-
-_(Git diff will be automatically injected here by the MCP tool. Do not edit this block manually)_
-
+**Factual Git Diff:** Stored in Commit Hash: `9e9eab615dc9faea63d314959b8aa08abd7d5afd`
 <!-- END_GIT_DIFF -->
 
 ## Planning Gate Log
