@@ -104,6 +104,55 @@ class ClashAPI:
         delay = payload.get("delay")
         return delay if isinstance(delay, int) and delay >= 0 else None
 
+    def get_connections(self) -> List[Dict[str, Any]]:
+        """Active connections (each carries chains metadata); [] on any error."""
+        try:
+            status, payload = self._request("GET", "/connections")
+        except Exception:
+            return []
+        if status != 200 or not isinstance(payload, dict):
+            return []
+        conns = payload.get("connections")
+        return conns if isinstance(conns, list) else []
+
+    def close_connection(self, cid: str) -> bool:
+        """Close one connection by id. True on 204/200/404, False otherwise, never raises."""
+        try:
+            status, _ = self._request(
+                "DELETE", "/connections/" + urllib.parse.quote(str(cid))
+            )
+        except Exception:
+            return False
+        return status in (200, 204, 404)
+
+
+def close_stale_connections(api: Any, prev_name: str) -> Tuple[int, List[str]]:
+    """Close connections chained through prev_name. Returns (closed, failed_ids).
+
+    Never raises: per-id errors are collected into failed_ids so rotation
+    bookkeeping always completes.
+    """
+    closed = 0
+    failed: List[str] = []
+    try:
+        connections = api.get_connections()
+    except Exception:
+        return 0, []
+    for conn in connections:
+        chains = conn.get("chains") if isinstance(conn, dict) else None
+        cid = conn.get("id") if isinstance(conn, dict) else None
+        if not cid or not chains or prev_name not in chains:
+            continue
+        try:
+            ok = api.close_connection(cid)
+        except Exception:
+            ok = False
+        if ok:
+            closed += 1
+        else:
+            failed.append(str(cid))
+    return closed, failed
+
 
 def connect_db(db_path: str) -> sqlite3.Connection:
     """Open state DB with overlap protection for concurrent timers.
@@ -172,7 +221,7 @@ def pick_next(pool: List[Tuple[str, int, int]]) -> Optional[str]:
 def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     now = utc_now_epoch()
     conn = connect_db(args.db)
-    pool_names, _ = api.group_members(args.group)
+    pool_names, current = api.group_members(args.group)
     seed_names(conn, pool_names)
     pool = alive_pool(conn, now, args.stale_after)
     name = pick_next(pool)
@@ -186,6 +235,21 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
         return 0
     delay = next(d for n, u, d in pool if n == name)
     api.select(args.group, name)
+    if current and current != name:
+        try:
+            closed, failed = close_stale_connections(api, current)
+        except Exception as exc:
+            print("close stale after switch to %s failed: %s" % (name, exc))
+        else:
+            print(
+                "closed %d stale connections of %s after switch to %s%s"
+                % (
+                    closed,
+                    current,
+                    name,
+                    (" (failed ids: %s)" % ",".join(failed)) if failed else "",
+                )
+            )
     cur = conn.cursor()
     cur.execute("UPDATE nodes SET uses = uses + 1 WHERE name = ?", (name,))
     cur.execute(

@@ -25,6 +25,9 @@ class FakeAPI:
         self.group = group
         self.selected = []
         self.members = list(delays) + ["Auto", "Load Balance", "Fallback"]
+        self.connections = []
+        self.closed = []
+        self.close_fail = False
 
     def group_members(self, group):
         pool = [m for m in self.members if m not in rr_balancer.META_NAMES]
@@ -35,6 +38,15 @@ class FakeAPI:
 
     def delay(self, name, test_url, timeout_ms):
         return self.delays.get(name)
+
+    def get_connections(self):
+        return list(self.connections)
+
+    def close_connection(self, cid):
+        if self.close_fail:
+            raise RuntimeError("close failed")
+        self.closed.append(cid)
+        return True
 
 
 def make_db():
@@ -256,6 +268,51 @@ class ConnectDbTest(unittest.TestCase):
         self.assertEqual(mode.lower(), "wal")
         timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
         self.assertEqual(timeout, 10000)
+
+
+class CloseStaleTest(unittest.TestCase):
+    def test_closes_only_prev_chained_connections(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        api.connections = [
+            {"id": "c1", "chains": ["old-node", "n1"]},
+            {"id": "c2", "chains": ["n2"]},
+        ]
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.closed, ["c1"])
+
+    def test_no_close_when_selection_unchanged(self):
+        conn, path = make_db()
+        api = FakeAPI({"old-node": 2, "n2": 5})
+        api.group_members = lambda group: (["old-node", "n2"], "old-node")
+        api.connections = [{"id": "c1", "chains": ["old-node"]}]
+        mark(conn, "old-node", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "old-node"))
+        self.assertEqual(api.closed, [])
+
+    def test_close_failure_never_breaks_rotation(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        api.close_fail = True
+        api.connections = [{"id": "c1", "chains": ["old-node"]}]
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n1"))
+        conn = sqlite3.connect(path)
+        uses = conn.execute("SELECT uses FROM nodes WHERE name='n1'").fetchone()[0]
+        self.assertEqual(uses, 1)
+        conn.close()
 
 
 if __name__ == "__main__":
