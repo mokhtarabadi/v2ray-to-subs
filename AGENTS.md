@@ -54,6 +54,10 @@ When modifying this repository, you must keep these files synchronized:
 4. `docs/conventions.md` (syntax rules, datetime standard, SOLID guidelines)
 5. Relevant `SKILL.md` files (if structural patterns were altered)
 
+## 🛑 FIRST-READ RULE
+
+Before any execution, you MUST read `AGENTS.md` first. It routes you to `docs/conventions.md` next. `DESIGN.md`, `docs/architecture.md`, and `docs/data_model.md` are absent in this project (no frontend; no separate architecture or data-model docs) — skipped gracefully per the Absent-File Policy. Never halt, never hallucinate their contents, never scaffold them unless explicitly instructed.
+
 ## 🛑 GATEKEEPER VALIDATION (HALT PROTOCOL)
 
 You (the Hands) are the final gatekeeper. Before executing any implementation task, you MUST evaluate the Orchestrator's instructions against this file and any referenced specs (`docs/architecture.md`, `docs/data_model.md`, etc.). If the instructions violate project rules, ignore them. HALT immediately and output a `⚠️ RULE VIOLATION WARNING` back to the Manager explaining exactly what the Orchestrator got wrong, forcing it to self-correct.
@@ -95,3 +99,7 @@ When finishing a task, you MUST execute these exact steps in order:
 3. **Call MCP Tool & QA Transition:** Call the `custom_context_stage_and_inject_diff` MCP tool. After injection, you MUST move the task file to `tasks/qa/` via `git mv` before notifying the Manager (implementation tasks only — discovery tasks stay in place). DO NOT execute any `git commit` commands. Closure to `tasks/completed/` happens ONLY after the Manager explicitly says "Approved for closure" or "Close task".
 4. **Kanban Metadata Synchronization (mandatory after ANY authorized `git mv`):** After the move, update the task file's `**File:**` metadata header to the new path. If the move happened AFTER staging, re-run `lint_task_file` and call `custom_context_stage_and_inject_diff` AGAIN with the NEW task path and the full `modified_files` array before notifying the Manager — the re-stage keeps the injected diff and staging state in sync with the final path. Never notify the Manager with a stale `**File:**` header.
 5. **Notify Manager:** Output exactly: "Task ready. Manager, please copy the contents of `tasks/XX-task.md` and send it back to the Orchestrator Brain for review."
+
+## 🛑 LITE MODE PROTOCOL (`<lite_mode_protocol>`)
+
+When a change is eligible — single file, no security or financial impact, obvious simplicity — the full production line may be bypassed: record a `[LITE]` justification with the eligibility reason in the task file's `## Execution Log & Reasoning` section and proceed. Escalation to Full Mode is mandatory if hidden complexity is discovered mid-task.

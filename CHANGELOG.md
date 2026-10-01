@@ -17,8 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
+- `opencode.json` permission key corrected from `bash` to `shell` so the project config passes `scripts/validate-opencode.py` (ZAC deny set unchanged).
 - Balancer hotfix (task 04, QA round): all-fail batches no longer mass-mark nodes (infra-outage guard); numeric CLI args validated with exit 2; SQLite opened in WAL mode with 10s busy timeout for concurrent timers.
 - `AGENTS.md` project context hub and `docs/conventions.md` (datetime standard, SOLID guidelines, ledger standard, shell protocol).
+- `AGENTS.md` first-read rule and lite-mode protocol: explicit read-`AGENTS.md`-then-`docs/conventions.md` order with absent-file notes, plus the `[LITE]` bypass procedure with mandatory escalation on hidden complexity.
 
 ## [2026-09-26]
 
