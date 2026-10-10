@@ -156,11 +156,15 @@ sing-box check -c singbox_config.json
   foreign services → `MATCH,PROXY`
 
 ### Load Balancing and URL Testing
-- **Test URL**: `https://www.gstatic.com/generate_204`
-- **Test Interval**: 3 minutes
-- **Tolerance**: 50ms
-- **Failover**: Automatic switching to faster proxies
-- **Load Distribution**: Consistent hashing algorithm
+
+Balancing is done by the external balancer (`scripts/rr_balancer.py` with
+SQLite state), not by mihomo groups — PROXY stays in `select` mode:
+
+- **Rotate**: least-used + fastest node every 30 minutes (`rr-rotate.timer`)
+- **Retest**: 500 oldest nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
+- **Freshness**: nodes unchecked for over 2h sit out until rechecked
+- **Manual escape**: bare `rr` skips the current node immediately (`skip NAME` targets one)
+- **Subscription refresh**: OpenRay feed regenerated every 6h (`v2ray-to-subs-refresh.timer`)
 
 ## Subscription Link Formats
 
