@@ -369,5 +369,93 @@ class SeedMemoryTest(unittest.TestCase):
         conn.close()
 
 
+class QuarantineTest(unittest.TestCase):
+    def test_mark_failed_sets_24h_quarantine(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "n1", "alive", delay=10, uses=0, last_check=now)
+        conn.close()
+        conn = rr_balancer.connect_db(path)
+        rr_balancer._mark_failed(conn, "n1", 3, now)
+        row = conn.execute(
+            "SELECT status, quarantined_until FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row[0], "failed")
+        self.assertEqual(row[1], now + 24 * 3600)
+        conn.close()
+
+    def test_pool_excludes_quarantined(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "q", "failed", last_check=now)
+        mark(conn, "ok", "alive", delay=10, uses=0, last_check=now)
+        conn.execute(
+            "UPDATE nodes SET quarantined_until=? WHERE name='q'", (now + 3600,)
+        )
+        conn.commit()
+        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"q", "ok"})
+        # q is failed so pool holds only ok regardless; force alive to isolate filter
+        conn.execute("UPDATE nodes SET status='alive' WHERE name='q'")
+        conn.commit()
+        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"q", "ok"})
+        self.assertEqual([n for n, _, _ in pool], ["ok"])
+        conn.close()
+
+    def test_expired_quarantine_readmits(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "old", "alive", delay=10, uses=0, last_check=now)
+        conn.execute(
+            "UPDATE nodes SET quarantined_until=? WHERE name='old'", (now - 1,)
+        )
+        conn.commit()
+        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"old"})
+        self.assertEqual([n for n, _, _ in pool], ["old"])
+        conn.close()
+
+    def test_retest_skips_quarantined(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 10})
+        api.group_members = lambda group: (["n1", "q"], "old-node")
+        mark(conn, "q", "failed", last_check=100)
+        mark(conn, "n1", "unknown", last_check=100)
+        conn.execute(
+            "UPDATE nodes SET quarantined_until=? WHERE name='q'",
+            (int(time.time()) + 3600,),
+        )
+        conn.commit()
+        conn.close()
+        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        q_check = conn.execute(
+            "SELECT last_check FROM nodes WHERE name='q'"
+        ).fetchone()[0]
+        self.assertEqual(q_check, 100)
+        conn.close()
+
+    def test_migration_adds_column_idempotently(self):
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        os.unlink(path)
+        conn = sqlite3.connect(path)
+        conn.execute(
+            "CREATE TABLE nodes (name TEXT PRIMARY KEY, status TEXT NOT NULL "
+            "DEFAULT 'unknown', delay_ms INTEGER, last_check INTEGER NOT NULL "
+            "DEFAULT 0, fails INTEGER NOT NULL DEFAULT 0, "
+            "uses INTEGER NOT NULL DEFAULT 0)"
+        )
+        conn.commit()
+        conn.close()
+        conn = rr_balancer.connect_db(path)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+        self.assertIn("quarantined_until", cols)
+        conn.close()
+        conn = rr_balancer.connect_db(path)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+        self.assertIn("quarantined_until", cols)
+        conn.close()
+
+
 if __name__ == "__main__":
     unittest.main()

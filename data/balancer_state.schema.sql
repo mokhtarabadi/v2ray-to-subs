@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS nodes (
   delay_ms   INTEGER,
   last_check INTEGER NOT NULL DEFAULT 0,
   fails      INTEGER NOT NULL DEFAULT 0,
-  uses       INTEGER NOT NULL DEFAULT 0
+  uses       INTEGER NOT NULL DEFAULT 0,
+  quarantined_until INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS rotation_state (

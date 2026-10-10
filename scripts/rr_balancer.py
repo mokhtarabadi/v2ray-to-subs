@@ -37,6 +37,10 @@ DEFAULT_SECRET_FILE = os.path.expanduser("~/.config/mihomo-subs/.controller_secr
 # never enter the rotation pool.
 META_NAMES = {"Auto", "Load Balance", "Fallback", "DIRECT", "REJECT", "PASS"}
 
+# Failed nodes stay out of rotation and retest for this long, so a
+# rate-limited exit cannot come back minutes later.
+QUARANTINE_SECONDS = 24 * 3600
+
 
 def utc_now_epoch() -> int:
     """Current UTC time as epoch seconds. Single clock seam for tests.
@@ -176,6 +180,15 @@ def connect_db(db_path: str) -> sqlite3.Connection:
     if fresh:
         with open(SCHEMA_PATH, encoding="utf-8") as fh:
             conn.executescript(fh.read())
+    else:
+        # Idempotent migration for DBs created before quarantine support.
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(nodes)")]
+        if "quarantined_until" not in cols:
+            conn.execute(
+                "ALTER TABLE nodes ADD COLUMN quarantined_until "
+                "INTEGER NOT NULL DEFAULT 0"
+            )
+            conn.commit()
     return conn
 
 
@@ -217,13 +230,15 @@ def alive_pool(
 
     When allowed is given, only names present in the controller's current
     member list are returned, so ghosts from older feeds are never picked.
+    Quarantined nodes (failed less than 24h ago) are always excluded.
     """
     cur = conn.cursor()
     query = (
         "SELECT name, uses, COALESCE(delay_ms, 999999) FROM nodes "
-        "WHERE status = 'alive' AND (? - last_check) <= ?"
+        "WHERE status = 'alive' AND (? - last_check) <= ? "
+        "AND quarantined_until <= ?"
     )
-    params: List[Any] = [now, stale_after]
+    params: List[Any] = [now, stale_after, now]
     if allowed is not None:
         allowed = list(allowed)
         if not allowed:
@@ -292,19 +307,19 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
 
 
 def _mark_failed(conn: sqlite3.Connection, name: str, max_fails: int, now: int) -> None:
-    """Mark one node failed (retest readmits it if alive)."""
+    """Mark one node failed and quarantine it for 24h (retest readmits after expiry)."""
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
     if row is None:
         print("skip: unknown node %r, rotating anyway" % name)
     else:
         cur.execute(
-            "UPDATE nodes SET status = 'failed', fails = ?, last_check = ? "
-            "WHERE name = ?",
-            (max_fails, now, name),
+            "UPDATE nodes SET status = 'failed', fails = ?, last_check = ?, "
+            "quarantined_until = ? WHERE name = ?",
+            (max_fails, now, now + QUARANTINE_SECONDS, name),
         )
         conn.commit()
-        print("skip: marked %s failed (retest readmits it if alive)" % name)
+        print("skip: marked %s failed (quarantined 24h, retest readmits after)" % name)
 
 
 def _relabel_latest(conn: sqlite3.Connection, reason: str) -> None:
@@ -369,9 +384,10 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
     else:
         cur.execute(
             "SELECT name FROM nodes WHERE name IN (%s) "
+            "AND quarantined_until <= ? "
             "ORDER BY (status = 'alive') DESC, last_check ASC LIMIT ?"
             % ",".join("?" * len(pool_names)),
-            (*pool_names, args.batch),
+            (*pool_names, now, args.batch),
         )
         batch = [row[0] for row in cur.fetchall()]
     if not batch:
@@ -406,7 +422,7 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
         if delay is not None:
             cur.execute(
                 "UPDATE nodes SET status='alive', delay_ms=?, "
-                "last_check=?, fails=0 WHERE name=?",
+                "last_check=?, fails=0, quarantined_until=0 WHERE name=?",
                 (delay, now, name),
             )
             alive += 1
@@ -414,8 +430,10 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
             cur.execute(
                 "UPDATE nodes SET fails=fails+1, last_check=?, "
                 "status=CASE WHEN fails+1 >= ? THEN 'failed' "
-                "ELSE status END WHERE name=?",
-                (now, args.max_fails, name),
+                "ELSE status END, "
+                "quarantined_until=CASE WHEN fails+1 >= ? THEN ? "
+                "ELSE quarantined_until END WHERE name=?",
+                (now, args.max_fails, args.max_fails, now + QUARANTINE_SECONDS, name),
             )
             failed += 1
     conn.commit()
