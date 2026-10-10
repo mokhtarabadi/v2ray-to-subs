@@ -160,9 +160,10 @@ sing-box check -c singbox_config.json
 Balancing is done by the external balancer (`scripts/rr_balancer.py` with
 SQLite state), not by mihomo groups — PROXY stays in `select` mode:
 
-- **Rotate**: least-used + fastest node every 30 minutes (`rr-rotate.timer`)
-- **Retest**: 500 oldest nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
+- **Rotate**: manual only — bare `rr` skips the current node and picks least-used + fastest (`rr-rotate.timer` is intentionally disabled)
+- **Retest**: 500 oldest controller-present nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
 - **Freshness**: nodes unchecked for over 2h sit out until rechecked
+- **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller
 - **Manual escape**: bare `rr` skips the current node immediately (`skip NAME` targets one)
 - **Subscription refresh**: OpenRay feed regenerated every 6h (`v2ray-to-subs-refresh.timer`)
 
@@ -186,6 +187,16 @@ https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Proto
 https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt
 ```
 
+Multiple feeds can be combined in one run — each is downloaded and
+counted separately, then merged and deduped as a single pool:
+
+```bash
+python proxy_converter.py \
+  "https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt" \
+  "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs_base64.txt" \
+  --unique-host
+```
+
 ## manager.sh (easy use)
 
 The repo ships a `manager.sh` wrapper (same style as `~/Desktop/mihomo/manager.sh`).
@@ -196,6 +207,7 @@ It defaults to the Patterniha subscription above, loopback-only bindings, TUN of
 ./manager.sh generate --tun                            # + TUN inbound
 ./manager.sh generate --tun --allow-lan                # + LAN clients
 ./manager.sh tun "https://example.com/sub#MyProfile"   # TUN + custom sub
+./manager.sh generate "https://a.example/sub" "https://b.example/sub"  # merge feeds
 ./manager.sh clash | ./manager.sh singbox              # single output
 ./manager.sh check                                     # mihomo -t + sing-box check
 ./manager.sh deploy --tun                              # regenerate + install to ~/Desktop/mihomo

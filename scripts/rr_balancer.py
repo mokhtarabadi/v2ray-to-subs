@@ -26,7 +26,7 @@ import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Collection, Dict, List, Optional, Tuple
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA_PATH = os.path.join(REPO_ROOT, "data", "balancer_state.schema.sql")
@@ -180,7 +180,13 @@ def connect_db(db_path: str) -> sqlite3.Connection:
 
 
 def seed_names(conn: sqlite3.Connection, names: List[str]) -> Tuple[int, int]:
-    """Insert unknown names; prune names gone from the controller."""
+    """Insert unknown names; prune only unknowns gone from the controller.
+
+    Learned rows (alive/failed with delay, uses, fails) survive feed
+    refreshes so rotation keeps working across config regenerations;
+    recurring names resume with their stats intact. Unknown rows carry
+    no knowledge, so dropping them is free and bounds table growth.
+    """
     cur = conn.cursor()
     cur.execute("SELECT name FROM nodes")
     known = {row[0] for row in cur.fetchall()}
@@ -189,25 +195,42 @@ def seed_names(conn: sqlite3.Connection, names: List[str]) -> Tuple[int, int]:
         if name not in known:
             cur.execute("INSERT INTO nodes (name) VALUES (?)", (name,))
             added += 1
-    cur.execute(
-        "DELETE FROM nodes WHERE name NOT IN (%s)" % ",".join("?" * len(names)),
-        names,
-    ) if names else None
-    pruned = cur.rowcount if names else 0
+    pruned = 0
+    if names:
+        cur.execute(
+            "DELETE FROM nodes WHERE status = 'unknown' AND name NOT IN (%s)"
+            % ",".join("?" * len(names)),
+            names,
+        )
+        pruned = cur.rowcount
     conn.commit()
     return added, pruned
 
 
 def alive_pool(
-    conn: sqlite3.Connection, now: int, stale_after: int
+    conn: sqlite3.Connection,
+    now: int,
+    stale_after: int,
+    allowed: Optional[Collection[str]] = None,
 ) -> List[Tuple[str, int, int]]:
-    """Alive AND freshly checked nodes as (name, uses, delay_ms)."""
+    """Alive AND freshly checked nodes as (name, uses, delay_ms).
+
+    When allowed is given, only names present in the controller's current
+    member list are returned, so ghosts from older feeds are never picked.
+    """
     cur = conn.cursor()
-    cur.execute(
+    query = (
         "SELECT name, uses, COALESCE(delay_ms, 999999) FROM nodes "
-        "WHERE status = 'alive' AND (? - last_check) <= ?",
-        (now, stale_after),
+        "WHERE status = 'alive' AND (? - last_check) <= ?"
     )
+    params: List[Any] = [now, stale_after]
+    if allowed is not None:
+        allowed = list(allowed)
+        if not allowed:
+            return []
+        query += " AND name IN (%s)" % ",".join("?" * len(allowed))
+        params.extend(allowed)
+    cur.execute(query, params)
     return cur.fetchall()
 
 
@@ -223,7 +246,7 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     conn = connect_db(args.db)
     pool_names, current = api.group_members(args.group)
     seed_names(conn, pool_names)
-    pool = alive_pool(conn, now, args.stale_after)
+    pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
     name = pick_next(pool)
     if name is None:
         conn.execute(
@@ -341,12 +364,16 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
     pool_names, _ = api.group_members(args.group)
     added, pruned = seed_names(conn, pool_names)
     cur = conn.cursor()
-    cur.execute(
-        "SELECT name FROM nodes ORDER BY (status = 'alive') DESC, "
-        "last_check ASC LIMIT ?",
-        (args.batch,),
-    )
-    batch = [row[0] for row in cur.fetchall()]
+    if not pool_names:
+        batch = []
+    else:
+        cur.execute(
+            "SELECT name FROM nodes WHERE name IN (%s) "
+            "ORDER BY (status = 'alive') DESC, last_check ASC LIMIT ?"
+            % ",".join("?" * len(pool_names)),
+            (*pool_names, args.batch),
+        )
+        batch = [row[0] for row in cur.fetchall()]
     if not batch:
         print("retest: no nodes to check")
         return 0

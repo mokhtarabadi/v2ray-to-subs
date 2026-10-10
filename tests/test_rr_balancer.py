@@ -92,7 +92,7 @@ class RotateTest(unittest.TestCase):
         mark(conn, "slow", "alive", delay=900, uses=0, last_check=now)
         mark(conn, "fast", "alive", delay=120, uses=0, last_check=now)
         mark(conn, "used", "alive", delay=50, uses=5, last_check=now)
-        api = FakeAPI({})
+        api = FakeAPI({"slow": 900, "fast": 120, "used": 50})
         args = Args(db=path)
         self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
         # fast wins the 0-use tie over slow despite used being quicker
@@ -105,7 +105,7 @@ class RotateTest(unittest.TestCase):
         now = int(time.time())
         mark(conn, "a", "alive", delay=100, uses=0, last_check=now)
         mark(conn, "b", "alive", delay=200, uses=0, last_check=now)
-        api = FakeAPI({})
+        api = FakeAPI({"a": 100, "b": 200})
         args = Args(db=path)
         rr_balancer.cmd_rotate(args, api)
         rr_balancer.cmd_rotate(args, api)
@@ -312,6 +312,60 @@ class CloseStaleTest(unittest.TestCase):
         conn = sqlite3.connect(path)
         uses = conn.execute("SELECT uses FROM nodes WHERE name='n1'").fetchone()[0]
         self.assertEqual(uses, 1)
+        conn.close()
+
+
+class SeedMemoryTest(unittest.TestCase):
+    def test_reseed_keeps_learned_rows(self):
+        conn, path = make_db()
+        mark(conn, "a1", "alive", delay=10, uses=5)
+        mark(conn, "u1", "unknown")
+        rr_balancer.seed_names(conn, ["u1", "new1"])
+        row = conn.execute(
+            "SELECT status, uses, delay_ms FROM nodes WHERE name='a1'"
+        ).fetchone()
+        self.assertEqual(row, ("alive", 5, 10))
+        self.assertIsNotNone(
+            conn.execute("SELECT 1 FROM nodes WHERE name='new1'").fetchone()
+        )
+        conn.close()
+
+    def test_unknown_absent_rows_pruned(self):
+        conn, path = make_db()
+        mark(conn, "u2", "unknown")
+        mark(conn, "u1", "unknown")
+        rr_balancer.seed_names(conn, ["u1"])
+        self.assertIsNone(
+            conn.execute("SELECT 1 FROM nodes WHERE name='u2'").fetchone()
+        )
+        self.assertIsNotNone(
+            conn.execute("SELECT 1 FROM nodes WHERE name='u1'").fetchone()
+        )
+        conn.close()
+
+    def test_alive_pool_excludes_controller_ghosts(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "ghost", "alive", delay=5, uses=0, last_check=now)
+        mark(conn, "real", "alive", delay=50, uses=0, last_check=now)
+        pool = rr_balancer.alive_pool(conn, now, 3600, allowed={"real", "other"})
+        self.assertEqual([n for n, _, _ in pool], ["real"])
+        conn.close()
+
+    def test_retest_batch_skips_ghosts(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 10})
+        api.group_members = lambda group: (["n1"], "old-node")
+        mark(conn, "ghost", "alive", delay=5, uses=0, last_check=100)
+        mark(conn, "n1", "unknown", last_check=100)
+        conn.close()
+        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        ghost_check = conn.execute(
+            "SELECT last_check FROM nodes WHERE name='ghost'"
+        ).fetchone()[0]
+        self.assertEqual(ghost_check, 100)
         conn.close()
 
 

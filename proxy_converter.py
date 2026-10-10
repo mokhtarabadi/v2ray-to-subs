@@ -206,6 +206,22 @@ def _parse_bool(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+# Cipher names some feeds emit that mihomo/sing-box do not recognize,
+# mapped to their canonical equivalents.
+SS_METHOD_ALIASES = {
+    "chacha20-poly1305": "chacha20-ietf-poly1305",
+}
+
+
+def _normalize_ss_method(method: str) -> str:
+    """Map known ss cipher aliases to canonical mihomo-accepted names."""
+    key = (method or "").strip().lower()
+    if key in SS_METHOD_ALIASES:
+        logger.debug("ss cipher alias %r -> %r", method, SS_METHOD_ALIASES[key])
+        return SS_METHOD_ALIASES[key]
+    return method
+
+
 def _ws_early_data(
     path: Optional[str],
 ) -> Tuple[Optional[str], Optional[int], Optional[str]]:
@@ -382,6 +398,27 @@ class SubscriptionDownloader:
         except Exception as exc:
             logger.error("Failed to download subscription from %s: %s", url, exc)
             raise
+
+
+def _dedup_by_host(
+    proxies: List[ProxyConfig],
+) -> Tuple[List[ProxyConfig], int]:
+    """Keep the first proxy per server host (case/whitespace normalized).
+
+    Shared by single-feed parse and multi-feed merge so both paths apply
+    identical first-wins semantics. Returns (unique, duplicate_count).
+    """
+    seen: set = set()
+    unique: List[ProxyConfig] = []
+    dups = 0
+    for proxy in proxies:
+        key = (proxy.server or "").strip().lower()
+        if key in seen:
+            dups += 1
+            continue
+        seen.add(key)
+        unique.append(proxy)
+    return unique, dups
 
 
 class ProxyParser:
@@ -670,7 +707,7 @@ class ProxyParser:
             server=server,
             port=port,
             protocol="shadowsocks",
-            method=urllib.parse.unquote(method),
+            method=_normalize_ss_method(urllib.parse.unquote(method)),
             password=urllib.parse.unquote(password),
             plugin=plugin,
             plugin_opts=plugin_opts,
@@ -1926,6 +1963,7 @@ def _parse_plugin_opts(opts: str) -> Dict[str, Any]:
 
 def run(
     url: str = DEFAULT_SUBSCRIPTION_URL,
+    urls: Optional[List[str]] = None,
     clash_out: str = "clash_config.yaml",
     singbox_out: str = "singbox_config.json",
     outputs: str = "both",
@@ -1934,22 +1972,70 @@ def run(
     controller_secret: str = "",
     unique_host: bool = False,
 ) -> int:
-    downloader = SubscriptionDownloader()
-    content = downloader.download_subscription(url)
-    title = downloader.last_title
-    logger.info("Subscription title: %s", title or "(none)")
+    if urls is None:
+        urls = [url]
+    elif isinstance(urls, str):
+        urls = [urls]
+    if not urls:
+        urls = [DEFAULT_SUBSCRIPTION_URL]
 
-    parser = ProxyParser(unique_host=unique_host)
-    proxies = parser.parse_subscription_content(content)
-    if not proxies:
-        logger.error("No proxies parsed from subscription")
+    downloader = SubscriptionDownloader()
+    feed_contents: List[Tuple[str, str]] = []
+    for feed_url in urls:
+        try:
+            feed_contents.append((feed_url, downloader.download_subscription(feed_url)))
+        except Exception as exc:
+            logger.warning("Skipping failed feed %s: %s", feed_url, exc)
+    if not feed_contents:
+        logger.error("No subscriptions could be downloaded")
         return 1
-    if unique_host:
-        logger.info(
-            "Unique-host dedup: %d unique, %d host duplicates skipped",
-            len(proxies),
-            parser.host_dup,
-        )
+
+    if len(feed_contents) == 1:
+        # Legacy single-feed path: behavior and logs byte-identical.
+        url, content = feed_contents[0]
+        title = downloader.last_title
+        logger.info("Subscription title: %s", title or "(none)")
+
+        parser = ProxyParser(unique_host=unique_host)
+        proxies = parser.parse_subscription_content(content)
+        if not proxies:
+            logger.error("No proxies parsed from subscription")
+            return 1
+        if unique_host:
+            logger.info(
+                "Unique-host dedup: %d unique, %d host duplicates skipped",
+                len(proxies),
+                parser.host_dup,
+            )
+    else:
+        # Multi-feed path: parse per feed for counts, then aggregate and
+        # dedup over the merged pool (never per-feed).
+        per_feed: List[Tuple[str, int, int]] = []
+        merged: List[ProxyConfig] = []
+        for feed_url, content in feed_contents:
+            feed_parser = ProxyParser(unique_host=False)
+            parsed = feed_parser.parse_subscription_content(content)
+            per_feed.append((feed_url, len(content), len(parsed)))
+            merged.extend(parsed)
+        for feed_url, nbytes, nparsed in per_feed:
+            logger.info("Feed %s: %d bytes, %d parsed", feed_url, nbytes, nparsed)
+        proxies = merged
+        if unique_host:
+            proxies, host_dup = _dedup_by_host(merged)
+            logger.info(
+                "Unique-host dedup over merged pool: %d unique, "
+                "%d host duplicates skipped",
+                len(proxies),
+                host_dup,
+            )
+        else:
+            logger.info("Merged %d feeds: %d proxies", len(feed_contents), len(proxies))
+        if not proxies:
+            logger.error("No proxies parsed from subscriptions")
+            return 1
+        title = downloader.last_title
+        logger.info("Subscription title: %s", title or "(none)")
+        url = feed_contents[0][0]
 
     generator = ConfigGenerator(
         tun_enabled=tun_enabled,
@@ -2000,10 +2086,10 @@ def main() -> None:
         description="Parse V2Ray subscription links into Clash (mihomo) / sing-box configs"
     )
     ap.add_argument(
-        "url",
-        nargs="?",
-        default=DEFAULT_SUBSCRIPTION_URL,
-        help="Subscription URL (fragment #Name becomes profile title)",
+        "urls",
+        nargs="*",
+        default=[DEFAULT_SUBSCRIPTION_URL],
+        help="Subscription URL(s) (fragment #Name becomes profile title)",
     )
     ap.add_argument("--clash-out", default="clash_config.yaml")
     ap.add_argument("--singbox-out", default="singbox_config.json")
@@ -2042,7 +2128,7 @@ def main() -> None:
 
     raise SystemExit(
         run(
-            url=args.url,
+            urls=args.urls,
             clash_out=args.clash_out,
             singbox_out=args.singbox_out,
             outputs=args.only,

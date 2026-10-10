@@ -38,9 +38,10 @@ find_singbox() {
   if command -v sing-box >/dev/null 2>&1; then command -v sing-box; else echo ""; fi
 }
 
-# generate [url] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
+# generate [url...] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
 do_generate() {
-  local url="$DEFAULT_URL" only="both" tun="" lan="" verbose=""
+  local only="both" tun="" lan="" verbose=""
+  local -a urls=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --tun) tun="--tun"; shift ;;
@@ -50,18 +51,21 @@ do_generate() {
       -v|--verbose) verbose="-v"; shift ;;
       -h|--help) show_help; exit 0 ;;
       -*) warn "unknown flag ignored: $1"; shift ;;
-      *) url="$1"; shift ;;
+      *) urls+=("$1"); shift ;;
     esac
   done
+  if [[ ${#urls[@]} -eq 0 ]]; then
+    urls=("$DEFAULT_URL")
+  fi
   case "$only" in
     clash|singbox|both) ;;
     *) err "bad --only value: $only (want clash|singbox|both)"; exit 1 ;;
   esac
 
-  info "source: $url"
+  info "sources: ${urls[*]}"
   info "outputs: $only | tun: ${tun:-off} | lan: ${lan:-off}"
   # shellcheck disable=SC2086
-  "$(pick_python)" "$CONVERTER" "$url" \
+  "$(pick_python)" "$CONVERTER" "${urls[@]}" \
     --clash-out "$CLASH_OUT" --singbox-out "$SB_OUT" \
     --only "$only" $tun $lan $verbose
   ok "generated: $CLASH_OUT + $SB_OUT (as selected)"
@@ -115,7 +119,7 @@ Default subscription: $DEFAULT_URL
 Usage: $(basename "$0") <command> [url] [flags]
 
 Commands:
-  generate [url] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
+  generate [url...] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
       Regenerate configs (defaults: Patterniha URL, TUN off, loopback-only)
   clash [url] [flags]     Same as generate --only clash
   singbox [url] [flags]   Same as generate --only singbox
@@ -128,6 +132,7 @@ Examples:
   ./manager.sh generate
   ./manager.sh generate --tun
   ./manager.sh tun "https://example.com/sub#MyProfile"
+  ./manager.sh generate "https://a.example/sub" "https://b.example/sub"  # merge feeds
   ./manager.sh clash --only clash
   ./manager.sh check
   ./manager.sh deploy --tun
