@@ -672,7 +672,7 @@ class ProxyParser:
             except Exception as exc:
                 raise ValueError(f"invalid ss userinfo: {exc}") from exc
 
-        hostport = urllib.parse.unquote(hostport)
+        hostport = urllib.parse.unquote(hostport).rstrip("/")
         if hostport.count(":") == 1:
             server, port_s = hostport.split(":")
         else:
@@ -1098,6 +1098,11 @@ class ConfigGenerator:
             base["uuid"] = proxy.uuid
             if proxy.flow:
                 base["flow"] = proxy.flow
+            # mihomo only accepts "" / "none" (omitted) or mlkem768x25519plus
+            # key strings here; anything else (e.g. aes-128-gcm seen in the
+            # wild) fails `mihomo -t`, so only mlkem values are emitted.
+            if proxy.encryption and proxy.encryption.startswith("mlkem768"):
+                base["encryption"] = proxy.encryption
             if proxy.packet_encoding:
                 pe = proxy.packet_encoding.lower()
                 if pe in ("packet", "packetaddr"):
@@ -1114,7 +1119,12 @@ class ConfigGenerator:
             if proxy.plugin:
                 base["plugin"] = proxy.plugin
                 if proxy.plugin_opts:
-                    base["plugin-opts"] = _parse_plugin_opts(proxy.plugin_opts)
+                    opts = _parse_plugin_opts(proxy.plugin_opts)
+                    # mihomo requires v2ray-plugin mode; the plugin's own
+                    # default is websocket when the link omits it.
+                    if proxy.plugin == "v2ray-plugin" and "mode" not in opts:
+                        opts["mode"] = "websocket"
+                    base["plugin-opts"] = opts
         elif isinstance(proxy, Hysteria2Config):
             base["type"] = "hysteria2"
             base["password"] = proxy.password

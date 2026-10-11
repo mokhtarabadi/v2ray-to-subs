@@ -57,3 +57,6 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 data/*.jsonl
+
+# Vendored upstream sources for parity audits (third-party code, never commit)
+.upstream/

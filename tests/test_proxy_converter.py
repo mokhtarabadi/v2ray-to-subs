@@ -44,6 +44,31 @@ class DedupHelperTest(unittest.TestCase):
         self.assertEqual(unique[0].name, "n1")
 
 
+class VlessEncryptionEmitTest(unittest.TestCase):
+    def test_unusable_encryption_dropped(self):
+        # mihomo only accepts "" / "none" (omitted) or mlkem768x25519plus
+        # key strings; aes-128-gcm seen in the wild fails `mihomo -t`.
+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+            "vless://11111111-1111-4111-8111-111111111111@enc.example:443"
+            "?encryption=aes-128-gcm#enc1"
+        )
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual(parsed[0].encryption, "aes-128-gcm")
+        gen = proxy_converter.ConfigGenerator()
+        clash = gen.generate_clash_config(parsed)["proxies"]
+        self.assertEqual(len(clash), 1)
+        self.assertNotIn("encryption", clash[0])
+
+    def test_none_encryption_omitted(self):
+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+            "vless://11111111-1111-4111-8111-111111111111@plain.example:443"
+            "?encryption=none#plain1"
+        )
+        gen = proxy_converter.ConfigGenerator()
+        clash = gen.generate_clash_config(parsed)["proxies"]
+        self.assertNotIn("encryption", clash[0])
+
+
 class MultiFeedRunTest(unittest.TestCase):
     def _run(self, **kw):
         tmp = tempfile.mkdtemp()
@@ -105,6 +130,27 @@ class MultiFeedRunTest(unittest.TestCase):
         )
         proxy = proxy_converter.ProxyParser().parse_shadowsocks(link)
         self.assertEqual(proxy.method, "chacha20-ietf-poly1305")
+
+    def test_ss_sip003_trailing_slash(self):
+        # SIP003 links often carry a trailing slash before ?plugin=
+        proxy = proxy_converter.ProxyParser().parse_shadowsocks(
+            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
+            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
+        )
+        self.assertEqual(proxy.server, "h.com")
+        self.assertEqual(proxy.port, 8388)
+        self.assertEqual(proxy.plugin, "v2ray-plugin")
+        self.assertIn("tls", proxy.plugin_opts or "")
+
+    def test_ss_v2ray_plugin_mode_default(self):
+        # mihomo rejects v2ray-plugin without mode; the plugin default is websocket
+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
+            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
+        )
+        gen = proxy_converter.ConfigGenerator()
+        clash = gen.generate_clash_config(parsed)["proxies"]
+        self.assertEqual(clash[0]["plugin-opts"].get("mode"), "websocket")
 
 
 if __name__ == "__main__":

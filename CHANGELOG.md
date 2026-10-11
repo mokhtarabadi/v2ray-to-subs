@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 24h quarantine for failed nodes (task 11): failed nodes stay out of rotation and retest for 24h, then readmit via normal retest confirmation.
 - Per-cause failure tracking: `skip`/`next` accept `--reason quota|transport|manual`; rotation prefers least-used, then fewest quota fails, then fastest, so exits hitting crawl rate limits sink in priority without deletion.
 - Close stale connections on proxy switch (task 09): after every successful selection change the balancer closes connections still chained to the previous node (surgical per-id close, non-fatal); shared path covers manual (`rr`/`skip`) and timer (`rotate`) modes.
+- Upstream parity audit (task 12): fat-graph review of full v2rayNG/mihomo/sing-box clones confirms ss plugin-opts string shape and reality-opts coverage; no new gaps, clones removed afterwards.
+- Upstream parity fixes (task 12): ss SIP003 trailing-slash parse crash fixed; v2ray-plugin `mode` defaults to websocket (required by mihomo); vless `encryption` emitted only for mihomo-accepted values.
+- Upstream parity fixes (task 12): emit vless `encryption` to Clash only for values mihomo accepts (`mlkem768x25519plus…`), drop unusable values like `aes-128-gcm` that fail validation.
 
 ### Fixed
 - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
