@@ -1,9 +1,9 @@
 # Task [12]: Cross-check parsers and configs against upstream sources
 
-**File:** `tasks/qa/12-upstream-parity-audit.md`
+**File:** `tasks/completed/12-upstream-parity-audit.md`
 **Source:** manager
 **Type:** research + fix
-**Status:** open
+**Status:** closed
 
 ## Goal
 
@@ -110,136 +110,13 @@ Skipped by design: wireguard, ssr, juicity, anytls, snell, mieru (no parser; v2r
 - Graph-verified findings: sing-box ss `plugin_opts` is a plain string (our raw-string emit is correct, no fix); mihomo `RealityOptions` needs only public-key + optional short-id (both emitted); mihomo `ShadowSocksOption` carries exactly what we emit for link-carried fields.
 - No new code gaps found in this round. Clones removed afterwards (`rm -rf .upstream-full` verified absent); `.upstream/` vendor dir and graph reports remain gitignored.
 
+
+## Closure
+
+- Manager approval (exact): "Approved for closure". Battery + fat-graph rounds verified (40 tests green, live mihomo -t passes, clones removed). Staged set is task-12-only. Closing via approved path.
+
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/.gitignore b/.gitignore
-index 7cfc4ac..66d4164 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -57,3 +57,6 @@ data/*.db-journal
- data/*.db-wal
- data/*.db-shm
- data/*.jsonl
-+
-+# Vendored upstream sources for parity audits (third-party code, never commit)
-+.upstream/
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index 81ae44b..b70a405 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
- - 24h quarantine for failed nodes (task 11): failed nodes stay out of rotation and retest for 24h, then readmit via normal retest confirmation.
- - Per-cause failure tracking: `skip`/`next` accept `--reason quota|transport|manual`; rotation prefers least-used, then fewest quota fails, then fastest, so exits hitting crawl rate limits sink in priority without deletion.
- - Close stale connections on proxy switch (task 09): after every successful selection change the balancer closes connections still chained to the previous node (surgical per-id close, non-fatal); shared path covers manual (`rr`/`skip`) and timer (`rotate`) modes.
-+- Upstream parity fixes (task 12): ss SIP003 trailing-slash parse crash fixed; v2ray-plugin `mode` defaults to websocket (required by mihomo); vless `encryption` emitted only for mihomo-accepted values.
-+- Upstream parity fixes (task 12): emit vless `encryption` to Clash only for values mihomo accepts (`mlkem768x25519plus…`), drop unusable values like `aes-128-gcm` that fail validation.
- 
- ### Fixed
- - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
-diff --git a/proxy_converter.py b/proxy_converter.py
-index b4ca374..440b470 100644
---- a/proxy_converter.py
-+++ b/proxy_converter.py
-@@ -672,7 +672,7 @@ class ProxyParser:
-             except Exception as exc:
-                 raise ValueError(f"invalid ss userinfo: {exc}") from exc
- 
--        hostport = urllib.parse.unquote(hostport)
-+        hostport = urllib.parse.unquote(hostport).rstrip("/")
-         if hostport.count(":") == 1:
-             server, port_s = hostport.split(":")
-         else:
-@@ -1098,6 +1098,11 @@ class ConfigGenerator:
-             base["uuid"] = proxy.uuid
-             if proxy.flow:
-                 base["flow"] = proxy.flow
-+            # mihomo only accepts "" / "none" (omitted) or mlkem768x25519plus
-+            # key strings here; anything else (e.g. aes-128-gcm seen in the
-+            # wild) fails `mihomo -t`, so only mlkem values are emitted.
-+            if proxy.encryption and proxy.encryption.startswith("mlkem768"):
-+                base["encryption"] = proxy.encryption
-             if proxy.packet_encoding:
-                 pe = proxy.packet_encoding.lower()
-                 if pe in ("packet", "packetaddr"):
-@@ -1114,7 +1119,12 @@ class ConfigGenerator:
-             if proxy.plugin:
-                 base["plugin"] = proxy.plugin
-                 if proxy.plugin_opts:
--                    base["plugin-opts"] = _parse_plugin_opts(proxy.plugin_opts)
-+                    opts = _parse_plugin_opts(proxy.plugin_opts)
-+                    # mihomo requires v2ray-plugin mode; the plugin's own
-+                    # default is websocket when the link omits it.
-+                    if proxy.plugin == "v2ray-plugin" and "mode" not in opts:
-+                        opts["mode"] = "websocket"
-+                    base["plugin-opts"] = opts
-         elif isinstance(proxy, Hysteria2Config):
-             base["type"] = "hysteria2"
-             base["password"] = proxy.password
-diff --git a/tests/test_proxy_converter.py b/tests/test_proxy_converter.py
-index add4f3f..ffadbf8 100644
---- a/tests/test_proxy_converter.py
-+++ b/tests/test_proxy_converter.py
-@@ -44,6 +44,31 @@ class DedupHelperTest(unittest.TestCase):
-         self.assertEqual(unique[0].name, "n1")
- 
- 
-+class VlessEncryptionEmitTest(unittest.TestCase):
-+    def test_unusable_encryption_dropped(self):
-+        # mihomo only accepts "" / "none" (omitted) or mlkem768x25519plus
-+        # key strings; aes-128-gcm seen in the wild fails `mihomo -t`.
-+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
-+            "vless://11111111-1111-4111-8111-111111111111@enc.example:443"
-+            "?encryption=aes-128-gcm#enc1"
-+        )
-+        self.assertEqual(len(parsed), 1)
-+        self.assertEqual(parsed[0].encryption, "aes-128-gcm")
-+        gen = proxy_converter.ConfigGenerator()
-+        clash = gen.generate_clash_config(parsed)["proxies"]
-+        self.assertEqual(len(clash), 1)
-+        self.assertNotIn("encryption", clash[0])
-+
-+    def test_none_encryption_omitted(self):
-+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
-+            "vless://11111111-1111-4111-8111-111111111111@plain.example:443"
-+            "?encryption=none#plain1"
-+        )
-+        gen = proxy_converter.ConfigGenerator()
-+        clash = gen.generate_clash_config(parsed)["proxies"]
-+        self.assertNotIn("encryption", clash[0])
-+
-+
- class MultiFeedRunTest(unittest.TestCase):
-     def _run(self, **kw):
-         tmp = tempfile.mkdtemp()
-@@ -106,6 +131,27 @@ class MultiFeedRunTest(unittest.TestCase):
-         proxy = proxy_converter.ProxyParser().parse_shadowsocks(link)
-         self.assertEqual(proxy.method, "chacha20-ietf-poly1305")
- 
-+    def test_ss_sip003_trailing_slash(self):
-+        # SIP003 links often carry a trailing slash before ?plugin=
-+        proxy = proxy_converter.ProxyParser().parse_shadowsocks(
-+            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
-+            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
-+        )
-+        self.assertEqual(proxy.server, "h.com")
-+        self.assertEqual(proxy.port, 8388)
-+        self.assertEqual(proxy.plugin, "v2ray-plugin")
-+        self.assertIn("tls", proxy.plugin_opts or "")
-+
-+    def test_ss_v2ray_plugin_mode_default(self):
-+        # mihomo rejects v2ray-plugin without mode; the plugin default is websocket
-+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
-+            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
-+            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
-+        )
-+        gen = proxy_converter.ConfigGenerator()
-+        clash = gen.generate_clash_config(parsed)["proxies"]
-+        self.assertEqual(clash[0]["plugin-opts"].get("mode"), "websocket")
-+
- 
- if __name__ == "__main__":
-     unittest.main()
-```
+**Factual Git Diff:** Stored in Commit Hash: `9785915ae77250874e273f4647e59c7d6e0766aa`
 <!-- END_GIT_DIFF -->
