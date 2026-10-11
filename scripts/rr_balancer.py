@@ -181,14 +181,18 @@ def connect_db(db_path: str) -> sqlite3.Connection:
         with open(SCHEMA_PATH, encoding="utf-8") as fh:
             conn.executescript(fh.read())
     else:
-        # Idempotent migration for DBs created before quarantine support.
+        # Idempotent migrations for DBs created before newer columns.
         cols = [row[1] for row in conn.execute("PRAGMA table_info(nodes)")]
-        if "quarantined_until" not in cols:
-            conn.execute(
-                "ALTER TABLE nodes ADD COLUMN quarantined_until "
-                "INTEGER NOT NULL DEFAULT 0"
-            )
-            conn.commit()
+        for coldef in (
+            "quarantined_until INTEGER NOT NULL DEFAULT 0",
+            "last_fail_cause TEXT NOT NULL DEFAULT ''",
+            "quota_fails INTEGER NOT NULL DEFAULT 0",
+            "transport_fails INTEGER NOT NULL DEFAULT 0",
+        ):
+            col = coldef.split()[0]
+            if col not in cols:
+                conn.execute("ALTER TABLE nodes ADD COLUMN %s" % coldef)
+        conn.commit()
     return conn
 
 
@@ -225,8 +229,8 @@ def alive_pool(
     now: int,
     stale_after: int,
     allowed: Optional[Collection[str]] = None,
-) -> List[Tuple[str, int, int]]:
-    """Alive AND freshly checked nodes as (name, uses, delay_ms).
+) -> List[Tuple[str, int, int, int]]:
+    """Alive AND freshly checked nodes as (name, uses, quota_fails, delay_ms).
 
     When allowed is given, only names present in the controller's current
     member list are returned, so ghosts from older feeds are never picked.
@@ -234,7 +238,8 @@ def alive_pool(
     """
     cur = conn.cursor()
     query = (
-        "SELECT name, uses, COALESCE(delay_ms, 999999) FROM nodes "
+        "SELECT name, uses, COALESCE(quota_fails, 0), "
+        "COALESCE(delay_ms, 999999) FROM nodes "
         "WHERE status = 'alive' AND (? - last_check) <= ? "
         "AND quarantined_until <= ?"
     )
@@ -249,11 +254,11 @@ def alive_pool(
     return cur.fetchall()
 
 
-def pick_next(pool: List[Tuple[str, int, int]]) -> Optional[str]:
-    """Least-used first, fastest delay breaks ties. None when pool empty."""
+def pick_next(pool: List[Tuple[str, int, int, int]]) -> Optional[str]:
+    """Least-used first, fewest quota fails next, fastest delay last."""
     if not pool:
         return None
-    return sorted(pool, key=lambda row: (row[1], row[2]))[0][0]
+    return sorted(pool, key=lambda row: (row[1], row[2], row[3]))[0][0]
 
 
 def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
@@ -271,7 +276,7 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
         conn.commit()
         print("rotate: empty alive pool, no-op (group untouched)")
         return 0
-    delay = next(d for n, u, d in pool if n == name)
+    delay = next(d for n, _u, _q, d in pool if n == name)
     api.select(args.group, name)
     if current and current != name:
         try:
@@ -306,8 +311,18 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     return 0
 
 
-def _mark_failed(conn: sqlite3.Connection, name: str, max_fails: int, now: int) -> None:
-    """Mark one node failed and quarantine it for 24h (retest readmits after expiry)."""
+def _mark_failed(
+    conn: sqlite3.Connection,
+    name: str,
+    max_fails: int,
+    now: int,
+    reason: str = "manual",
+) -> None:
+    """Mark one node failed and quarantine it for 24h (retest readmits after expiry).
+
+    The failure cause (quota/transport/manual) is recorded per cause so
+    rotation can prefer nodes with a clean record for crawl traffic.
+    """
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
     if row is None:
@@ -315,11 +330,21 @@ def _mark_failed(conn: sqlite3.Connection, name: str, max_fails: int, now: int) 
     else:
         cur.execute(
             "UPDATE nodes SET status = 'failed', fails = ?, last_check = ?, "
-            "quarantined_until = ? WHERE name = ?",
-            (max_fails, now, now + QUARANTINE_SECONDS, name),
+            "quarantined_until = ?, last_fail_cause = ?, "
+            "quota_fails = quota_fails + ?, "
+            "transport_fails = transport_fails + ? WHERE name = ?",
+            (
+                max_fails,
+                now,
+                now + QUARANTINE_SECONDS,
+                reason,
+                1 if reason == "quota" else 0,
+                1 if reason == "transport" else 0,
+                name,
+            ),
         )
         conn.commit()
-        print("skip: marked %s failed (quarantined 24h, retest readmits after)" % name)
+        print("skip: marked %s failed (%s, quarantined 24h)" % (name, reason))
 
 
 def _relabel_latest(conn: sqlite3.Connection, reason: str) -> None:
@@ -338,7 +363,9 @@ def cmd_skip(args: argparse.Namespace, api: ClashAPI) -> int:
     conn = connect_db(args.db)
     pool_names, _ = api.group_members(args.group)
     seed_names(conn, pool_names)
-    _mark_failed(conn, args.name, args.max_fails, now)
+    _mark_failed(
+        conn, args.name, args.max_fails, now, getattr(args, "reason", "manual")
+    )
     conn.close()
     rc = cmd_rotate(args, api)
     if rc == 0:
@@ -357,7 +384,9 @@ def cmd_next(args: argparse.Namespace, api: ClashAPI) -> int:
     if not current:
         print("next: no current selection reported, rotating anyway")
     else:
-        _mark_failed(conn, current, args.max_fails, now)
+        _mark_failed(
+            conn, current, args.max_fails, now, getattr(args, "reason", "manual")
+        )
     conn.close()
     rc = cmd_rotate(args, api)
     if rc == 0:
@@ -422,7 +451,9 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
         if delay is not None:
             cur.execute(
                 "UPDATE nodes SET status='alive', delay_ms=?, "
-                "last_check=?, fails=0, quarantined_until=0 WHERE name=?",
+                "last_check=?, fails=0, quarantined_until=0, "
+                "last_fail_cause='', quota_fails=0, transport_fails=0 "
+                "WHERE name=?",
                 (delay, now, name),
             )
             alive += 1
@@ -470,13 +501,27 @@ def build_parser() -> argparse.ArgumentParser:
     ret.add_argument("--timeout-ms", type=int, default=3000)
 
     skp = sub.add_parser("skip", help="mark a node failed and rotate now")
-    skp.add_argument("name", help="proxy name to skip (e.g. the 429-flagged node)")
+    skp.add_argument(
+        "name", help="proxy name to skip (e.g. a rate-limited crawl target)"
+    )
     skp.add_argument("--stale-after", type=int, default=7200)
     skp.add_argument("--max-fails", type=int, default=3)
+    skp.add_argument(
+        "--reason",
+        choices=("quota", "transport", "manual"),
+        default="manual",
+        help="failure cause recorded for smart selection",
+    )
 
     nxt = sub.add_parser("next", help="skip the current node and rotate now")
     nxt.add_argument("--stale-after", type=int, default=7200)
     nxt.add_argument("--max-fails", type=int, default=3)
+    nxt.add_argument(
+        "--reason",
+        choices=("quota", "transport", "manual"),
+        default="manual",
+        help="failure cause recorded for smart selection",
+    )
     return ap
 
 

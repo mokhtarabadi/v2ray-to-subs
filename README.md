@@ -158,9 +158,13 @@ sing-box check -c singbox_config.json
 ### Load Balancing and URL Testing
 
 Balancing is done by the external balancer (`scripts/rr_balancer.py` with
-SQLite state), not by mihomo groups — PROXY stays in `select` mode:
+SQLite state), not by mihomo groups — PROXY stays in `select` mode.
+It exists to keep high-volume crawling workloads on working exits:
+when a target rate-limits an exit IP, the crawler reports the cause
+and the balancer moves traffic to the next best node automatically:
 
 - **Rotate**: manual only — bare `rr` skips the current node and picks least-used + fastest (`rr-rotate.timer` is intentionally disabled)
+- **Failure causes**: `rr next --reason quota|transport` (default `manual`) records per-cause counters; selection order is least-used, then fewest quota fails, then fastest — exits that hit crawl rate limits sink in priority without being deleted
 - **Retest**: 500 oldest controller-present nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
 - **Freshness**: nodes unchecked for over 2h sit out until rechecked
 - **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller

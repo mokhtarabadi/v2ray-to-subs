@@ -131,7 +131,7 @@ class RotateTest(unittest.TestCase):
         args = Args(db=path, stale_after=3600)
         # now inside connect path uses real time; force via alive_pool
         pool = rr_balancer.alive_pool(conn, 1_700_000_000, 3600)
-        self.assertEqual([n for n, _, _ in pool], ["fresh"])
+        self.assertEqual([n for n, _, _, _ in pool], ["fresh"])
 
     def test_meta_members_never_in_pool(self):
         api = FakeAPI({"real": 100})
@@ -349,7 +349,7 @@ class SeedMemoryTest(unittest.TestCase):
         mark(conn, "ghost", "alive", delay=5, uses=0, last_check=now)
         mark(conn, "real", "alive", delay=50, uses=0, last_check=now)
         pool = rr_balancer.alive_pool(conn, now, 3600, allowed={"real", "other"})
-        self.assertEqual([n for n, _, _ in pool], ["real"])
+        self.assertEqual([n for n, _, _, _ in pool], ["real"])
         conn.close()
 
     def test_retest_batch_skips_ghosts(self):
@@ -398,7 +398,7 @@ class QuarantineTest(unittest.TestCase):
         conn.execute("UPDATE nodes SET status='alive' WHERE name='q'")
         conn.commit()
         pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"q", "ok"})
-        self.assertEqual([n for n, _, _ in pool], ["ok"])
+        self.assertEqual([n for n, _, _, _ in pool], ["ok"])
         conn.close()
 
     def test_expired_quarantine_readmits(self):
@@ -410,7 +410,7 @@ class QuarantineTest(unittest.TestCase):
         )
         conn.commit()
         pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"old"})
-        self.assertEqual([n for n, _, _ in pool], ["old"])
+        self.assertEqual([n for n, _, _, _ in pool], ["old"])
         conn.close()
 
     def test_retest_skips_quarantined(self):
@@ -454,6 +454,79 @@ class QuarantineTest(unittest.TestCase):
         conn = rr_balancer.connect_db(path)
         cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
         self.assertIn("quarantined_until", cols)
+        conn.close()
+
+
+class QuotaCauseTest(unittest.TestCase):
+    def test_skip_reason_quota_records_cause(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_skip(
+            Args(cmd="skip", name="n1", reason="quota", db=path), api
+        )
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT quota_fails, transport_fails, last_fail_cause "
+            "FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row, (1, 0, "quota"))
+        conn.close()
+
+    def test_skip_reason_transport_records_cause(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_skip(
+            Args(cmd="skip", name="n1", reason="transport", db=path), api
+        )
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT quota_fails, transport_fails, last_fail_cause "
+            "FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row, (0, 1, "transport"))
+        conn.close()
+
+    def test_fewer_quota_fails_beats_faster_delay(self):
+        conn, path = make_db()
+        api = FakeAPI({"burned": 5, "clean": 500})
+        mark(conn, "burned", "alive", delay=5, uses=0)
+        mark(conn, "clean", "alive", delay=500, uses=0)
+        conn.execute(
+            "UPDATE nodes SET quota_fails=2, last_fail_cause='quota' "
+            "WHERE name='burned'"
+        )
+        conn.commit()
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+
+    def test_success_resets_cause_counters(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 10})
+        api.group_members = lambda group: (["n1"], "old-node")
+        mark(conn, "n1", "unknown", last_check=100)
+        conn.execute(
+            "UPDATE nodes SET quota_fails=2, last_fail_cause='quota' WHERE name='n1'"
+        )
+        conn.commit()
+        conn.close()
+        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT quota_fails, transport_fails, last_fail_cause "
+            "FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row, (0, 0, ""))
         conn.close()
 
 

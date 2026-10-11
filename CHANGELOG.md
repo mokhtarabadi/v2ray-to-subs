@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Multi-feed aggregation (task 10): converter/`manager.sh`/`refresh.sh` accept N subscription URLs, merge into one pool, dedup across the merged set with per-feed + merged counts; ss cipher alias `chacha20-poly1305` normalized to `chacha20-ietf-poly1305`.
 - Balancer seed memory (task 10 follow-up): learned rows survive feed refreshes (only never-tested rows pruned); pool and retest batch exclude controller ghosts; auto-rotate timer disabled, manual `rr` owns switching.
 - 24h quarantine for failed nodes (task 11): failed nodes stay out of rotation and retest for 24h, then readmit via normal retest confirmation.
+- Per-cause failure tracking: `skip`/`next` accept `--reason quota|transport|manual`; rotation prefers least-used, then fewest quota fails, then fastest, so exits hitting crawl rate limits sink in priority without deletion.
 - Close stale connections on proxy switch (task 09): after every successful selection change the balancer closes connections still chained to the previous node (surgical per-id close, non-fatal); shared path covers manual (`rr`/`skip`) and timer (`rotate`) modes.
 
 ### Fixed
