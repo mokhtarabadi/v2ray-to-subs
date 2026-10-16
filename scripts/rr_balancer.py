@@ -188,6 +188,7 @@ def connect_db(db_path: str) -> sqlite3.Connection:
             "last_fail_cause TEXT NOT NULL DEFAULT ''",
             "quota_fails INTEGER NOT NULL DEFAULT 0",
             "transport_fails INTEGER NOT NULL DEFAULT 0",
+            "region_fails INTEGER NOT NULL DEFAULT 0",
         ):
             col = coldef.split()[0]
             if col not in cols:
@@ -320,8 +321,10 @@ def _mark_failed(
 ) -> None:
     """Mark one node failed and quarantine it for 24h (retest readmits after expiry).
 
-    The failure cause (quota/transport/manual) is recorded per cause so
-    rotation can prefer nodes with a clean record for crawl traffic.
+    The failure cause (quota/transport/region/manual) is recorded per cause
+    so rotation can prefer nodes with a clean record for crawl traffic and
+    provider-side counters stay separable (region = geo-blocked from the
+    provider's country check, unrelated to rate limiting).
     """
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
@@ -332,7 +335,8 @@ def _mark_failed(
             "UPDATE nodes SET status = 'failed', fails = ?, last_check = ?, "
             "quarantined_until = ?, last_fail_cause = ?, "
             "quota_fails = quota_fails + ?, "
-            "transport_fails = transport_fails + ? WHERE name = ?",
+            "transport_fails = transport_fails + ?, "
+            "region_fails = region_fails + ? WHERE name = ?",
             (
                 max_fails,
                 now,
@@ -340,6 +344,7 @@ def _mark_failed(
                 reason,
                 1 if reason == "quota" else 0,
                 1 if reason == "transport" else 0,
+                1 if reason == "region" else 0,
                 name,
             ),
         )
@@ -508,7 +513,7 @@ def build_parser() -> argparse.ArgumentParser:
     skp.add_argument("--max-fails", type=int, default=3)
     skp.add_argument(
         "--reason",
-        choices=("quota", "transport", "manual"),
+        choices=("quota", "transport", "region", "manual"),
         default="manual",
         help="failure cause recorded for smart selection",
     )
@@ -518,7 +523,7 @@ def build_parser() -> argparse.ArgumentParser:
     nxt.add_argument("--max-fails", type=int, default=3)
     nxt.add_argument(
         "--reason",
-        choices=("quota", "transport", "manual"),
+        choices=("quota", "transport", "region", "manual"),
         default="manual",
         help="failure cause recorded for smart selection",
     )

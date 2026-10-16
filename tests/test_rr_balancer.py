@@ -494,6 +494,70 @@ class QuotaCauseTest(unittest.TestCase):
         self.assertEqual(row, (0, 1, "transport"))
         conn.close()
 
+    def test_skip_reason_region_records_cause(self):
+        # Geo-blocked exits (provider region check) get their own counter so
+        # they stay separable from rate-limit and network failures.
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        mark(conn, "n1", "alive", delay=2, uses=0)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_skip(
+            Args(cmd="skip", name="n1", reason="region", db=path), api
+        )
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT quota_fails, transport_fails, region_fails, last_fail_cause "
+            "FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row, (0, 0, 1, "region"))
+        # Quarantine parity: region failures quarantine exactly like other causes.
+        row = conn.execute(
+            "SELECT status, quarantined_until, last_check FROM nodes WHERE name='n1'"
+        ).fetchone()
+        self.assertEqual(row[0], "failed")
+        self.assertGreater(row[1], row[2])
+        conn.close()
+
+    def test_other_causes_leave_region_fails_at_zero(self):
+        # Reverse isolation: quota, transport, and manual marks must never
+        # touch the region counter.
+        for cause in ("quota", "transport", "manual"):
+            conn, path = make_db()
+            api = FakeAPI({"n1": 2, "n2": 5})
+            mark(conn, "n1", "alive", delay=2, uses=0)
+            mark(conn, "n2", "alive", delay=5, uses=0)
+            conn.close()
+            rc = rr_balancer.cmd_skip(
+                Args(cmd="skip", name="n1", reason=cause, db=path), api
+            )
+            self.assertEqual(rc, 0)
+            conn = sqlite3.connect(path)
+            row = conn.execute(
+                "SELECT region_fails FROM nodes WHERE name='n1'"
+            ).fetchone()
+            self.assertEqual(row, (0,), cause)
+            conn.close()
+
+    def test_next_reason_region_records_cause(self):
+        # The next path shares the same mark-failed helper as skip, so a
+        # region rotation must record region_fails on the current node.
+        conn, path = make_db()
+        api = FakeAPI({"cur": 50, "n2": 5})
+        api.group_members = lambda group: (["cur", "n2"], "cur")
+        mark(conn, "cur", "alive", delay=50, uses=3)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_next(Args(cmd="next", reason="region", db=path), api)
+        self.assertEqual(rc, 0)
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT region_fails, last_fail_cause, status FROM nodes WHERE name='cur'"
+        ).fetchone()
+        self.assertEqual(row, (1, "region", "failed"))
+        conn.close()
+
     def test_fewer_quota_fails_beats_faster_delay(self):
         conn, path = make_db()
         api = FakeAPI({"burned": 5, "clean": 500})

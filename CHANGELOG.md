@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Upstream parity fixes (task 12): ss SIP003 trailing-slash parse crash fixed; v2ray-plugin `mode` defaults to websocket (required by mihomo); vless `encryption` emitted only for mihomo-accepted values.
 - Upstream parity fixes (task 12): emit vless `encryption` to Clash only for values mihomo accepts (`mlkem768x25519plus…`), drop unusable values like `aes-128-gcm` that fail validation.
 - Stable identity-hash node naming (task 13): converter emits `{proto}-{12hex}` names derived from protocol + normalized host + port (SHA-256), replacing provider remarks that reshuffled or collided each refresh; deterministic sort-then-suffix collision fallback; Clash keeps the original remark in a `remark` key while sing-box omits it (schema rejects unknown fields); balancer history (delay/fails/uses/quarantine) now survives feed refreshes; `tests/test_stable_hash_naming.py` (10 tests).
+- Geo-block failure cause (`region`): balancer `--reason` accepts `region` and counts it separately (`region_fails` column via idempotent migration, old DBs self-upgrade); the OpenCode rescue plugin now detects `RegionError` ("model is not available in your country/region") model-independently and rotates the exit with the same 2s rescue; exits refused by a provider's country check quarantine 24h like other causes.
 
 ### Fixed
 - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
