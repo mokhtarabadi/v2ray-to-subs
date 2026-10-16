@@ -167,9 +167,10 @@ and the balancer moves traffic to the next best node automatically:
 - **Failure causes**: `rr next --reason quota|transport` (default `manual`) records per-cause counters; selection order is least-used, then fewest quota fails, then fastest — exits that hit crawl rate limits sink in priority without being deleted
 - **Retest**: 500 oldest controller-present nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
 - **Freshness**: nodes unchecked for over 2h sit out until rechecked
+- **Stable names**: nodes are named by identity hash (`{proto}-{12hex}` from server + port), so balancer history survives every feed refresh; the provider remark is kept in the Clash `remark` field for humans
 - **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller
 - **Manual escape**: bare `rr` skips the current node immediately (`skip NAME` targets one)
-- **Subscription refresh**: OpenRay feed regenerated every 6h (`v2ray-to-subs-refresh.timer`)
+- **Subscription refresh**: Ebrasha multi-protocol feeds regenerated every 6h (`v2ray-to-subs-refresh.timer`)
 
 ## Subscription Link Formats
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -25,6 +26,118 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Stable proxy identity naming.
+#
+# Provider remarks reshuffle on every feed refresh (positional indexes like
+# "US-1" or colliding labels needing feed-order suffixes), which orphans the
+# balancer's per-name history (delay, fails, uses, quarantine). These helpers
+# derive a deterministic identity from protocol + normalized host + port so
+# the same server always maps to the same node name across refreshes. The
+# balancer (scripts/rr_balancer.py) keys its SQLite rows by these names and
+# needs no change: stable names automatically persist its history.
+# ---------------------------------------------------------------------------
+
+
+def normalize_host(host: str) -> str:
+    """Normalize a proxy host for stable identity hashing.
+
+    Lowercases the host, strips surrounding IPv6 brackets, strips a
+    trailing FQDN dot, and strips surrounding whitespace. Returns an empty
+    string for None input so callers never crash on missing hosts.
+    """
+    # Defensive: parsers may pass None for malformed links; coerce first.
+    h = (host or "").strip().lower()
+    # Strip surrounding IPv6 brackets: "[::1]" and "::1" must hash alike.
+    if len(h) >= 2 and h.startswith("[") and h.endswith("]"):
+        h = h[1:-1]
+        # Re-strip in case of "[ ::1 ]" style padding inside brackets.
+        h = h.strip().lower()
+    # Strip a trailing FQDN dot: "example.com." and "example.com" are one host.
+    if h.endswith("."):
+        h = h.rstrip(".")
+    return h
+
+
+def build_proxy_identity(proto: str, host: str, port: int) -> str:
+    """Build a stable proxy identity as ``{proto}-{12 hex chars}``.
+
+    Normalizes the protocol to lowercase, normalizes the host via
+    :func:`normalize_host`, and coerces the port to int so ``"443"`` and
+    ``443`` hash alike. The ``proto|host|port`` key is hashed with SHA-256
+    and truncated to 12 hex chars (48 bits): for a 10k-node pool the
+    expected collision count is far below one, and any residual collision
+    is resolved deterministically by :func:`assign_stable_names`.
+    """
+    # Normalize protocol: "VLESS" and "vless" must yield the same identity.
+    p = (proto or "").strip().lower()
+    # Normalize host so case/bracket/dot variants map to one identity.
+    norm = normalize_host(host)
+    # Guard: empty proto or host must fall back to the remark path, never
+    # hash to a trusted-looking name that could mask a broken entry.
+    if not p:
+        raise ValueError("proto required for stable identity")
+    if not norm:
+        raise ValueError("host required for stable identity")
+    # Coerce port to int so string and int ports hash alike; raises on garbage.
+    port_int = int(str(port).strip())
+    # Pipe-joined key keeps the three fields unambiguous ("a|b|c" framing).
+    key = f"{p}|{norm}|{port_int}"
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
+    return f"{p}-{digest}"
+
+
+def assign_stable_names(entries: list) -> list:
+    """Assign deterministic stable names to converter entries.
+
+    Sorts a copy of ``entries`` by base identity then source link, so the
+    output no longer depends on feed order. Entries with a unique base
+    identity keep it unchanged; colliding identities gain sorted suffixes
+    (``base``, ``base-2``, ``base-3``, ...). Each entry must expose
+    ``base_identity`` and ``source_link`` as attributes or dict keys; the
+    final name is written to ``final_name``. Returns the entries in sorted
+    emission order.
+    """
+
+    # Accessors tolerate both dataclass-style entries and plain dicts.
+    def get_base(e):
+        return e.get("base_identity") if isinstance(e, dict) else e.base_identity
+
+    def get_link(e):
+        return (
+            e.get("source_link", "")
+            if isinstance(e, dict)
+            else getattr(e, "source_link", "")
+        )
+
+    def set_final(e, v):
+        if isinstance(e, dict):
+            e["final_name"] = v
+        else:
+            e.final_name = v
+
+    # Sort by (identity, link): identical identities get a stable link order.
+    ordered = sorted(list(entries), key=lambda e: (get_base(e), get_link(e)))
+    # Count first so unique identities pass through untouched (no "-1").
+    counts: dict = {}
+    for e in ordered:
+        counts[get_base(e)] = counts.get(get_base(e), 0) + 1
+    # Second pass assigns: first of a colliding group keeps the base name.
+    seen: dict = {}
+    for e in ordered:
+        b = get_base(e)
+        if counts[b] == 1:
+            set_final(e, b)
+        else:
+            seen[b] = seen.get(b, 0) + 1
+            n = seen[b]
+            if n == 1:
+                set_final(e, b)
+            else:
+                set_final(e, f"{b}-{n}")
+    return ordered
+
 
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
 
@@ -286,6 +399,9 @@ class ProxyConfig:
     sid: Optional[str] = None
     spx: Optional[str] = None
     packet_encoding: Optional[str] = None
+    # Raw subscription line this entry was parsed from. Used only as a
+    # deterministic tiebreak in assign_stable_names; never emitted.
+    source_link: str = ""
 
 
 @dataclass
@@ -892,8 +1008,14 @@ class ProxyParser:
                 if proxy and proxy.server and proxy.port:
                     if not proxy.name:
                         proxy.name = f"{proxy.protocol}-{len(proxies)}"
+                    # Record the raw line for deterministic naming tiebreaks.
+                    if not proxy.source_link:
+                        proxy.source_link = line
                     if self.unique_host:
-                        key = proxy.server.strip().lower()
+                        # Normalized key (same rules as identity hashing:
+                        # lowercase, bracket strip, trailing-dot strip) so
+                        # dedup and identity always agree on host equality.
+                        key = normalize_host(proxy.server)
                         if key in seen_hosts:
                             self.host_dup += 1
                             continue
@@ -1078,6 +1200,10 @@ class ConfigGenerator:
             "port": proxy.port,
             "udp": True,
         }
+        # Keep the provider remark for humans: mihomo ignores unknown proxy
+        # keys (verified with `mihomo -t`), so this never affects validation.
+        if proxy.name and proxy.name != name:
+            base["remark"] = proxy.name
 
         if isinstance(proxy, VMessConfig):
             base["type"] = "vmess"
@@ -1223,11 +1349,29 @@ class ConfigGenerator:
     def generate_clash_config(self, proxies: List[ProxyConfig]) -> Dict[str, Any]:
         clash_proxies: List[Dict[str, Any]] = []
         proxy_names: List[str] = []
-        used: set = set()
-
-        for i, proxy in enumerate(proxies):
-            raw_name = proxy.name or f"{proxy.protocol}-{i}"
-            name = _unique_name(raw_name, used)
+        # Stable identity names: same proto/host/port always yields the same
+        # node name across refreshes, so balancer history persists. Sorted
+        # emission makes output independent of feed order.
+        entries = []
+        for proxy in proxies:
+            try:
+                base = build_proxy_identity(proxy.protocol, proxy.server, proxy.port)
+            except Exception:
+                # Broken entries fall back to remark or "proxy" with NO
+                # positional index, so names never depend on feed order;
+                # assign_stable_names sorts by source_link on collision.
+                base = (proxy.name or "proxy").strip() or "proxy"
+            entries.append(
+                {
+                    "proxy": proxy,
+                    "base_identity": base,
+                    "source_link": getattr(proxy, "source_link", "") or "",
+                }
+            )
+        for item in assign_stable_names(entries):
+            proxy = item["proxy"]
+            name: str = item["final_name"]
+            raw_name = proxy.name or name
             try:
                 entry = self._clash_proxy(proxy, name)
             except Exception as exc:
@@ -1760,14 +1904,31 @@ class ConfigGenerator:
     def generate_singbox_config(self, proxies: List[ProxyConfig]) -> Dict[str, Any]:
         outbounds: List[Dict[str, Any]] = []
         proxy_tags: List[str] = []
-        used: set = set()
 
         # Explicit direct outbound (referenced by rules / final)
         outbounds.append({"type": "direct", "tag": "direct"})
 
-        for i, proxy in enumerate(proxies):
-            raw = proxy.name or f"proxy-{i}"
-            tag = _unique_name(raw, used)
+        # Same stable identities as Clash (no remark key: sing-box rejects
+        # unknown outbound fields, verified with `sing-box check`).
+        entries = []
+        for proxy in proxies:
+            try:
+                base = build_proxy_identity(proxy.protocol, proxy.server, proxy.port)
+            except Exception:
+                # Same unified fallback as Clash: remark or "proxy", never a
+                # positional index (feed-order independence for broken rows).
+                base = (proxy.name or "proxy").strip() or "proxy"
+            entries.append(
+                {
+                    "proxy": proxy,
+                    "base_identity": base,
+                    "source_link": getattr(proxy, "source_link", "") or "",
+                }
+            )
+        for item in assign_stable_names(entries):
+            proxy = item["proxy"]
+            tag: str = item["final_name"]
+            raw = proxy.name or tag
             try:
                 outbound = self._singbox_outbound(proxy, tag)
             except Exception as exc:
