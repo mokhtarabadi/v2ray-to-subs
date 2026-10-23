@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Geo-block failure cause (`region`): balancer `--reason` accepts `region` and counts it separately (`region_fails` column via idempotent migration, old DBs self-upgrade); the OpenCode rescue plugin now detects `RegionError` ("model is not available in your country/region") model-independently and rotates the exit with the same 2s rescue; exits refused by a provider's country check quarantine 24h like other causes.
 
 ### Fixed
+- Hysteria2 links carrying `fp=` now emit `client-fingerprint`; mihomo rejects a uTLS name under `fingerprint` (that key is a TLS certificate pin) and aborts the whole `mihomo -t` run.
+- REALITY public keys are sanitized (stray whitespace) and validated (base64url, 32 bytes decoded); nodes with an unusable key are dropped from both outputs instead of failing config validation.
 - Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
 - `opencode.json` permission key corrected from `bash` to `shell` so the project config passes `scripts/validate-opencode.py` (ZAC deny set unchanged).
 - Balancer hotfix (task 04, QA round): all-fail batches no longer mass-mark nodes (infra-outage guard); numeric CLI args validated with exit 2; SQLite opened in WAL mode with 10s busy timeout for concurrent timers.

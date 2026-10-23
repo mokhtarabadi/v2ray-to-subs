@@ -69,6 +69,50 @@ class VlessEncryptionEmitTest(unittest.TestCase):
         self.assertNotIn("encryption", clash[0])
 
 
+class RealityPublicKeyTest(unittest.TestCase):
+    KEY = base64.urlsafe_b64encode(b"\x01" * 32).decode().rstrip("=")
+
+    def _parse(self, pbk):
+        return proxy_converter.ProxyParser().parse_subscription_content(
+            "vless://11111111-1111-4111-8111-111111111111@reality.example:443"
+            "?security=reality&sni=r.example&fp=chrome&sid=ab&pbk=%s#r1" % pbk
+        )
+
+    def test_stray_whitespace_is_sanitized(self):
+        parsed = self._parse(self.KEY[:10] + " " + self.KEY[10:])
+        clash = proxy_converter.ConfigGenerator().generate_clash_config(parsed)[
+            "proxies"
+        ]
+        self.assertEqual(len(clash), 1)
+        self.assertEqual(clash[0]["reality-opts"]["public-key"], self.KEY)
+
+    def test_invalid_key_drops_node(self):
+        # mihomo aborts the whole config on "invalid REALITY public key";
+        # a node with an unusable key can never connect anyway.
+        parsed = self._parse("SbOEMjK0sIlbwg4a")
+        clash = proxy_converter.ConfigGenerator().generate_clash_config(parsed)[
+            "proxies"
+        ]
+        self.assertEqual(parsed[0].pbk, None)
+        self.assertEqual(clash, [])
+
+
+class Hysteria2FingerprintEmitTest(unittest.TestCase):
+    def test_browser_fingerprint_uses_client_fingerprint_key(self):
+        # mihomo rejects a uTLS name under `fingerprint` (that key is a TLS
+        # certificate pin) and fails `mihomo -t`; it must go to
+        # client-fingerprint like every other stream proxy.
+        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+            "hysteria2://secret@hy.example:443?sni=hy.example&fp=chrome#hy1"
+        )
+        self.assertEqual(len(parsed), 1)
+        gen = proxy_converter.ConfigGenerator()
+        clash = gen.generate_clash_config(parsed)["proxies"]
+        self.assertEqual(len(clash), 1)
+        self.assertNotIn("fingerprint", clash[0])
+        self.assertEqual(clash[0]["client-fingerprint"], "chrome")
+
+
 class MultiFeedRunTest(unittest.TestCase):
     def _run(self, **kw):
         tmp = tempfile.mkdtemp()

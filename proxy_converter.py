@@ -315,6 +315,31 @@ def _normalize_fingerprint(fp: Optional[str]) -> Optional[str]:
     return None
 
 
+def _sanitize_reality_pbk(value: Optional[str]) -> Optional[str]:
+    """Return a REALITY public key mihomo/sing-box accept, else None.
+
+    Feeds ship keys with stray whitespace, percent-escapes or the wrong
+    byte length; mihomo aborts the whole config with "invalid REALITY
+    public key" instead of skipping the node. A REALITY node without a
+    usable key can never connect, so callers drop it.
+    """
+    if not value:
+        return None
+    key = "".join(str(value).split())
+    if not re.fullmatch(r"[A-Za-z0-9_\-]+={0,2}", key):
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(key + "=" * (-len(key) % 4))
+    except Exception:
+        return None
+    return key if len(raw) == 32 else None
+
+
+def _usable_proxies(proxies: List[ProxyConfig]) -> List[ProxyConfig]:
+    """Drop nodes that can never establish a session (bad REALITY key)."""
+    return [p for p in proxies if not (p.security == "reality" and not p.pbk)]
+
+
 def _parse_bool(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
@@ -622,7 +647,9 @@ class ProxyParser:
         cfg.alpn = get("alpn")
         cfg.fp = get("fp") or get("fingerprint")
         cfg.flow = get("flow")
-        cfg.pbk = get("pbk") or get("publicKey") or get("public-key")
+        cfg.pbk = _sanitize_reality_pbk(
+            get("pbk") or get("publicKey") or get("public-key")
+        )
         cfg.sid = get("sid") or get("shortId") or get("short-id")
         cfg.spx = get("spx") or get("spiderX")
         cfg.packet_encoding = get("packetEncoding") or get("packet-encoding")
@@ -704,7 +731,7 @@ class ProxyParser:
             insecure=_parse_bool(
                 str(data.get("insecure") or data.get("allowInsecure") or "")
             ),
-            pbk=str(data.get("pbk") or "") or None,
+            pbk=_sanitize_reality_pbk(str(data.get("pbk") or "") or None),
             sid=str(data.get("sid") or "") or None,
         )
         if net == "grpc" and not cfg.service_name:
@@ -1274,7 +1301,9 @@ class ConfigGenerator:
                 base["alpn"] = alpn
             fp = _normalize_fingerprint(proxy.fp)
             if fp and fp != "none":
-                base["fingerprint"] = fp
+                # mihomo rejects a uTLS name under `fingerprint` (that key is
+                # a TLS cert pin); browser fingerprints go to client-fingerprint.
+                base["client-fingerprint"] = fp
             return base
         elif isinstance(proxy, HysteriaConfig):
             base["type"] = "hysteria"
@@ -1353,7 +1382,7 @@ class ConfigGenerator:
         # node name across refreshes, so balancer history persists. Sorted
         # emission makes output independent of feed order.
         entries = []
-        for proxy in proxies:
+        for proxy in _usable_proxies(proxies):
             try:
                 base = build_proxy_identity(proxy.protocol, proxy.server, proxy.port)
             except Exception:
@@ -1911,7 +1940,7 @@ class ConfigGenerator:
         # Same stable identities as Clash (no remark key: sing-box rejects
         # unknown outbound fields, verified with `sing-box check`).
         entries = []
-        for proxy in proxies:
+        for proxy in _usable_proxies(proxies):
             try:
                 base = build_proxy_identity(proxy.protocol, proxy.server, proxy.port)
             except Exception:
