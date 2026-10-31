@@ -350,6 +350,35 @@ SS_METHOD_ALIASES = {
     "chacha20-poly1305": "chacha20-ietf-poly1305",
 }
 
+# Shadowsocks ciphers mihomo actually accepts. Anything else (garbage from
+# mislabeled links, base64-decoded UUIDs, etc.) would fail `mihomo -t` with
+# "unknown method", so drop the proxy at parse time instead.
+SS_VALID_METHODS = {
+    "aes-128-gcm",
+    "aes-192-gcm",
+    "aes-256-gcm",
+    "chacha20-ietf-poly1305",
+    "xchacha20-ietf-poly1305",
+    "aes-128-ctr",
+    "aes-192-ctr",
+    "aes-256-ctr",
+    "aes-128-cfb",
+    "aes-192-cfb",
+    "aes-256-cfb",
+    "chacha20",
+    "chacha20-ietf",
+    "xchacha20",
+    "rc4-md5",
+    "rc4",
+    "table",
+    "none",
+    "plain",
+    "auto",
+    "2022-blake3-aes-128-gcm",
+    "2022-blake3-aes-256-gcm",
+    "2022-blake3-chacha20-poly1305",
+}
+
 
 def _normalize_ss_method(method: str) -> str:
     """Map known ss cipher aliases to canonical mihomo-accepted names."""
@@ -358,6 +387,10 @@ def _normalize_ss_method(method: str) -> str:
         logger.debug("ss cipher alias %r -> %r", method, SS_METHOD_ALIASES[key])
         return SS_METHOD_ALIASES[key]
     return method
+
+
+def _valid_ss_method(method: str) -> bool:
+    return (method or "").strip().lower() in SS_VALID_METHODS
 
 
 def _ws_early_data(
@@ -845,12 +878,15 @@ class ProxyParser:
             if len(bits) > 1:
                 plugin_opts = ";".join(bits[1:])
 
+        method = _normalize_ss_method(urllib.parse.unquote(method))
+        if not _valid_ss_method(method):
+            raise ValueError(f"unknown ss cipher: {method!r}")
         return ShadowsocksConfig(
             name=name,
             server=server,
             port=port,
             protocol="shadowsocks",
-            method=_normalize_ss_method(urllib.parse.unquote(method)),
+            method=method,
             password=urllib.parse.unquote(password),
             plugin=plugin,
             plugin_opts=plugin_opts,
@@ -1236,7 +1272,11 @@ class ConfigGenerator:
             base["type"] = "vmess"
             base["uuid"] = proxy.uuid
             base["alterId"] = proxy.alterId
-            base["cipher"] = proxy.cipher or "auto"
+            base["cipher"] = (
+                proxy.cipher
+                if proxy.cipher and proxy.cipher.lower() not in ("null", "none", "")
+                else "auto"
+            )
             if proxy.packet_encoding:
                 pe = proxy.packet_encoding.lower()
                 if pe == "packetaddr":
@@ -1750,6 +1790,9 @@ class ConfigGenerator:
         elif fp == "none":
             pass
         if cfg.security == "reality" and cfg.pbk:
+            # sing-box requires uTLS for reality clients.
+            if "utls" not in tls:
+                tls["utls"] = {"enabled": True, "fingerprint": "chrome"}
             reality: Dict[str, Any] = {"enabled": True, "public_key": cfg.pbk}
             if cfg.sid is not None:
                 reality["short_id"] = cfg.sid
@@ -1819,7 +1862,11 @@ class ConfigGenerator:
             outbound["type"] = "vmess"
             outbound["uuid"] = proxy.uuid
             outbound["alter_id"] = proxy.alterId
-            outbound["security"] = proxy.cipher or "auto"
+            outbound["security"] = (
+                proxy.cipher
+                if proxy.cipher and proxy.cipher.lower() not in ("null", "none", "")
+                else "auto"
+            )
             if proxy.packet_encoding:
                 pe = proxy.packet_encoding.lower()
                 if pe in ("xudp", "packetaddr", "packet"):
@@ -1830,7 +1877,11 @@ class ConfigGenerator:
             outbound["type"] = "vless"
             outbound["uuid"] = proxy.uuid
             if proxy.flow:
-                outbound["flow"] = proxy.flow
+                flow = proxy.flow
+                if "udp443" in flow:
+                    flow = flow.replace("-udp443", "")
+                if flow in ("xtls-rprx-vision",):
+                    outbound["flow"] = flow
             if proxy.packet_encoding:
                 pe = proxy.packet_encoding.lower()
                 if pe == "xudp":
@@ -1845,9 +1896,15 @@ class ConfigGenerator:
             outbound["method"] = proxy.method
             outbound["password"] = proxy.password
             if proxy.plugin:
-                outbound["plugin"] = proxy.plugin
-                if proxy.plugin_opts:
-                    outbound["plugin_opts"] = proxy.plugin_opts
+                # sing-box supports only obfs-local and v2ray-plugin;
+                # simple-obfs is an alias for obfs-local.
+                plugin = proxy.plugin
+                if plugin == "simple-obfs":
+                    plugin = "obfs-local"
+                if plugin in ("obfs-local", "v2ray-plugin"):
+                    outbound["plugin"] = plugin
+                    if proxy.plugin_opts:
+                        outbound["plugin_opts"] = proxy.plugin_opts
         elif isinstance(proxy, Hysteria2Config):
             outbound["type"] = "hysteria2"
             outbound["password"] = proxy.password
@@ -1893,6 +1950,10 @@ class ConfigGenerator:
                 outbound["server_ports"] = _server_ports(proxy.ports)
             return outbound
         elif isinstance(proxy, TUICConfig):
+            if proxy.token and not proxy.uuid:
+                # sing-box TUIC only supports uuid+password (v5); token (v4)
+                # is not a valid field and fails `sing-box check`.
+                return None
             outbound["type"] = "tuic"
             if proxy.token and not proxy.uuid:
                 outbound["token"] = proxy.token
@@ -2148,6 +2209,9 @@ def _server_ports(spec: str) -> List[str]:
     return out
 
 
+_BOOL_PLUGIN_OPTS = {"mux", "tls", "skip-cert-verify", "fast-open"}
+
+
 def _parse_plugin_opts(opts: str) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     for bit in opts.split(";"):
@@ -2155,7 +2219,11 @@ def _parse_plugin_opts(opts: str) -> Dict[str, Any]:
             continue
         if "=" in bit:
             k, v = bit.split("=", 1)
-            result[k.strip()] = v.strip()
+            key = k.strip()
+            val = v.strip()
+            if key in _BOOL_PLUGIN_OPTS:
+                val = val.lower() in ("1", "true", "yes", "on")
+            result[key] = val
         else:
             result[bit.strip()] = True
     return result
