@@ -1,9 +1,10 @@
 # Task 15: Converter hardening and clean verified pool swap
 
-**File:** `tasks/qa/15-converter-hardening-and-clean-pool.md`
+**File:** `tasks/completed/15-converter-hardening-and-clean-pool.md`
 **Source:** manager
 **Type:** bug
-**Status:** open
+**Status:** closed
+**Finished:** 2026-10-31T06:55:31Z
 
 ## Goal
 
@@ -113,7 +114,5 @@ All generated configs must pass both `mihomo -t` and `sing-box check`. The conve
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-
-_(Git diff will be automatically injected here by the MCP tool. Do not edit this block manually)_
-
+**Factual Git Diff:** Stored in Commit Hash: `6f1bd627c7f9fab9f0202bfe5affdefceabacbdd`
 <!-- END_GIT_DIFF -->
