@@ -2,6 +2,41 @@
 
 Chronological. Each entry: Context, Decision, Consequences, Rollback.
 
+## 2026-11-11 — One maintenance unit, foreign-server rules, US-clean default
+
+**Context.** The project ran three timers (refresh, retest, country) plus a
+disabled rotate timer, five oneshot jobs and the proxy service, all for one
+pipeline. The generated configs still carried desktop-era rules from an Iranian
+client: nine `PROCESS-*` bypasses for a local xray/PattN sidecar, Iran and China
+domain/IP bypasses, CN DNS resolvers (`223.5.5.5`, `doh.pub`, alidns), a
+`+.ir` nameserver policy and a `geoip-code: CN` fallback filter. The host is a
+foreign server with no sidecar, so those rules only stole traffic from the
+proxy.
+
+**Decision.** One timer drives one dispatcher: `v2ray-to-subs.timer` →
+`v2ray-to-subs-maintain.service` → `scripts/maintain.sh`, which retests, fills a
+country batch, and refreshes only when the live config is older than six hours.
+The five replaced units and the refresh drop-in are deleted; the feed list that
+drop-in carried now lives in the dispatcher. `mihomo-subs.service` stays a
+separate unit on purpose: a maintenance run must never be able to stop the
+proxy, and a proxy restart must not cancel maintenance. Rules become private/LAN
+`DIRECT`, ads `REJECT`, `MATCH,PROXY`; `find-process-mode` is `off`; DNS uses
+Cloudflare/Google instead of CN resolvers. The `rr` launcher defaults to
+`rotate --require-country US` so a bare `rr` asks for a Google-clean US exit,
+with `RR_COUNTRY` as the override and `RR_COUNTRY=` to disable it.
+
+**Consequences.** Two project units instead of eight, and one log to read
+(`journalctl --user -u v2ray-to-subs-maintain`). Traffic that used to bypass the
+proxy through Iran/China rules now goes through an exit — intended, because the
+host is not in either country. Ads stay blocked. A US lock with no measured US
+candidate keeps the current node instead of going dark.
+
+**Rollback.** The old unit files are in git history; re-enable the timers and
+delete the dispatcher pair. Converter changes are a single-file revert; the
+previous live config is in `~/.config/mihomo-subs/config.yaml.refresh-*.bak`
+(only the last five are kept). `RR_COUNTRY=` removes the launcher's default
+lock without touching the balancer.
+
 ## 2026-11-11 — Observed exit country, and removal of the plugin-era causes
 
 **Context.** A country lock cannot be built from provider remarks: in the live

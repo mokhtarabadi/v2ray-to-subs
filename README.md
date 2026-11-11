@@ -5,16 +5,16 @@ A comprehensive Python tool that downloads V2Ray subscription links, parses vari
 > **Direct-mihomo mode (no xray needed):** the generated `clash_config.yaml`
 > carries the subscription nodes itself and mirrors the TUN + Fake-IP +
 > DNS-hijack setup from `~/Desktop/mihomo` (mixed `:7890`, TUN `stack: mixed`
-> with `dns-hijack: any:53`, DNS on `:1053`, `find-process-mode: always`,
-> PROCESS + private/LAN bypass). Copy it over the Desktop config and restart:
+> with `dns-hijack: any:53`, DNS on `:1053`, `find-process-mode: off`,
+> private/LAN bypass). Copy it over the Desktop config and restart:
 > ```bash
 > python3 proxy_converter.py
 > cp clash_config.yaml ~/Desktop/mihomo/config.yaml
 > cd ~/Desktop/mihomo && ./manager.sh check && sudo ./manager.sh restart
 > ```
-> Routing policy: proxy/helper processes + private/LAN → `DIRECT`,
-> Iranian sites (`*.ir`, …) and IPs (`GEOIP,IR`) → `DIRECT`, everything
-> else → subscription proxies (`MATCH,PROXY`).
+> Routing policy: private/LAN → `DIRECT`, ads → `REJECT`, everything else →
+> subscription proxies (`MATCH,PROXY`). No process bypass and no Iran/CN geo
+> rules: this config targets a foreign server with no local sidecar.
 >
 > **Dashboard:** the generated config serves the official MetaCubeX dashboard
 > at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
@@ -133,9 +133,9 @@ sing-box check -c singbox_config.json
 - **TUN Inbound**: `stack: mixed`, `mtu: 9000`, `strict-route`, private
   subnets in `route_exclude_address` (loop-free system-wide proxy)
 - **DNS**: FakeIP by default (`198.18.0.0/15`) with real-IP exceptions for
-  LAN/NTP/Iran/CN; hijacked port-53 handled via `hijack-dns`
-- **Routing**: sniff → hijack-dns → process bypass (xray/sing-box/PattN) →
-  `ip_is_private` → Iran/CN suffixes → `final: auto` (urltest)
+  LAN/NTP; hijacked port-53 handled via `hijack-dns`
+- **Routing**: sniff → hijack-dns → `ip_is_private` → ads reject →
+  `final: auto` (urltest)
 - **URL Test Outbound**: Automatic proxy selection based on latency
 - **Auto Interface Detection**: Prevents routing loops
 
@@ -151,9 +151,9 @@ sing-box check -c singbox_config.json
   - `Auto`: url-test, automatic selection based on latency
   - `Load Balance`: Round-robin load balancing
   - `Fallback`: Failover group
-- **Rules** (first match wins): PROCESS bypass → private/LAN → ads REJECT →
-  Iran bypass (sites + `GEOIP,IR`) → CN bypass (sites + `GEOIP,CN`) →
-  foreign services → `MATCH,PROXY`
+- **Rules** (first match wins): private/LAN → ads REJECT → foreign services →
+  `MATCH,PROXY`. No process rules and no Iran/CN geo rules: the host is a
+  foreign server with no local xray sidecar to bypass.
 
 ### Load Balancing and URL Testing
 
@@ -163,17 +163,18 @@ It exists to keep high-volume crawling workloads on working exits:
 when a target rate-limits an exit IP, the crawler reports the cause
 and the balancer moves traffic to the next best node automatically:
 
-- **Rotate**: manual only — bare `rr` skips the current node and picks least-used + fastest (`rr-rotate.timer` is intentionally disabled)
+- **Rotate**: manual only — bare `rr` rotates to a Google-clean **US** exit (`RR_COUNTRY=DE` overrides, `RR_COUNTRY=` disables the lock); the balancer picks least-used + fastest inside that country (`rr-rotate.timer` is gone, rotation stays manual)
 - **Failure causes**: `rr next --reason google|country|manual` (default `manual`) records the cause and quarantines 24h; `google` also increments `google_fails`. The old `quota`/`transport`/`region` causes belonged to the retired rate-limit-rescue plugin and are gone
-- **Country**: `rr country --batch 20` reads `https://www.cloudflare.com/cdn-cgi/trace` through each selected node and stores the observed exit country (`country`, `country_checked`); unreadable traces are stored as unknown, never as failures. `rr report` prints coverage (checked/total) and per-country counts. `rr-country.timer` runs one batch every 30 minutes, so a ~1000-node pool fills in about a day (~25 s of probing per run, selection restored afterwards)
-- **Country lock**: `--require-country US` keeps rotation inside one observed country; when no candidate matches, the current node is kept rather than switching country. Opt-in until `rr report` shows coverage
+- **Country**: `rr country --batch 20` reads `https://www.cloudflare.com/cdn-cgi/trace` through each selected node and stores the observed exit country (`country`, `country_checked`); unreadable traces are stored as unknown, never as failures. `rr report` prints coverage (checked/total) and per-country counts
+- **Country lock**: `--require-country US` keeps rotation inside one observed country; when no candidate matches, the current node is kept rather than switching country
+- **One maintenance unit**: `v2ray-to-subs.timer` → `v2ray-to-subs-maintain.service` runs `scripts/maintain.sh` every 30 minutes: retest, then a country batch, then a refresh only when the live config is older than 6 hours. This replaces the former refresh/retest/country timers — the project now owns two units, `mihomo-subs.service` and this pair
 - **Google-clean gate**: before selecting a node, rotation reads `https://www.google.com/search?q=test` through the candidate (live mixed-port, redirects disabled). Exits answering 302 `/sorry` are quarantined with cause `google` (24h, `google_fails` counter). A node that passes stays selected; up to `--google-attempts` candidates are rejected, then the best remaining is used so the client never goes dark. `--no-google-check` disables it; the check is skipped when Google is unreachable directly (infra guard)
-- **Retest**: 500 oldest controller-present nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
+- **Retest**: 500 oldest controller-present nodes on every maintenance tick, dead nodes readmitted on recovery
 - **Freshness**: nodes unchecked for over 2h sit out until rechecked
 - **Stable names**: nodes are named by identity hash (`{proto}-{12hex}` from server + port), so balancer history survives every feed refresh; the provider remark is kept in the Clash `remark` field for humans
 - **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller
-- **Manual escape**: bare `rr` skips the current node immediately (`skip NAME` targets one)
-- **Subscription refresh**: Ebrasha multi-protocol feeds regenerated every 6h (`v2ray-to-subs-refresh.timer`)
+- **Manual escape**: `rr next` skips the current node immediately (`rr skip NAME` targets one)
+- **Subscription refresh**: feeds regenerated by the same maintenance tick when the live config is older than 6 hours
 
 ## Subscription Link Formats
 

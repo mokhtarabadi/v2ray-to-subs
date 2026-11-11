@@ -197,5 +197,65 @@ class MultiFeedRunTest(unittest.TestCase):
         self.assertEqual(clash[0]["plugin-opts"].get("mode"), "websocket")
 
 
+class RuleShapeTest(unittest.TestCase):
+    """Foreign-server rule shape: private DIRECT, ads REJECT, rest PROXY.
+
+    Process bypasses and Iran/China geo bypasses were removed with the
+    desktop-era sidecar; these assertions lock that in for both generators.
+    """
+
+    def setUp(self):
+        self.proxies = proxy_converter.ProxyParser().parse_subscription_content(
+            "\n".join(FEED_A)
+        )
+        self.gen = proxy_converter.ConfigGenerator()
+
+    def test_clash_rules_have_no_process_or_geo_bypass(self):
+        rules = self.gen.generate_clash_config(self.proxies)["rules"]
+        self.assertFalse([r for r in rules if r.startswith("PROCESS-")])
+        self.assertNotIn("GEOIP,IR,DIRECT", rules)
+        self.assertNotIn("GEOIP,CN,DIRECT", rules)
+        # The old generator emitted ",ir,DIRECT" after lstrip("."), so assert
+        # both spellings plus one named domain to catch a suffix-only revival.
+        flat = "\n".join(rules)
+        for suffix in (",.ir,DIRECT", ",ir,DIRECT", ",.cn,DIRECT", ",cn,DIRECT"):
+            self.assertNotIn(suffix, flat)
+        for domain in ("digikala.com", "aliyun.com", "baidu.com"):
+            self.assertNotIn(domain, flat)
+
+    def test_clash_rules_keep_private_ads_and_final_proxy(self):
+        rules = self.gen.generate_clash_config(self.proxies)["rules"]
+        self.assertIn("IP-CIDR,192.168.0.0/16,DIRECT,no-resolve", rules)
+        self.assertIn("DOMAIN-SUFFIX,localhost,DIRECT", rules)
+        self.assertTrue([r for r in rules if r.endswith(",REJECT")])
+        self.assertEqual(rules[-1], "MATCH,PROXY")
+
+    def test_clash_process_lookup_is_off(self):
+        config = self.gen.generate_clash_config(self.proxies)
+        self.assertEqual(config["find-process-mode"], "off")
+
+    def test_clash_dns_uses_no_cn_resolvers(self):
+        dns = self.gen.generate_clash_config(self.proxies)["dns"]
+        flat = json.dumps(dns)
+        for legacy in ("223.5.5.5", "doh.pub", "alidns", "114.114.114.114"):
+            self.assertNotIn(legacy, flat)
+        self.assertIn("cloudflare-dns.com", flat)
+        self.assertNotIn("+.ir", flat)
+
+    def test_singbox_rules_have_no_process_or_geo_bypass(self):
+        route = self.gen.generate_singbox_config(self.proxies)["route"]
+        flat = json.dumps(route)
+        self.assertNotIn("process_name", flat)
+        self.assertNotIn("process_path_regex", flat)
+        for suffix in ('".ir"', '".cn"', "digikala.com", "aliyun.com"):
+            self.assertNotIn(suffix, flat)
+
+    def test_singbox_rules_keep_private_and_reject(self):
+        rules = self.gen.generate_singbox_config(self.proxies)["route"]["rules"]
+        self.assertTrue([r for r in rules if r.get("ip_is_private")])
+        self.assertTrue([r for r in rules if r.get("action") == "reject"])
+        self.assertEqual(rules[0], {"action": "sniff"})
+
+
 if __name__ == "__main__":
     unittest.main()

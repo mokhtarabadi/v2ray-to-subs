@@ -151,14 +151,8 @@ DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Co
 # ---------------------------------------------------------------------------
 
 # Processes that must never be routed back into the tunnel (loop avoidance).
-# Covers the legacy xray/PattN sidecar if still running, plus our own cores.
-LOOPBACK_PROCESS_NAMES = ["xray", "sing-box", "PattN", "v2rayn"]
-LOOPBACK_PROCESS_PATHS = [
-    "/home/mohammad/.local/share/v2rayN/bin/xray/xray",
-    "/home/mohammad/.local/share/v2rayN/bin/sing_box/sing-box",
-    "/opt/v2rayN/PattN",
-]
-
+# Retired: this runs on a foreign server with no local xray/PattN sidecar, so
+# process matching was removed along with the PROCESS-* rules it fed.
 # Subnets excluded from TUN routing AND forced DIRECT at rule level.
 PRIVATE_CIDRS = [
     "127.0.0.0/8",
@@ -178,50 +172,8 @@ PRIVATE_CIDRS_V6 = [
     "2001:db8::/32",
 ]
 
-# Iranian infrastructure that must bypass the proxy (domain suffixes).
-IRAN_DIRECT_SUFFIXES = [
-    ".ir",
-    "digikala.com",
-    "digikalaelectron.com",
-    "digimah.com",
-    "digikala.tm",
-    "snappfood.com",
-    "parspack.com",
-    "hostiran.net",
-    "arvancloud.com",
-    "iraniancdns.com",
-    "parsdata.com",
-    "idehpay.com",
-]
-
-# Chinese infrastructure that must bypass the proxy.
-CN_DIRECT_SUFFIXES = [
-    ".cn",
-    "aliyun.com",
-    "taobao.com",
-    "tmail.com",
-    "tmall.com",
-    "alipay.com",
-    "qq.com",
-    "weixin.qq.com",
-    "gtimg.com",
-    "myqcloud.com",
-    "baidu.com",
-    "bdstatic.com",
-    "bilibili.com",
-    "hdslb.com",
-    "iqiyi.com",
-    "sohu.com",
-    "sina.com.cn",
-    "163.com",
-    "126.net",
-    "netease.com",
-    "jd.com",
-    "360.cn",
-    "sogou.com",
-    "weibo.com",
-    "zhihu.com",
-]
+# Iranian and Chinese direct-bypass lists were removed: the exit is outside
+# both countries, so those suffixes only stole traffic from the proxy.
 
 # Domains that must resolve to real IPs (never fake-ip): LAN + NTP + probes.
 REALIP_SUFFIXES = [
@@ -232,8 +184,6 @@ REALIP_SUFFIXES = [
     "+.msftncsi.com",
     "time.*.com",
     "time.*.gov",
-    "time.*.edu.cn",
-    "+.ntp.org.cn",
     "+.pool.ntp.org",
     "detectportal.firefox.com",
     "connectivitycheck.gstatic.com",
@@ -755,9 +705,13 @@ class ProxyParser:
             host=str(data.get("host") or "") or None,
             path=str(data.get("path") or "") or None,
             service_name=str(data.get("path") or "") or None if net == "grpc" else None,
-            security="tls"
-            if str(data.get("tls") or "").lower().endswith("tls")
-            else ("reality" if str(data.get("tls") or "").lower() == "reality" else ""),
+            security=(
+                "tls"
+                if str(data.get("tls") or "").lower().endswith("tls")
+                else (
+                    "reality" if str(data.get("tls") or "").lower() == "reality" else ""
+                )
+            ),
             sni=str(data.get("sni") or "") or None,
             alpn=str(data.get("alpn") or "") or None,
             fp=str(data.get("fp") or "") or None,
@@ -1521,9 +1475,9 @@ class ConfigGenerator:
             "mode": "rule",
             "log-level": "info",
             "ipv6": False,
-            # "always" is required for PROCESS-NAME/PATH rules; strict may
-            # skip them, off disables them entirely.
-            "find-process-mode": "always",
+            # No PROCESS-* rules remain (foreign server, no local sidecar),
+            # so process lookup is off entirely instead of "always".
+            "find-process-mode": "off",
             "tcp-concurrent": True,
             "keep-alive-interval": 30,
             "unified-delay": True,
@@ -1563,18 +1517,20 @@ class ConfigGenerator:
                 "fake-ip-filter-mode": "blacklist",
                 "fake-ip-filter": list(REALIP_SUFFIXES),
                 # Plain IPs only: used to resolve DoH/DoT hostnames themselves.
-                "default-nameserver": ["223.5.5.5", "114.114.114.114", "8.8.8.8"],
+                # Cloudflare/Google: the host is outside Iran and China, so the
+                # former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
+                "default-nameserver": ["1.1.1.1", "1.0.0.1", "8.8.8.8"],
                 "nameserver": [
-                    "https://doh.pub/dns-query",
-                    "https://dns.alidns.com/dns-query",
+                    "https://cloudflare-dns.com/dns-query",
+                    "https://dns.google/dns-query",
+                    "tls://1.1.1.1",
                     "tls://8.8.8.8",
-                    "223.5.5.5",
                 ],
-                "proxy-server-nameserver": ["https://doh.pub/dns-query"],
+                "proxy-server-nameserver": ["https://cloudflare-dns.com/dns-query"],
                 "fallback": ["tls://1.1.1.1", "tls://8.8.4.4"],
                 "fallback-filter": {
-                    "geoip": True,
-                    "geoip-code": "CN",
+                    # No geoip country filter: the exit is outside Iran/China,
+                    # so a CN-result heuristic is meaningless here.
                     "ipcidr": ["240.0.0.0/4"],
                     "domain": [
                         "+.google.com",
@@ -1585,7 +1541,6 @@ class ConfigGenerator:
                 },
                 "nameserver-policy": {
                     "geosite:category-ads-all": "rcode://success",
-                    "+.ir": "https://dns.alidns.com/dns-query",
                 },
             },
             "tun": {
@@ -1637,23 +1592,12 @@ class ConfigGenerator:
 
     @classmethod
     def _clash_rules(cls) -> List[str]:
-        # First match wins — order mirrors Desktop/mihomo usage:
-        # 0) loop avoidance, 1) private/LAN, 2) ads, 3) Iran bypass,
-        # 4) CN bypass, 5) foreign → PROXY, 6) geo fallbacks, 7) MATCH.
+        # First match wins — foreign-server shape:
+        # 0) private/LAN, 1) ads, 2) known foreign services → PROXY, 3) MATCH.
+        # Process bypasses and Iran/China geo bypasses are intentionally gone:
+        # this runs outside both countries and has no local sidecar.
         rules: List[str] = [
-            # 0) Bypass proxy/helper processes to avoid routing loops.
-            # (Covers the legacy xray/PattN sidecar if still running, and
-            # our own cores. Requires find-process-mode: always.)
-            "PROCESS-NAME,xray,DIRECT",
-            "PROCESS-NAME,sing-box,DIRECT",
-            "PROCESS-NAME,PattN,DIRECT",
-            "PROCESS-NAME,v2rayn,DIRECT",
-            "PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/xray/xray,DIRECT",
-            "PROCESS-PATH,/home/mohammad/.local/share/v2rayN/bin/sing_box/sing-box,DIRECT",
-            "PROCESS-PATH,/opt/v2rayN/PattN,DIRECT",
-            "PROCESS-NAME-WILDCARD,*sing-box*,DIRECT",
-            "PROCESS-NAME-REGEX,(?i)v2ray.*|PattN,DIRECT",
-            # 1) LAN / private bypass (Desktop pattern)
+            # 0) LAN / private bypass (Desktop pattern)
             "DOMAIN-SUFFIX,lan,DIRECT",
             "DOMAIN,lan,DIRECT",
             "GEOIP,private,DIRECT,no-resolve",
@@ -1667,13 +1611,7 @@ class ConfigGenerator:
         # 2) Ads / trackers
         rules += [f"DOMAIN-SUFFIX,{d},REJECT" for d in ADS_REJECT_SUFFIXES]
         rules.append("DOMAIN-KEYWORD,analytics,REJECT")
-        # 3) Iran bypass: sites + IPs
-        rules += [f"DOMAIN-SUFFIX,{d.lstrip('.')},DIRECT" for d in IRAN_DIRECT_SUFFIXES]
-        rules.append("GEOIP,IR,DIRECT")
-        # 4) China bypass: sites + IPs
-        rules += [f"DOMAIN-SUFFIX,{d.lstrip('.')},DIRECT" for d in CN_DIRECT_SUFFIXES]
-        rules.append("GEOIP,CN,DIRECT")
-        # 5) Foreign services → PROXY
+        # 2) Foreign services → PROXY
         rules += [
             "DOMAIN-SUFFIX,google.com,PROXY",
             "DOMAIN-SUFFIX,googleapis.com,PROXY",
@@ -2073,32 +2011,17 @@ class ConfigGenerator:
             )
 
         final = "auto" if proxy_tags else "direct"
-        # Mirrors the mihomo rule order: loop avoidance → private →
-        # Iran bypass → MATCH (final). sing-box `geoip` is deprecated in
-        # favor of rule-sets, so Iran/IP bypass here is domain_suffix +
-        # ip_is_private based (no downloads needed).
+        # Mirrors the mihomo rule order: private → ads reject → final.
+        # Process matchers and Iran/China suffixes are gone: this runs on a
+        # foreign server with no local sidecar, and sing-box `geoip` is
+        # deprecated in favour of rule-sets anyway.
         rules: List[Dict[str, Any]] = [
             {"action": "sniff"},
             {"protocol": "dns", "action": "hijack-dns"},
             {
                 "action": "route",
                 "outbound": "direct",
-                "process_name": LOOPBACK_PROCESS_NAMES,
-            },
-            {
-                "action": "route",
-                "outbound": "direct",
-                "process_path_regex": ["(?i)v2ray.*|PattN", ".*sing-box.*"],
-            },
-            {
-                "action": "route",
-                "outbound": "direct",
                 "ip_is_private": True,
-            },
-            {
-                "action": "route",
-                "outbound": "direct",
-                "domain_suffix": IRAN_DIRECT_SUFFIXES + CN_DIRECT_SUFFIXES,
             },
             {
                 "action": "reject",
@@ -2118,7 +2041,6 @@ class ConfigGenerator:
             "localhost.ptlogin2.qq.com",
             "msftconnecttest.com",
             "msftncsi.com",
-            "ntp.org.cn",
             "pool.ntp.org",
             "detectportal.firefox.com",
             "connectivitycheck.gstatic.com",
@@ -2134,7 +2056,7 @@ class ConfigGenerator:
                     },
                     {
                         "type": "udp",
-                        "server": "223.5.5.5",
+                        "server": "1.1.1.1",
                         "tag": "dns-direct",
                     },
                     {
@@ -2144,7 +2066,7 @@ class ConfigGenerator:
                     },
                     {
                         "type": "https",
-                        "server": "doh.pub",
+                        "server": "cloudflare-dns.com",
                         "tag": "dns-doh",
                         "path": "/dns-query",
                         # DoH hostname itself must resolve via a plain-IP
@@ -2161,11 +2083,6 @@ class ConfigGenerator:
                         "action": "route",
                         "server": "dns-direct",
                         "domain_suffix": realip_suffixes,
-                    },
-                    {
-                        "action": "route",
-                        "server": "dns-direct",
-                        "domain_suffix": IRAN_DIRECT_SUFFIXES + CN_DIRECT_SUFFIXES,
                     },
                     {
                         "action": "route",

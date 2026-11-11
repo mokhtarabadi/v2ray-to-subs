@@ -1,11 +1,11 @@
 [Unit]
-Description=Retest mihomo proxy pool every 30 minutes
+Description=Maintain v2ray-to-subs pool every 30 minutes
 
 [Timer]
 OnBootSec=3min
 OnUnitActiveSec=30min
 Persistent=true
-Unit=rr-retest.service
+Unit=v2ray-to-subs-maintain.service
 
 [Install]
 WantedBy=timers.target

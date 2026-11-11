@@ -9,10 +9,19 @@ should sit out.
 | File              | Duty                                                                 |
 | ----------------- | -------------------------------------------------------------------- |
 | `rr_balancer.py`  | Clash-API + SQLite balancer (`rotate`, `retest`, `country`, `report`, `skip`, `next`) |
+| `maintain.sh`     | Single maintenance dispatcher run by `v2ray-to-subs.timer` every 30 minutes |
 
 State lives in `data/balancer_state.db` (schema in
 `data/balancer_state.schema.sql`, git-ignored). Run `python3 scripts/rr_balancer.py --help`
 for the full CLI.
+
+## Maintenance dispatcher
+
+`maintain.sh` is the only scheduled entry point. Each tick it runs
+`retest --batch 500`, then `country --batch 20`, then `refresh.sh` **only** if
+`~/.config/mihomo-subs/config.yaml` is older than six hours. A failing job logs
+a warning and the tick continues, so one bad batch never blocks the refresh.
+The feed list the old refresh drop-in used is embedded in the script.
 
 ## Duties
 
