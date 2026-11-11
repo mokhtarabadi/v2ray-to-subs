@@ -2,6 +2,40 @@
 
 Chronological. Each entry: Context, Decision, Consequences, Rollback.
 
+## 2026-11-11 — Observed exit country, and removal of the plugin-era causes
+
+**Context.** A country lock cannot be built from provider remarks: in the live
+feed 547 of 629 remarks are hash-style names with no country, and only 14 are
+labelled US. The balancer also carried `quota`, `transport`, and `region`
+failure causes plus their counters, which existed to serve the retired
+`opencode-rate-limit-rescue` plugin and now measure nothing that the Google
+gate or a country lock acts on.
+
+**Decision.** `country` and `country_checked` columns store the country that
+Cloudflare reports for a node's connection (`cdn-cgi/trace`, `loc=XX`), read
+through the live mixed-port because mihomo's `/delay` endpoint discards the
+response body. `rr country --batch N` fills the columns oldest-first, restores
+the previous selection in a `finally` block, and records an unreadable trace as
+unknown without quarantining. `rr report` prints coverage and per-country
+counts. `rotate`/`skip`/`next` accept `--require-country CC`: candidates with
+no measurement never match, and when nothing matches the current node is kept
+so the client never lands in the wrong country. The three plugin-era causes and
+their columns are removed (guarded `DROP COLUMN`; a failure leaves them
+dormant), and selection is `uses` → `delay_ms` with no per-cause weighting.
+
+**Consequences.** A sweep briefly carries traffic through each probed node
+(`TRACE_SETTLE_SECONDS` each, bounded batch), so it is a background job, not a
+per-rotation cost. The country lock stays off until coverage is high; enabling
+it early would freeze rotation on an empty column. Dropping the legacy counters
+is destructive by design and intentional — they were never read by anything
+after this change.
+
+**Rollback.** The country columns are additive and ignored by older code;
+`--require-country` is opt-in. Reverting the script restores the previous
+behavior, and the additive migration re-creates the legacy columns empty if an
+older build is run against an upgraded database (their values are not restorable,
+which is accepted because nothing consumes them).
+
 ## 2026-11-11 — Google Search status is the anti-abuse discriminator
 
 **Context.** Exit nodes used by crawl and media traffic get flagged by

@@ -7,10 +7,9 @@ CREATE TABLE IF NOT EXISTS nodes (
   uses       INTEGER NOT NULL DEFAULT 0,
   quarantined_until INTEGER NOT NULL DEFAULT 0,
   last_fail_cause TEXT NOT NULL DEFAULT '',
-  quota_fails INTEGER NOT NULL DEFAULT 0,
-  transport_fails INTEGER NOT NULL DEFAULT 0,
-  region_fails INTEGER NOT NULL DEFAULT 0,
-  google_fails INTEGER NOT NULL DEFAULT 0
+  google_fails INTEGER NOT NULL DEFAULT 0,
+  country TEXT NOT NULL DEFAULT '',
+  country_checked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS rotation_state (

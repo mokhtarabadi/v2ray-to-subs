@@ -1,5 +1,7 @@
 """Unit tests for scripts/rr_balancer.py (stdlib unittest, no network)."""
 
+import contextlib
+import io
 import os
 import sqlite3
 import sys
@@ -64,13 +66,13 @@ def make_db():
     return conn, path
 
 
-def mark(conn, name, status, delay=None, uses=0, last_check=None):
+def mark(conn, name, status, delay=None, uses=0, last_check=None, country=""):
     if last_check is None:
         last_check = int(time.time())
     conn.execute(
-        "INSERT INTO nodes (name, status, delay_ms, last_check, uses) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (name, status, delay, last_check, uses),
+        "INSERT INTO nodes (name, status, delay_ms, last_check, uses, country) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (name, status, delay, last_check, uses, country),
     )
     conn.commit()
 
@@ -93,6 +95,11 @@ class Args:
                 google_url=rr_balancer.DEFAULT_GOOGLE_URL,
                 google_timeout_ms=8000,
                 google_attempts=5,
+                # Country fields default to the lock being off.
+                require_country=None,
+                trace_url=rr_balancer.DEFAULT_TRACE_URL,
+                trace_timeout_ms=8000,
+                trace_proxy=rr_balancer.DEFAULT_PROXY_URL,
             )
         )
         self.__dict__.update(kw)
@@ -510,136 +517,113 @@ class QuarantineTest(unittest.TestCase):
         conn = rr_balancer.connect_db(path)
         cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
         self.assertIn("quarantined_until", cols)
+        self.assertIn("country", cols)
+        self.assertIn("country_checked", cols)
         conn.close()
         conn = rr_balancer.connect_db(path)
         cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
-        self.assertIn("quarantined_until", cols)
+        self.assertIn("country", cols)
+        self.assertNotIn("quota_fails", cols)
         conn.close()
 
 
-class QuotaCauseTest(unittest.TestCase):
-    def test_skip_reason_quota_records_cause(self):
+class CauseCleanupTest(unittest.TestCase):
+    """Only the causes this balancer acts on survive the plugin cleanup."""
+
+    def test_fresh_schema_has_no_plugin_counters(self):
+        conn, path = make_db()
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+        for legacy in ("quota_fails", "transport_fails", "region_fails"):
+            self.assertNotIn(legacy, cols)
+        self.assertIn("google_fails", cols)
+        self.assertIn("country", cols)
+        self.assertIn("country_checked", cols)
+        conn.close()
+
+    def test_skip_reason_google_records_cause_and_quarantines(self):
         conn, path = make_db()
         api = FakeAPI({"n1": 2, "n2": 5})
         mark(conn, "n1", "alive", delay=2, uses=0)
         mark(conn, "n2", "alive", delay=5, uses=0)
         conn.close()
         rc = rr_balancer.cmd_skip(
-            Args(cmd="skip", name="n1", reason="quota", db=path), api
+            Args(cmd="skip", name="n1", reason="google", db=path), api
         )
         self.assertEqual(rc, 0)
         conn = sqlite3.connect(path)
         row = conn.execute(
-            "SELECT quota_fails, transport_fails, last_fail_cause "
-            "FROM nodes WHERE name='n1'"
+            "SELECT google_fails, last_fail_cause, status, quarantined_until, "
+            "last_check FROM nodes WHERE name='n1'"
         ).fetchone()
-        self.assertEqual(row, (1, 0, "quota"))
+        self.assertEqual(row[:3], (1, "google", "failed"))
+        self.assertGreater(row[3], row[4])
         conn.close()
 
-    def test_skip_reason_transport_records_cause(self):
+    def test_country_and_manual_causes_leave_google_counter_alone(self):
         conn, path = make_db()
         api = FakeAPI({"n1": 2, "n2": 5})
         mark(conn, "n1", "alive", delay=2, uses=0)
         mark(conn, "n2", "alive", delay=5, uses=0)
         conn.close()
-        rc = rr_balancer.cmd_skip(
-            Args(cmd="skip", name="n1", reason="transport", db=path), api
+        rr_balancer.cmd_skip(
+            Args(cmd="skip", name="n1", reason="country", db=path), api
         )
-        self.assertEqual(rc, 0)
+        rr_balancer.cmd_skip(Args(cmd="skip", name="n2", reason="manual", db=path), api)
         conn = sqlite3.connect(path)
-        row = conn.execute(
-            "SELECT quota_fails, transport_fails, last_fail_cause "
-            "FROM nodes WHERE name='n1'"
-        ).fetchone()
-        self.assertEqual(row, (0, 1, "transport"))
+        rows = conn.execute(
+            "SELECT name, google_fails, last_fail_cause FROM nodes ORDER BY name"
+        ).fetchall()
+        self.assertEqual(rows, [("n1", 0, "country"), ("n2", 0, "manual")])
         conn.close()
 
-    def test_skip_reason_region_records_cause(self):
-        # Geo-blocked exits (provider region check) get their own counter so
-        # they stay separable from rate-limit and network failures.
-        conn, path = make_db()
-        api = FakeAPI({"n1": 2, "n2": 5})
-        mark(conn, "n1", "alive", delay=2, uses=0)
-        mark(conn, "n2", "alive", delay=5, uses=0)
-        conn.close()
-        rc = rr_balancer.cmd_skip(
-            Args(cmd="skip", name="n1", reason="region", db=path), api
-        )
-        self.assertEqual(rc, 0)
+    def test_legacy_counters_dropped_while_rows_survive(self):
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        os.unlink(path)
         conn = sqlite3.connect(path)
-        row = conn.execute(
-            "SELECT quota_fails, transport_fails, region_fails, last_fail_cause "
-            "FROM nodes WHERE name='n1'"
-        ).fetchone()
-        self.assertEqual(row, (0, 0, 1, "region"))
-        # Quarantine parity: region failures quarantine exactly like other causes.
-        row = conn.execute(
-            "SELECT status, quarantined_until, last_check FROM nodes WHERE name='n1'"
-        ).fetchone()
-        self.assertEqual(row[0], "failed")
-        self.assertGreater(row[1], row[2])
-        conn.close()
-
-    def test_other_causes_leave_region_fails_at_zero(self):
-        # Reverse isolation: quota, transport, and manual marks must never
-        # touch the region counter.
-        for cause in ("quota", "transport", "manual"):
-            conn, path = make_db()
-            api = FakeAPI({"n1": 2, "n2": 5})
-            mark(conn, "n1", "alive", delay=2, uses=0)
-            mark(conn, "n2", "alive", delay=5, uses=0)
-            conn.close()
-            rc = rr_balancer.cmd_skip(
-                Args(cmd="skip", name="n1", reason=cause, db=path), api
-            )
-            self.assertEqual(rc, 0)
-            conn = sqlite3.connect(path)
-            row = conn.execute(
-                "SELECT region_fails FROM nodes WHERE name='n1'"
-            ).fetchone()
-            self.assertEqual(row, (0,), cause)
-            conn.close()
-
-    def test_next_reason_region_records_cause(self):
-        # The next path shares the same mark-failed helper as skip, so a
-        # region rotation must record region_fails on the current node.
-        conn, path = make_db()
-        api = FakeAPI({"cur": 50, "n2": 5})
-        api.group_members = lambda group: (["cur", "n2"], "cur")
-        mark(conn, "cur", "alive", delay=50, uses=3)
-        mark(conn, "n2", "alive", delay=5, uses=0)
-        conn.close()
-        rc = rr_balancer.cmd_next(Args(cmd="next", reason="region", db=path), api)
-        self.assertEqual(rc, 0)
-        conn = sqlite3.connect(path)
-        row = conn.execute(
-            "SELECT region_fails, last_fail_cause, status FROM nodes WHERE name='cur'"
-        ).fetchone()
-        self.assertEqual(row, (1, "region", "failed"))
-        conn.close()
-
-    def test_fewer_quota_fails_beats_faster_delay(self):
-        conn, path = make_db()
-        api = FakeAPI({"burned": 5, "clean": 500})
-        mark(conn, "burned", "alive", delay=5, uses=0)
-        mark(conn, "clean", "alive", delay=500, uses=0)
         conn.execute(
-            "UPDATE nodes SET quota_fails=2, last_fail_cause='quota' "
-            "WHERE name='burned'"
+            "CREATE TABLE nodes (name TEXT PRIMARY KEY, status TEXT NOT NULL "
+            "DEFAULT 'unknown', delay_ms INTEGER, last_check INTEGER NOT NULL "
+            "DEFAULT 0, fails INTEGER NOT NULL DEFAULT 0, "
+            "uses INTEGER NOT NULL DEFAULT 0, quarantined_until INTEGER NOT NULL "
+            "DEFAULT 0, last_fail_cause TEXT NOT NULL DEFAULT '', "
+            "quota_fails INTEGER NOT NULL DEFAULT 0, transport_fails INTEGER "
+            "NOT NULL DEFAULT 0, region_fails INTEGER NOT NULL DEFAULT 0, "
+            "google_fails INTEGER NOT NULL DEFAULT 0)"
+        )
+        conn.execute(
+            "INSERT INTO nodes (name, status, uses) VALUES ('kept', 'alive', 7)"
         )
         conn.commit()
         conn.close()
-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
-        self.assertEqual(rc, 0)
-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        conn = rr_balancer.connect_db(path)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+        for legacy in ("quota_fails", "transport_fails", "region_fails"):
+            self.assertNotIn(legacy, cols)
+        row = conn.execute(
+            "SELECT status, uses FROM nodes WHERE name='kept'"
+        ).fetchone()
+        self.assertEqual(row, ("alive", 7))
+        conn.close()
 
-    def test_success_resets_cause_counters(self):
+    def test_order_pool_uses_then_delay_only(self):
+        pool = [
+            ("slow", 0, 500, "US"),
+            ("fast", 0, 5, "DE"),
+            ("used", 1, 1, "US"),
+        ]
+        self.assertEqual(
+            [row[0] for row in rr_balancer.order_pool(pool)],
+            ["fast", "slow", "used"],
+        )
+
+    def test_retest_success_clears_cause_but_keeps_country(self):
         conn, path = make_db()
         api = FakeAPI({"n1": 10})
         api.group_members = lambda group: (["n1"], "old-node")
-        mark(conn, "n1", "unknown", last_check=100)
+        mark(conn, "n1", "unknown", last_check=100, country="US")
         conn.execute(
-            "UPDATE nodes SET quota_fails=2, last_fail_cause='quota' WHERE name='n1'"
+            "UPDATE nodes SET google_fails=2, last_fail_cause='google' WHERE name='n1'"
         )
         conn.commit()
         conn.close()
@@ -647,11 +631,193 @@ class QuotaCauseTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         conn = sqlite3.connect(path)
         row = conn.execute(
-            "SELECT quota_fails, transport_fails, last_fail_cause "
-            "FROM nodes WHERE name='n1'"
+            "SELECT google_fails, last_fail_cause, country FROM nodes WHERE name='n1'"
         ).fetchone()
-        self.assertEqual(row, (0, 0, ""))
+        self.assertEqual(row, (2, "", "US"))
         conn.close()
+
+
+class CountryTest(unittest.TestCase):
+    def test_parse_trace_country_reads_loc(self):
+        body = "fl=123abc\nh=www.cloudflare.com\nip=1.2.3.4\nts=1\nloc=us\n"
+        self.assertEqual(rr_balancer.parse_trace_country(body), "US")
+
+    def test_parse_trace_country_rejects_unknown_shapes(self):
+        self.assertIsNone(rr_balancer.parse_trace_country("ip=1.2.3.4\n"))
+        self.assertIsNone(rr_balancer.parse_trace_country("loc=\n"))
+        self.assertIsNone(rr_balancer.parse_trace_country("loc=USA\n"))
+        self.assertIsNone(rr_balancer.parse_trace_country("loc=T1\n"))
+        # Cloudflare reports loc=XX when it cannot place the exit (Tor, etc.).
+        self.assertIsNone(rr_balancer.parse_trace_country("loc=XX\n"))
+        self.assertIsNone(rr_balancer.parse_trace_country(""))
+
+    def test_probe_country_parses_body(self):
+        class _Resp:
+            status = 200
+
+            def read(self):
+                return b"h=www.cloudflare.com\nloc=DE\nts=1\n"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class _Opener:
+            def open(self, req, timeout=None):
+                return _Resp()
+
+        with unittest.mock.patch.object(
+            rr_balancer.urllib.request, "build_opener", return_value=_Opener()
+        ):
+            self.assertEqual(
+                rr_balancer.probe_country_via_proxy(
+                    rr_balancer.DEFAULT_TRACE_URL, rr_balancer.DEFAULT_PROXY_URL, 5.0
+                ),
+                "DE",
+            )
+
+    def test_probe_country_returns_none_on_transport_error(self):
+        with unittest.mock.patch.object(
+            rr_balancer.urllib.request,
+            "build_opener",
+            side_effect=OSError("proxy down"),
+        ):
+            self.assertIsNone(
+                rr_balancer.probe_country_via_proxy(
+                    rr_balancer.DEFAULT_TRACE_URL, rr_balancer.DEFAULT_PROXY_URL, 1.0
+                )
+            )
+
+    def test_cmd_country_fills_batch_and_restores_selection(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "a", "alive", delay=10, uses=0, last_check=now)
+        mark(conn, "b", "alive", delay=20, uses=0, last_check=now)
+        api = FakeAPI({"a": 10, "b": 20})
+        api.group_members = lambda group: (["a", "b"], "prev")
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "probe_country_via_proxy", side_effect=["US", "DE"]
+            ),
+            unittest.mock.patch.object(rr_balancer, "TRACE_SETTLE_SECONDS", 0),
+        ):
+            rc = rr_balancer.cmd_country(Args(cmd="country", db=path, batch=10), api)
+        self.assertEqual(rc, 0)
+        conn.close()
+        conn = sqlite3.connect(path)
+        rows = conn.execute(
+            "SELECT name, country, country_checked FROM nodes ORDER BY name"
+        ).fetchall()
+        self.assertEqual([(r[0], r[1]) for r in rows], [("a", "US"), ("b", "DE")])
+        self.assertTrue(all(row[2] > 0 for row in rows))
+        self.assertEqual(api.selected[-1], ("PROXY", "prev"))
+        conn.close()
+
+    def test_cmd_country_unknown_never_quarantines(self):
+        conn, path = make_db()
+        mark(conn, "a", "alive", delay=10, uses=0)
+        api = FakeAPI({"a": 10})
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "probe_country_via_proxy", return_value=None
+            ),
+            unittest.mock.patch.object(rr_balancer, "TRACE_SETTLE_SECONDS", 0),
+        ):
+            rc = rr_balancer.cmd_country(Args(cmd="country", db=path, batch=5), api)
+        self.assertEqual(rc, 0)
+        conn.close()
+        conn = sqlite3.connect(path)
+        row = conn.execute(
+            "SELECT country, country_checked, status, quarantined_until, fails "
+            "FROM nodes WHERE name='a'"
+        ).fetchone()
+        self.assertEqual(row[0], "")
+        self.assertGreater(row[1], 0)
+        self.assertEqual(row[2:], ("alive", 0, 0))
+        conn.close()
+
+
+class CountryLockTest(unittest.TestCase):
+    def test_require_country_filters_to_matching_exit(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "us", "alive", delay=500, uses=0, last_check=now, country="US")
+        mark(conn, "de", "alive", delay=10, uses=0, last_check=now, country="DE")
+        api = FakeAPI({"us": 500, "de": 10})
+        # Lowercase input must normalize, and the slower US exit must win.
+        rc = rr_balancer.cmd_rotate(Args(db=path, require_country="us"), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "us"))
+        conn.close()
+
+    def test_require_country_without_match_keeps_current_selection(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "de", "alive", delay=10, uses=0, last_check=now, country="DE")
+        mark(conn, "unmeasured", "alive", delay=5, uses=0, last_check=now)
+        api = FakeAPI({"de": 10, "unmeasured": 5})
+        rc = rr_balancer.cmd_rotate(Args(db=path, require_country="US"), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected, [])
+        conn.close()
+
+    def test_skip_with_country_reason_still_respects_lock(self):
+        conn, path = make_db()
+        api = FakeAPI({"n1": 2, "n2": 5})
+        mark(conn, "n1", "alive", delay=2, uses=0, country="US")
+        mark(conn, "n2", "alive", delay=5, uses=0, country="US")
+        conn.close()
+        rc = rr_balancer.cmd_skip(
+            Args(
+                cmd="skip", name="n1", reason="country", db=path, require_country="US"
+            ),
+            api,
+        )
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+
+
+class ReportTest(unittest.TestCase):
+    def test_report_prints_coverage_and_country_counts(self):
+        conn, path = make_db()
+        mark(conn, "a", "alive", delay=10, country="US")
+        mark(conn, "b", "alive", delay=20, country="US")
+        mark(conn, "c", "failed", delay=30, country="DE")
+        mark(conn, "d", "unknown")
+        conn.execute("UPDATE nodes SET country_checked=1 WHERE name IN ('a','b','c')")
+        conn.commit()
+        conn.close()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = rr_balancer.cmd_report(Args(cmd="report", db=path))
+        out = buf.getvalue()
+        self.assertEqual(rc, 0)
+        self.assertIn("coverage 3/4 checked", out)
+        self.assertIn("US", out)
+        self.assertIn("DE", out)
+        self.assertIn("unknown", out)
+
+
+class CountryArgsTest(unittest.TestCase):
+    def test_rejects_bad_require_country(self):
+        for bad in ("USA", "1A", ""):
+            self.assertIsNotNone(
+                rr_balancer.validate_args(Args(cmd="rotate", require_country=bad)), bad
+            )
+
+    def test_rejects_bad_country_batch_numbers(self):
+        self.assertIsNotNone(rr_balancer.validate_args(Args(cmd="country", batch=0)))
+        self.assertIsNotNone(
+            rr_balancer.validate_args(Args(cmd="country", trace_timeout_ms=100))
+        )
+
+    def test_accepts_sane_country_args(self):
+        self.assertIsNone(rr_balancer.validate_args(Args(cmd="country")))
+        self.assertIsNone(
+            rr_balancer.validate_args(Args(cmd="rotate", require_country="us"))
+        )
 
 
 if __name__ == "__main__":

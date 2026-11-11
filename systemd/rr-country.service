@@ -1,0 +1,8 @@
+[Unit]
+Description=Fill observed exit countries for mihomo proxy pool (external balancer)
+Wants=network-online.target
+After=network-online.target mihomo-subs.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/v2ray-to-subs/.venv/bin/python %h/v2ray-to-subs/scripts/rr_balancer.py country --batch 20

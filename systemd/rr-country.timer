@@ -1,0 +1,11 @@
+[Unit]
+Description=Fill observed exit countries for the mihomo pool every 30 minutes
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=rr-country.service
+
+[Install]
+WantedBy=timers.target

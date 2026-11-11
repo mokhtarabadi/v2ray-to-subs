@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `rr_balancer.py` gained observed exit country: `country`/`country_checked` columns, `rr country --batch N` (Cloudflare `cdn-cgi/trace` `loc`, oldest-first, previous selection restored, unreadable traces stored as unknown without quarantine), `rr report` (coverage plus per-country counts), and `--require-country CC` on `rotate`/`skip`/`next` which keeps the current node when no candidate matches. Selection order is now `uses` then `delay_ms`.
+- Balancer cause cleanup: the `quota`, `transport`, and `region` failure causes, their counters, and their per-cause selection weighting were removed with the retired `opencode-rate-limit-rescue` plugin they served. `--reason` accepts `google|country|manual`; existing databases drop the legacy columns through a guarded `DROP COLUMN` migration that keeps every learned row.
 - `AGENTS.md` brought in line with the audit criteria: the lite-mode bypass removed so every task runs the full workflow, the task-generator reference corrected to `kanban-lifecycle`, the QA transition routed through `custom_context_qa_transition`, and Edit Tool Discipline, Parallel Index Isolation, and Living Folder Docs Inspection rules added. `docs/conventions.md` gained the Edit Tool Discipline and Living Folder Docs Standard sections; `.gitignore` now covers goal-plugin runtime state.
 
 ### Fixed

@@ -5,3 +5,4 @@
 | Namespace | Key | Summary | Tags |
 | :--- | :--- | :--- | :--- |
 | integrations | rate-limit-rescue-plugin | OpenCode rate-limit-rescue plugin source of truth is the private GitHub repo mokhtarabadi/opencode-rate-limit-rescue ... |  |
+| project | exit_country_observation_rules | Exit country is observed, never inferred; unknown is never a failure. | balancer, country, google-gate |

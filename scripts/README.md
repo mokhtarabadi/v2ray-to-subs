@@ -8,7 +8,7 @@ should sit out.
 
 | File              | Duty                                                                 |
 | ----------------- | -------------------------------------------------------------------- |
-| `rr_balancer.py`  | Clash-API + SQLite round-robin balancer (`rotate`, `skip`, `next`, `retest`) |
+| `rr_balancer.py`  | Clash-API + SQLite balancer (`rotate`, `retest`, `country`, `report`, `skip`, `next`) |
 
 State lives in `data/balancer_state.db` (schema in
 `data/balancer_state.schema.sql`, git-ignored). Run `python3 scripts/rr_balancer.py --help`
@@ -18,17 +18,28 @@ for the full CLI.
 
 - **Liveness + delay**: probes every pool node through mihomo's
   `/proxies/{name}/delay` endpoint and stores delay or failure.
-- **Selection**: `rotate` picks the lowest `(uses, quota_fails, delay_ms)`
-  row among alive, fresh, non-quarantined nodes and selects it in the
-  `PROXY` group.
-- **Failure causes**: `skip` / `next --reason quota|transport|region|google|manual`
-  increments the per-cause counter and quarantines the node for 24 h.
+- **Country**: `country --batch N` selects each node briefly, reads
+  `https://www.cloudflare.com/cdn-cgi/trace` through the live mixed-port, and
+  stores the observed two-letter code with a freshness stamp
+  (`country`, `country_checked`). Unreadable traces are stored as unknown, never
+  as a country and never as a failure. The previous selection is restored at the
+  end of the batch.
+- **Report**: `report` prints country coverage (checked/total) and per-country
+  counts, so the decision to enable a country lock is data-driven.
+- **Selection**: `rotate` picks the lowest `(uses, delay_ms)` row among alive,
+  fresh, non-quarantined nodes and selects it in the `PROXY` group.
+- **Failure causes**: `skip` / `next --reason google|country|manual`
+  quarantines the node for 24 h. `google` also increments `google_fails`.
 - **Google-clean gate**: `rotate` reads `https://www.google.com/search?q=test`
   through the live mixed-port with redirects disabled. A 302 to `/sorry`
   means the exit IP is anti-abuse flagged, so the candidate is quarantined
   with cause `google` and the next candidate is tried. `--no-google-check`
   restores the pre-gate behavior; the gate is skipped when Google is
   unreachable directly (infrastructure guard).
+- **Country lock**: `--require-country CC` (on `rotate`, `skip`, `next`) keeps
+  rotation inside one observed country. Candidates with no measurement never
+  match, and when nothing matches the current node is kept instead of falling
+  back to another country. The lock is opt-in until `report` shows coverage.
 - **Retest**: rechecks the oldest batch so dead nodes rejoin on recovery.
 
 ## Invariants
@@ -36,9 +47,12 @@ for the full CLI.
 1. Node names are identity hashes (`{proto}-{12hex}` from server + port), so
    learned rows survive every subscription refresh.
 2. Never delete learned rows on a refresh — only never-tested rows are pruned.
-3. Selection order is deterministic: `uses` → `quota_fails` → `delay_ms`.
+3. Selection order is deterministic: `uses` → `delay_ms`, with no per-cause
+   weighting.
 4. Rotation always leaves the group pointing at a node. An all-blocked pool
-   fails open to the best candidate instead of going dark.
+   fails open to the best candidate, and with a country lock that failure stays
+   inside the locked country.
+5. An unreadable country trace is a measurement gap, never a node verdict.
 
 ## Risks
 
