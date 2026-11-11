@@ -42,6 +42,25 @@ When writing or reviewing bash scripts, cron jobs, or container orchestration co
 3. **No Post-Redirect Status Checks:** Never use `command > file; if [ $? -eq 0 ]` — the shell creates the file before running the command, masking failures.
 4. **Sidecar Isolation for Hostless Backups:** Never rely on host file staging for Docker volume backups. Always use ephemeral containers (`docker run --rm -v volume:/data:ro alpine tar...`) with read-only mounts.
 
+## Edit Tool Discipline
+
+File edits use ONLY native file-editing tools (`edit` for replacements, file-write tools for new files). Using python, shell, heredoc, `sed -i`, or any script to create or modify files is strictly forbidden — scripted edits fail silently (replace-all on non-unique anchors, quoting and encoding mangling) while native tools fail loudly on a non-unique anchor.
+
+1. **Default native only:** one replacement, one location, exact unique anchor. A no-match or multi-match error is a signal, never a retry hint.
+2. **No scripted edits:** python, shell, heredoc, and `sed -i` are banned for creating or modifying files. Shell stays read-only for file content (e.g. `grep`, `cat`, `diff`, `ls`, `git status`).
+3. **Verify always:** `grep`/`diff` after every edit.
+
+## Living Folder Docs Standard
+
+All component and script directories in this repository MUST maintain colocated documentation and decision records:
+
+1. **Folder Colocation** — Every component or script directory (e.g. `scripts/`, `tests/`) must contain:
+   - `README.md` — core duties, directory layout, owned files, critical invariants and risks.
+   - `DECISIONS.md` — chronological dated Architectural Decision Records. Each entry documents Context, Decision, Consequences, and Rollback strategy.
+2. **One-Line Code Pointer Standard** — primary source files include a top-line comment pointing at the sibling docs:
+   - Python/Shell: `# Sibling Docs: <relative-path>/README.md | Decisions: <relative-path>/DECISIONS.md`
+3. **Synchronization Invariant** — whenever source code inside a component directory changes behavior or data contract, the sibling `README.md` and `DECISIONS.md` MUST be inspected and updated within the same task. Silent overrides of existing architectural decisions are forbidden.
+
 ## Task-Number Reference Discipline
 
 Task numbers are provenance for humans, not reasoning material for the model. A bare task number in visible prompt prose invites hallucination: the model treats it as load-bearing context it cannot resolve.

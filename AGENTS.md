@@ -75,7 +75,7 @@ You MUST strictly adhere to these exact paths. Do not create duplicates elsewher
 
 You MUST follow these skill loading rules in every session:
 
-- **Task-Generator Skill:** Before creating any new task file, you MUST load the `task-generator` skill using the `skill` tool to ensure the correct template format with `<!-- BEGIN_GIT_DIFF -->` / `<!-- END_GIT_DIFF -->` markers.
+- **Task-Generator Skill:** Before creating any new task file, you MUST load the `kanban-lifecycle` skill using the `skill` tool to ensure the correct template format with `<!-- BEGIN_GIT_DIFF -->` / `<!-- END_GIT_DIFF -->` markers.
 - **Project Skills:** Before implementing any task, you MUST load every available skill matching the project's tech stack. This project is plain Python (stdlib plus PyYAML) with bash wrappers — no roster skill matches, so none is required unless the stack changes.
 
 ## 🛑 CONTEXT BOOTSTRAPPING
@@ -88,6 +88,9 @@ At the start of every task, you MUST call `search_memory` or `list_namespaces` t
 - **No Monolithic State:** Creating `TODO.md` or `STATE.md` is strictly forbidden.
 - **Zero-Autonomous-Commit:** Never execute `git add`, `git commit`, or `git push` autonomously; only on explicit Orchestrator/Manager instruction via the approved MCP commit path. **Exception:** `git mv` for task-file Kanban moves.
 - **Explicit Staging Contract (F5):** Always pass an explicit `modified_files` list to `stage_and_inject_diff` — blind `git add -A .` is banned.
+- **Parallel Index Isolation:** When two tasks run in parallel and share files, touch only your own task's files. If foreign hunks land in your staged diff, call `custom_context_unstage_files` with exactly those files (index-only), redo your hunk-level staging, then call `custom_context_stage_and_inject_diff` with `skip_add=True`. `git commit`, `git checkout`, and `git push` stay forbidden everywhere.
+- **Edit Tool Discipline:** File edits use ONLY native file-editing tools (`edit` for replacements, file-write tools for new files). Using python, shell, heredoc, or `sed -i` to create or modify files is forbidden; shell stays read-only for file content (`grep`, `cat`, `diff`, `ls`, `git status`). A non-unique anchor must fail loudly and be widened, never forced. See `docs/conventions.md`.
+- **Living Folder Docs Inspection:** Before modifying code inside a component or script directory, read the sibling `README.md` and `DECISIONS.md`, and update them when domain contracts or architectural decisions change.
 - **MCP Report Generation:** Generate context/tree reports via the MCP server and hand the file path to the Manager instead of reading report files inline.
 
 ## 🛑 MANDATORY END-OF-TASK SEQUENCE
@@ -96,10 +99,6 @@ When finishing a task, you MUST execute these exact steps in order:
 
 1. **Update Changelog:** You MUST insert a formal entry into CHANGELOG.md logging your modifications.
 2. **Write your Summary:** Manually write your architectural reasoning, local TODO checks, and execution notes into the active `tasks/XX-task.md` file under "Execution Log & Reasoning".
-3. **Call MCP Tool & QA Transition:** Call the `custom_context_stage_and_inject_diff` MCP tool. After injection, you MUST move the task file to `tasks/qa/` via `git mv` before notifying the Manager (implementation tasks only — discovery tasks stay in place). DO NOT execute any `git commit` commands. Closure to `tasks/completed/` happens ONLY after the Manager explicitly says "Approved for closure" or "Close task".
-4. **Kanban Metadata Synchronization (mandatory after ANY authorized `git mv`):** After the move, update the task file's `**File:**` metadata header to the new path. If the move happened AFTER staging, re-run `lint_task_file` and call `custom_context_stage_and_inject_diff` AGAIN with the NEW task path and the full `modified_files` array before notifying the Manager — the re-stage keeps the injected diff and staging state in sync with the final path. Never notify the Manager with a stale `**File:**` header.
-5. **Notify Manager:** Output exactly: "Task ready. Manager, please copy the contents of `tasks/XX-task.md` and send it back to the Orchestrator Brain for review."
-
-## 🛑 LITE MODE PROTOCOL (`<lite_mode_protocol>`)
-
-When a change is eligible — single file, no security or financial impact, obvious simplicity — the full production line may be bypassed: record a `[LITE]` justification with the eligibility reason in the task file's `## Execution Log & Reasoning` section and proceed. Escalation to Full Mode is mandatory if hidden complexity is discovered mid-task.
+3. **Call MCP Tool & QA Transition:** Call `custom_context_qa_transition` once with the active task path and an explicit `modified_files` list. It atomically moves the task to `tasks/qa/`, synchronizes the `**File:**` header, stages the changes, and injects the diff. Do not run a separate task move, header edit, or re-stage. DO NOT execute any `git commit` commands. Closure to `tasks/completed/` happens ONLY after the Manager explicitly says "Approved for closure" or "Close task".
+4. **Kanban Metadata Sync:** `custom_context_qa_transition` already keeps the `**File:**` header and the injected diff in sync. If an authorized `git mv` happened outside that tool, update the header, re-run `lint_task_file`, and re-stage with the NEW task path and the full `modified_files` array before notifying the Manager. Never notify the Manager with a stale `**File:**` header.
+5. **Notify Manager:** Report that the task is in `tasks/qa/` and that QA/review will be chained directly through `brain_turn`. Never ask the Manager to copy, paste, or relay task contents.

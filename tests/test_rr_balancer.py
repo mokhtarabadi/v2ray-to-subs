@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 
 sys.path.insert(
     0,
@@ -18,10 +19,14 @@ import rr_balancer
 
 
 class FakeAPI:
-    """Stub ClashAPI: delays dict maps name -> delay_ms or None (dead)."""
+    """Stub ClashAPI: delays dict maps name -> delay_ms or None (dead).
 
-    def __init__(self, delays, group="PROXY"):
+    google_blocked names answer /sorry (302) on the expected=200 probe.
+    """
+
+    def __init__(self, delays, group="PROXY", google_blocked=None):
         self.delays = delays
+        self.google_blocked = set(google_blocked or ())
         self.group = group
         self.selected = []
         self.members = list(delays) + ["Auto", "Load Balance", "Fallback"]
@@ -36,7 +41,9 @@ class FakeAPI:
     def select(self, group, name):
         self.selected.append((group, name))
 
-    def delay(self, name, test_url, timeout_ms):
+    def delay(self, name, test_url, timeout_ms, expected=None):
+        if expected == 200 and name in self.google_blocked:
+            return None
         return self.delays.get(name)
 
     def get_connections(self):
@@ -80,6 +87,12 @@ class Args:
                 max_fails=3,
                 test_url="https://www.gstatic.com/generate_204",
                 timeout_ms=3000,
+                # Keep unit tests network-free; the google-gate test opts in
+                # and patches the direct reachability probe.
+                no_google_check=True,
+                google_url=rr_balancer.DEFAULT_GOOGLE_URL,
+                google_timeout_ms=8000,
+                google_attempts=5,
             )
         )
         self.__dict__.update(kw)
@@ -99,6 +112,53 @@ class RotateTest(unittest.TestCase):
         self.assertEqual(api.selected, [("PROXY", "fast")])
         uses = conn.execute("SELECT uses FROM nodes WHERE name='fast'").fetchone()[0]
         self.assertEqual(uses, 1)
+
+    def test_rotate_skips_google_blocked(self):
+        conn, path = make_db()
+        now = int(time.time())
+        # "blocked" is faster and unused, so only the gate can reject it.
+        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+        api = FakeAPI({"blocked": 50, "clean": 200}, google_blocked={"blocked"})
+        args = Args(db=path, no_google_check=False)
+
+        def fake_probe(url, proxy, timeout):
+            return 302 if api.selected[-1][1] in api.google_blocked else 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_probe
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause, google_fails FROM nodes "
+            "WHERE name='blocked'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "google", 1))
+
+    def test_rotate_fails_open_when_all_blocked(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"a": 50}, google_blocked={"a"})
+        args = Args(db=path, no_google_check=False, google_attempts=1)
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", return_value=302
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "a"))
 
     def test_second_rotate_moves_on(self):
         conn, path = make_db()

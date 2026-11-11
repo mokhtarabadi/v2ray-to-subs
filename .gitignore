@@ -51,6 +51,13 @@ context-reports/
 # Brain session transcripts (per-project runtime state)
 tasks/.sessions/
 
+# Goal plugin runtime state (per-session scratch, never project truth)
+.opencode/goals/
+.opencode/goal-state.json
+.opencode/goal-evidence.json
+.opencode/STOP_GOAL
+STOP_GOAL
+
 # External balancer runtime state (SQLite, rebuilt by retest)
 data/*.db
 data/*.db-journal

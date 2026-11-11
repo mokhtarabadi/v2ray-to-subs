@@ -164,7 +164,8 @@ when a target rate-limits an exit IP, the crawler reports the cause
 and the balancer moves traffic to the next best node automatically:
 
 - **Rotate**: manual only — bare `rr` skips the current node and picks least-used + fastest (`rr-rotate.timer` is intentionally disabled)
-- **Failure causes**: `rr next --reason quota|transport|region` (default `manual`) records per-cause counters; selection order is least-used, then fewest quota fails, then fastest — exits that hit crawl rate limits sink in priority without being deleted; `region` (geo-blocked from a provider country check) is tracked separately and quarantined like the others
+- **Failure causes**: `rr next --reason quota|transport|region|google` (default `manual`) records per-cause counters; selection order is least-used, then fewest quota fails, then fastest — exits that hit crawl rate limits sink in priority without being deleted; `region` (geo-blocked from a provider country check) is tracked separately and quarantined like the others
+- **Google-clean gate**: before selecting a node, rotation reads `https://www.google.com/search?q=test` through the candidate (live mixed-port, redirects disabled). Exits answering 302 `/sorry` are quarantined with cause `google` (24h, `google_fails` counter). A node that passes stays selected; up to `--google-attempts` candidates are rejected, then the best remaining is used so the client never goes dark. `--no-google-check` disables it; the check is skipped when Google is unreachable directly (infra guard)
 - **Retest**: 500 oldest controller-present nodes every 30 minutes (`rr-retest.timer`), dead nodes readmitted on recovery
 - **Freshness**: nodes unchecked for over 2h sit out until rechecked
 - **Stable names**: nodes are named by identity hash (`{proto}-{12hex}` from server + port), so balancer history survives every feed refresh; the provider remark is kept in the Clash `remark` field for humans

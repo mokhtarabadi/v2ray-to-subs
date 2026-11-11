@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Sibling Docs: scripts/README.md | Decisions: scripts/DECISIONS.md
 """External round-robin balancer for mihomo (Clash API + SQLite state).
 
 Owns the PROXY group's selection from outside mihomo: tests each node
@@ -32,6 +33,13 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA_PATH = os.path.join(REPO_ROOT, "data", "balancer_state.schema.sql")
 DEFAULT_DB = os.path.join(REPO_ROOT, "data", "balancer_state.db")
 DEFAULT_SECRET_FILE = os.path.expanduser("~/.config/mihomo-subs/.controller_secret")
+
+# Google Search is the discriminator: flagged exits answer 302 -> /sorry,
+# clean exits answer 200. Lightweight Google endpoints (generate_204,
+# suggest) answer identically on blocked IPs, so they cannot be used.
+DEFAULT_GOOGLE_URL = "https://www.google.com/search?q=test"
+DEFAULT_PROXY_URL = "http://127.0.0.1:7890"
+GOOGLE_SETTLE_SECONDS = 0.3
 
 # Group members that are selectors themselves, plus mihomo builtins:
 # never enter the rotation pool.
@@ -96,8 +104,17 @@ class ClashAPI:
         if status != 204:
             raise RuntimeError("PUT selection %r failed with HTTP %s" % (name, status))
 
-    def delay(self, name: str, test_url: str, timeout_ms: int) -> Optional[int]:
-        qs = urllib.parse.urlencode({"timeout": timeout_ms, "url": test_url})
+    def delay(
+        self,
+        name: str,
+        test_url: str,
+        timeout_ms: int,
+        expected: Optional[int] = None,
+    ) -> Optional[int]:
+        query = {"timeout": timeout_ms, "url": test_url}
+        if expected is not None:
+            query["expected"] = expected
+        qs = urllib.parse.urlencode(query)
         path = "/proxies/%s/delay?%s" % (urllib.parse.quote(name), qs)
         try:
             status, payload = self._request("GET", path)
@@ -189,6 +206,7 @@ def connect_db(db_path: str) -> sqlite3.Connection:
             "quota_fails INTEGER NOT NULL DEFAULT 0",
             "transport_fails INTEGER NOT NULL DEFAULT 0",
             "region_fails INTEGER NOT NULL DEFAULT 0",
+            "google_fails INTEGER NOT NULL DEFAULT 0",
         ):
             col = coldef.split()[0]
             if col not in cols:
@@ -255,11 +273,85 @@ def alive_pool(
     return cur.fetchall()
 
 
+def order_pool(
+    pool: List[Tuple[str, int, int, int]],
+) -> List[Tuple[str, int, int, int]]:
+    """Least-used first, fewest quota fails next, fastest delay last."""
+    return sorted(pool, key=lambda row: (row[1], row[2], row[3]))
+
+
 def pick_next(pool: List[Tuple[str, int, int, int]]) -> Optional[str]:
     """Least-used first, fewest quota fails next, fastest delay last."""
     if not pool:
         return None
-    return sorted(pool, key=lambda row: (row[1], row[2], row[3]))[0][0]
+    return order_pool(pool)[0][0]
+
+
+def google_clean(
+    api: ClashAPI,
+    group: str,
+    name: str,
+    url: str,
+    timeout_ms: int,
+    proxy_url: str = DEFAULT_PROXY_URL,
+) -> bool:
+    """Select the node, then read Google Search through it without redirects.
+
+    mihomo's /delay endpoint follows the 302 to /sorry and reports the final
+    200, so it cannot see the block. This probes the live selector instead:
+    a blocked exit returns 302, a clean exit returns 200.
+
+    The node stays selected; rotation keeps it when it passes and moves on
+    when it does not, so no extra switch is needed.
+    """
+    api.select(group, name)
+    if GOOGLE_SETTLE_SECONDS:
+        time.sleep(GOOGLE_SETTLE_SECONDS)
+    return probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0) == 200
+
+
+def probe_status_via_proxy(url: str, proxy_url: str, timeout_s: float) -> Optional[int]:
+    """HTTP status for url through proxy_url, redirects NOT followed.
+
+    Returns None on transport errors. The body is not read, so a clean
+    candidate costs one request and a blocked one only its 302 headers.
+    """
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+        _NoRedirect,
+    )
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+    )
+    try:
+        with opener.open(req, timeout=timeout_s) as resp:
+            return resp.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+    except Exception:
+        return None
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Turn 3xx into an HTTPError so the status is visible to the caller."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def google_reachable_direct(url: str, timeout_s: float = 8.0) -> bool:
+    """Guard against quarantining the whole pool during a Google outage.
+
+    Probes the same URL from the host without a proxy. If this fails, the
+    per-node Google gate is skipped for this run instead of marking every
+    node blocked (infra failure, not node failure).
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
 
 
 def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
@@ -268,8 +360,8 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     pool_names, current = api.group_members(args.group)
     seed_names(conn, pool_names)
     pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
-    name = pick_next(pool)
-    if name is None:
+    ordered = order_pool(pool)
+    if not ordered:
         conn.execute(
             "INSERT INTO rotation_log (ts, node, reason) VALUES (?, '', 'noop-empty-pool')",
             (now,),
@@ -277,8 +369,44 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
         conn.commit()
         print("rotate: empty alive pool, no-op (group untouched)")
         return 0
-    delay = next(d for n, _u, _q, d in pool if n == name)
-    api.select(args.group, name)
+    name = None
+    delay = None
+    attempts = 0
+    enforce_google = not getattr(args, "no_google_check", False)
+    google_url = getattr(args, "google_url", DEFAULT_GOOGLE_URL)
+    google_timeout = getattr(args, "google_timeout_ms", 8000)
+    google_proxy = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
+    max_attempts = max(1, getattr(args, "google_attempts", 5))
+    if enforce_google and not google_reachable_direct(google_url):
+        print("rotate: google unreachable directly, skipping google gate")
+        enforce_google = False
+    selected_by_probe = False
+    for candidate in ordered:
+        if enforce_google and attempts < max_attempts:
+            attempts += 1
+            if google_clean(
+                api, args.group, candidate[0], google_url, google_timeout, google_proxy
+            ):
+                name, delay = candidate[0], candidate[3]
+                selected_by_probe = True
+                break
+            _mark_failed(
+                conn,
+                candidate[0],
+                getattr(args, "max_fails", 3),
+                now,
+                "google",
+            )
+            continue
+        name, delay = candidate[0], candidate[3]
+        break
+    if name is None:
+        # Every checked candidate answered 302 /sorry: fail open to the best
+        # one so the client keeps working instead of going dark.
+        name, delay = ordered[0][0], ordered[0][3]
+        print("rotate: all candidates google-blocked, failing open to %s" % name)
+    if not selected_by_probe:
+        api.select(args.group, name)
     if current and current != name:
         try:
             closed, failed = close_stale_connections(api, current)
@@ -321,10 +449,10 @@ def _mark_failed(
 ) -> None:
     """Mark one node failed and quarantine it for 24h (retest readmits after expiry).
 
-    The failure cause (quota/transport/region/manual) is recorded per cause
-    so rotation can prefer nodes with a clean record for crawl traffic and
-    provider-side counters stay separable (region = geo-blocked from the
-    provider's country check, unrelated to rate limiting).
+    The failure cause (quota/transport/region/google/manual) is recorded per
+    cause so rotation can prefer nodes with a clean record for crawl traffic
+    and provider-side counters stay separable (region = geo-blocked from the
+    provider's country check; google = Google Search answers /sorry).
     """
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
@@ -336,7 +464,8 @@ def _mark_failed(
             "quarantined_until = ?, last_fail_cause = ?, "
             "quota_fails = quota_fails + ?, "
             "transport_fails = transport_fails + ?, "
-            "region_fails = region_fails + ? WHERE name = ?",
+            "region_fails = region_fails + ?, "
+            "google_fails = google_fails + ? WHERE name = ?",
             (
                 max_fails,
                 now,
@@ -345,6 +474,7 @@ def _mark_failed(
                 1 if reason == "quota" else 0,
                 1 if reason == "transport" else 0,
                 1 if reason == "region" else 0,
+                1 if reason == "google" else 0,
                 name,
             ),
         )
@@ -487,6 +617,32 @@ def load_secret(secret_file: str) -> str:
     return ""
 
 
+def add_google_args(parser: argparse.ArgumentParser) -> None:
+    """Google-clean gate flags shared by rotate/skip/next."""
+    parser.add_argument(
+        "--google-url",
+        default=DEFAULT_GOOGLE_URL,
+        help="URL that must answer 200; flagged exits answer 302 /sorry",
+    )
+    parser.add_argument("--google-timeout-ms", type=int, default=8000)
+    parser.add_argument(
+        "--google-proxy",
+        default=DEFAULT_PROXY_URL,
+        help="mihomo mixed-port used to read Google through the live selector",
+    )
+    parser.add_argument(
+        "--google-attempts",
+        type=int,
+        default=5,
+        help="max candidates to reject for /sorry before failing open",
+    )
+    parser.add_argument(
+        "--no-google-check",
+        action="store_true",
+        help="disable the Google-clean gate for this run",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--controller", default="http://127.0.0.1:9090")
@@ -497,6 +653,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     rot = sub.add_parser("rotate", help="select next alive node")
     rot.add_argument("--stale-after", type=int, default=7200)
+    add_google_args(rot)
 
     ret = sub.add_parser("retest", help="check oldest batch of nodes")
     ret.add_argument("--batch", type=int, default=500)
@@ -513,20 +670,22 @@ def build_parser() -> argparse.ArgumentParser:
     skp.add_argument("--max-fails", type=int, default=3)
     skp.add_argument(
         "--reason",
-        choices=("quota", "transport", "region", "manual"),
+        choices=("quota", "transport", "region", "google", "manual"),
         default="manual",
         help="failure cause recorded for smart selection",
     )
+    add_google_args(skp)
 
     nxt = sub.add_parser("next", help="skip the current node and rotate now")
     nxt.add_argument("--stale-after", type=int, default=7200)
     nxt.add_argument("--max-fails", type=int, default=3)
     nxt.add_argument(
         "--reason",
-        choices=("quota", "transport", "region", "manual"),
+        choices=("quota", "transport", "region", "google", "manual"),
         default="manual",
         help="failure cause recorded for smart selection",
     )
+    add_google_args(nxt)
     return ap
 
 
@@ -544,6 +703,11 @@ def validate_args(args: argparse.Namespace) -> Optional[str]:
             return "--timeout-ms must be >= 500"
     if args.cmd in ("rotate", "skip", "next") and args.stale_after < 60:
         return "--stale-after must be >= 60"
+    if args.cmd in ("rotate", "skip", "next"):
+        if args.google_timeout_ms < 500:
+            return "--google-timeout-ms must be >= 500"
+        if args.google_attempts < 1:
+            return "--google-attempts must be >= 1"
     return None
 
 
