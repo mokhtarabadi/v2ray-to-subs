@@ -34,7 +34,13 @@ echo "[refresh] generating to $TMP ..."
 "$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host --allow-lan
 
 echo "[refresh] validating with mihomo -t ..."
-mihomo -t -f "$TMP"
+MIHOMO_BIN="$(command -v mihomo || true)"
+if [[ -z "$MIHOMO_BIN" && -x "$HOME/mihomo/mihomo" ]]; then MIHOMO_BIN="$HOME/mihomo/mihomo"; fi
+if [[ -z "$MIHOMO_BIN" ]]; then
+	echo "[refresh] ERROR: mihomo binary not found" >&2
+	exit 1
+fi
+"$MIHOMO_BIN" -t -f "$TMP"
 
 BAK="$CONF_DIR/config.yaml.refresh-$(date +%Y%m%d-%H%M%S).bak"
 cp "$LIVE" "$BAK"

@@ -23,8 +23,7 @@ REFRESH_AFTER_SEC=21600
 # that this dispatcher replaces. Without these the converter falls back to its
 # built-in default feed, which would silently swap the pool.
 SUB_URLS=(
-  "https://github.com/Au1rxx/free-vpn-subscriptions/raw/main/output/v2ray-base64.txt"
-  "https://radarhub.top/v2ray.txt"
+	"https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt"
 )
 
 echo "maintain: tick start"
@@ -32,27 +31,27 @@ echo "maintain: tick start"
 # A failing job must not abort the tick: retest and country both touch the
 # live selector, so one bad batch should never block the refresh check.
 if ! "$PY" "$BALANCER" retest --batch 500; then
-  echo "maintain: retest warned (continuing)"
+	echo "maintain: retest warned (continuing)"
 fi
 if ! "$PY" "$BALANCER" country --batch 20; then
-  echo "maintain: country warned (continuing)"
+	echo "maintain: country warned (continuing)"
 fi
 
 NEED_REFRESH=0
 if [[ ! -f "$LIVE" ]]; then
-  NEED_REFRESH=1
+	NEED_REFRESH=1
 else
-  AGE=$(( $(date +%s) - $(stat -c %Y "$LIVE") ))
-  if [[ "$AGE" -gt "$REFRESH_AFTER_SEC" ]]; then
-    NEED_REFRESH=1
-  fi
+	AGE=$(($(date +%s) - $(stat -c %Y "$LIVE")))
+	if [[ "$AGE" -gt "$REFRESH_AFTER_SEC" ]]; then
+		NEED_REFRESH=1
+	fi
 fi
 
 if [[ "$NEED_REFRESH" -eq 1 ]]; then
-  echo "maintain: refresh due, running refresh.sh"
-  bash "$REFRESH" "${SUB_URLS[@]}"
+	echo "maintain: refresh due, running refresh.sh"
+	bash "$REFRESH" "${SUB_URLS[@]}"
 else
-  echo "maintain: refresh skipped (live config fresh)"
+	echo "maintain: refresh skipped (live config fresh)"
 fi
 
 echo "maintain: tick done"
