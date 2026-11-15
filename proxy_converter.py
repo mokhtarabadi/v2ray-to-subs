@@ -145,9 +145,9 @@ DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Co
 # Shared bypass policy.
 #
 # Mirrors /home/mohammad/Desktop/mihomo usage (mihomo as TUN + Fake-IP +
-# DNS-hijack front-end): private/LAN always DIRECT, Iranian sites/IPs always
-# DIRECT, everything else goes through the subscription proxies. No xray
-# sidecar needed — mihomo/sing-box dial the nodes directly.
+# DNS-hijack front-end): private/LAN always DIRECT, everything else goes
+# through the subscription proxies. No xray sidecar needed —
+# mihomo/sing-box dial the nodes directly.
 # ---------------------------------------------------------------------------
 
 # Processes that must never be routed back into the tunnel (loop avoidance).
@@ -187,21 +187,6 @@ REALIP_SUFFIXES = [
     "+.pool.ntp.org",
     "detectportal.firefox.com",
     "connectivitycheck.gstatic.com",
-]
-
-# Trackers/ads rejected before anything else.
-ADS_REJECT_SUFFIXES = [
-    "doubleclick.net",
-    "googlesyndication.com",
-    "googleadservices.com",
-    "googletagmanager.com",
-    "googletagservices.com",
-    "tracking.pro",
-    "scorecardresearch.com",
-    "adnxs.com",
-    "adsrvr.org",
-    "advertising.com",
-    "amazon-adsystem.com",
 ]
 
 # mihomo client-fingerprint accepted values
@@ -1063,14 +1048,15 @@ class ConfigGenerator:
     def __init__(
         self,
         tun_enabled: bool = False,
-        allow_lan: bool = False,
+        allow_lan: bool = True,
         controller_secret: str = "",
     ) -> None:
         self.url_test_url = "https://www.gstatic.com/generate_204"
         self.url_test_interval = 300
         self.url_test_tolerance = 50
         self.subscription_title: Optional[str] = None
-        # TUN is opt-in (needs root/CAP_NET_ADMIN); loopback-only by default.
+        # TUN is opt-in (needs root/CAP_NET_ADMIN); LAN open by default
+        # (proxy-everything boundary: mixed port serves LAN clients).
         self.tun_enabled = tun_enabled
         self.allow_lan = allow_lan
         # Empty = no `secret` key emitted (backwards compatible default).
@@ -1466,11 +1452,11 @@ class ConfigGenerator:
         # NOTE: field-for-field aligned with /home/mohammad/Desktop/mihomo
         # config.yaml (verified mihomo v1.19.31 setup). Differences from it are
         # intentional: proxies/groups come from the subscription (no xray
-        # sidecar), and Iran/CN bypass rules are added.
+        # sidecar); no ads, geo, or Iran/CN bypass rules are emitted.
         config: Dict[str, Any] = {
             "mixed-port": 7890,
             "allow-lan": self.allow_lan,
-            # Loopback-only by default; "*" only when LAN access is opted in.
+            # "*" by default (proxy-everything boundary serves LAN clients).
             "bind-address": "*" if self.allow_lan else "127.0.0.1",
             "mode": "rule",
             "log-level": "info",
@@ -1508,7 +1494,7 @@ class ConfigGenerator:
                 # 1053 avoids systemd-resolved/dnsmasq port-53 conflict;
                 # with TUN enabled, dns-hijack (any:53) still intercepts all
                 # port-53 queries and forwards them here, so fake-ip keeps
-                # working. Loopback-only; LAN needs --allow-lan + TUN.
+                # working. DNS stays loopback; LAN clients use TUN for DNS.
                 "listen": "127.0.0.1:1053",
                 "ipv6": False,
                 "cache-algorithm": "arc",
@@ -1538,9 +1524,6 @@ class ConfigGenerator:
                         "+.youtube.com",
                         "+.twitter.com",
                     ],
-                },
-                "nameserver-policy": {
-                    "geosite:category-ads-all": "rcode://success",
                 },
             },
             "tun": {
@@ -1592,10 +1575,10 @@ class ConfigGenerator:
 
     @classmethod
     def _clash_rules(cls) -> List[str]:
-        # First match wins — foreign-server shape:
-        # 0) private/LAN, 1) ads, 2) known foreign services → PROXY, 3) MATCH.
-        # Process bypasses and Iran/China geo bypasses are intentionally gone:
-        # this runs outside both countries and has no local sidecar.
+        # First match wins — proxy-everything shape:
+        # 0) private/LAN DIRECT, 1) MATCH,PROXY for everything else.
+        # Ads REJECT, process bypasses and Iran/China geo bypasses are
+        # intentionally gone: no local sidecar, exit outside both countries.
         rules: List[str] = [
             # 0) LAN / private bypass (Desktop pattern)
             "DOMAIN-SUFFIX,lan,DIRECT",
@@ -1608,103 +1591,10 @@ class ConfigGenerator:
         ]
         rules += [f"IP-CIDR,{c},DIRECT,no-resolve" for c in PRIVATE_CIDRS]
         rules += [f"IP-CIDR6,{c},DIRECT,no-resolve" for c in PRIVATE_CIDRS_V6]
-        # 2) Ads / trackers
-        rules += [f"DOMAIN-SUFFIX,{d},REJECT" for d in ADS_REJECT_SUFFIXES]
-        rules.append("DOMAIN-KEYWORD,analytics,REJECT")
-        # 2) Foreign services → PROXY
-        rules += [
-            "DOMAIN-SUFFIX,google.com,PROXY",
-            "DOMAIN-SUFFIX,googleapis.com,PROXY",
-            "DOMAIN-SUFFIX,gstatic.com,PROXY",
-            "DOMAIN-SUFFIX,googleusercontent.com,PROXY",
-            "DOMAIN-SUFFIX,ggpht.com,PROXY",
-            "DOMAIN-SUFFIX,youtube.com,PROXY",
-            "DOMAIN-SUFFIX,youtu.be,PROXY",
-            "DOMAIN-SUFFIX,ytimg.com,PROXY",
-            "DOMAIN-SUFFIX,googlevideo.com,PROXY",
-            "DOMAIN-SUFFIX,facebook.com,PROXY",
-            "DOMAIN-SUFFIX,facebook.net,PROXY",
-            "DOMAIN-SUFFIX,fbcdn.net,PROXY",
-            "DOMAIN-SUFFIX,instagram.com,PROXY",
-            "DOMAIN-SUFFIX,whatsapp.com,PROXY",
-            "DOMAIN-SUFFIX,whatsapp.net,PROXY",
-            "DOMAIN-SUFFIX,thread.com,PROXY",
-            "DOMAIN-SUFFIX,twitter.com,PROXY",
-            "DOMAIN-SUFFIX,x.com,PROXY",
-            "DOMAIN-SUFFIX,t.co,PROXY",
-            "DOMAIN-SUFFIX,twimg.com,PROXY",
-            "DOMAIN-SUFFIX,telegram.org,PROXY",
-            "DOMAIN-SUFFIX,telegram.me,PROXY",
-            "DOMAIN-SUFFIX,t.me,PROXY",
-            "DOMAIN-SUFFIX,tdesktop.com,PROXY",
-            "DOMAIN-SUFFIX,telegra.ph,PROXY",
-            "DOMAIN-KEYWORD,t.me,PROXY",
-            "DOMAIN-SUFFIX,spotify.com,PROXY",
-            "DOMAIN-SUFFIX,scdn.co,PROXY",
-            "DOMAIN-SUFFIX,github.com,PROXY",
-            "DOMAIN-SUFFIX,githubusercontent.com,PROXY",
-            "DOMAIN-SUFFIX,github.io,PROXY",
-            "DOMAIN-SUFFIX,gitlab.com,PROXY",
-            "DOMAIN-SUFFIX,openai.com,PROXY",
-            "DOMAIN-SUFFIX,chatgpt.com,PROXY",
-            "DOMAIN-SUFFIX,oaiusercontent.com,PROXY",
-            "DOMAIN-SUFFIX,anthropic.com,PROXY",
-            "DOMAIN-SUFFIX,claude.ai,PROXY",
-            "DOMAIN-SUFFIX,gemini.google.com,PROXY",
-            "DOMAIN-SUFFIX,netflix.com,PROXY",
-            "DOMAIN-SUFFIX,nflxvideo.net,PROXY",
-            "DOMAIN-SUFFIX,nflximg.net,PROXY",
-            "DOMAIN-SUFFIX,nflxso.net,PROXY",
-            "DOMAIN-SUFFIX,twitch.tv,PROXY",
-            "DOMAIN-SUFFIX,ttvnw.net,PROXY",
-            "DOMAIN-SUFFIX,discord.com,PROXY",
-            "DOMAIN-SUFFIX,discordapp.com,PROXY",
-            "DOMAIN-SUFFIX,discord.gg,PROXY",
-            "DOMAIN-SUFFIX,discord.media,PROXY",
-            "DOMAIN-SUFFIX,reddit.com,PROXY",
-            "DOMAIN-SUFFIX,redd.it,PROXY",
-            "DOMAIN-SUFFIX,redditstatic.com,PROXY",
-            "DOMAIN-SUFFIX,redditmedia.com,PROXY",
-            "DOMAIN-SUFFIX,pinterest.com,PROXY",
-            "DOMAIN-SUFFIX,pinimg.com,PROXY",
-            "DOMAIN-SUFFIX,tiktok.com,PROXY",
-            "DOMAIN-SUFFIX,tiktokv.com,PROXY",
-            "DOMAIN-SUFFIX,tiktokcdn.com,PROXY",
-            "DOMAIN-SUFFIX,byteoversea.com,PROXY",
-            "DOMAIN-SUFFIX,medium.com,PROXY",
-            "DOMAIN-SUFFIX,wikipedia.org,PROXY",
-            "DOMAIN-SUFFIX,wikimedia.org,PROXY",
-            "DOMAIN-SUFFIX,wikiwand.com,PROXY",
-            "DOMAIN-SUFFIX,cloudflare.com,PROXY",
-            "DOMAIN-SUFFIX,workers.dev,PROXY",
-            "DOMAIN-SUFFIX,pages.dev,PROXY",
-            "DOMAIN-SUFFIX,reg.cloudflare.com,PROXY",
-            "DOMAIN-SUFFIX,v2ex.com,PROXY",
-            "DOMAIN-SUFFIX,duckduckgo.com,PROXY",
-            "DOMAIN-SUFFIX,bing.com,PROXY",
-            "DOMAIN-SUFFIX,microsoft.com,PROXY",
-            "DOMAIN-SUFFIX,office.com,PROXY",
-            "DOMAIN-SUFFIX,office365.com,PROXY",
-            "DOMAIN-SUFFIX,outlook.com,PROXY",
-            "DOMAIN-SUFFIX,msn.com,PROXY",
-            "DOMAIN-SUFFIX,dropbox.com,PROXY",
-            "DOMAIN-SUFFIX,icloud.com,PROXY",
-            "DOMAIN-SUFFIX,apple.com,PROXY",
-            "DOMAIN-SUFFIX,aaplimg.com,PROXY",
-            "DOMAIN-SUFFIX,amazon.com,PROXY",
-            "DOMAIN-SUFFIX,amazonaws.com,PROXY",
-            "DOMAIN-SUFFIX,steamcommunity.com,PROXY",
-            "DOMAIN-SUFFIX,steampowered.com,PROXY",
-            "DOMAIN-SUFFIX,store.steampowered.com,PROXY",
-            "DOMAIN-SUFFIX,signal.org,PROXY",
-            "DOMAIN-SUFFIX,whispersystems.org,PROXY",
-            "DOMAIN-SUFFIX,protonmail.com,PROXY",
-            "DOMAIN-SUFFIX,proton.me,PROXY",
-            "DOMAIN-SUFFIX,tailscale.com,PROXY",
-            "DOMAIN-SUFFIX,speedtest.net,PROXY",
-            "DOMAIN-SUFFIX,fast.com,PROXY",
-        ]
-        # 6) Final catch-all (Desktop pattern: everything else → PROXY)
+        # 1) Everything else → PROXY via the MATCH,PROXY catch-all below
+        # (ads REJECT and the foreign-service pin list were removed:
+        # proxy-everything boundary, LAN/private DIRECT only).
+        # 2) Final catch-all (everything else → PROXY)
         rules.append("MATCH,PROXY")
         return rules
 
@@ -2011,10 +1901,10 @@ class ConfigGenerator:
             )
 
         final = "auto" if proxy_tags else "direct"
-        # Mirrors the mihomo rule order: private → ads reject → final.
-        # Process matchers and Iran/China suffixes are gone: this runs on a
-        # foreign server with no local sidecar, and sing-box `geoip` is
-        # deprecated in favour of rule-sets anyway.
+        # Mirrors the mihomo rule order: private → final (proxy-everything).
+        # Process matchers, ads reject and Iran/China suffixes are gone:
+        # this runs on a foreign server with no local sidecar, and sing-box
+        # `geoip` is deprecated in favour of rule-sets anyway.
         rules: List[Dict[str, Any]] = [
             {"action": "sniff"},
             {"protocol": "dns", "action": "hijack-dns"},
@@ -2023,14 +1913,10 @@ class ConfigGenerator:
                 "outbound": "direct",
                 "ip_is_private": True,
             },
-            {
-                "action": "reject",
-                "domain_suffix": [d.lstrip("+") for d in ADS_REJECT_SUFFIXES],
-            },
         ]
 
         # Fake-IP by default (like mihomo enhanced-mode: fake-ip): hijacked
-        # DNS gets fake IPs via the query_type rule; LAN/NTP/Iran/CN get
+        # DNS gets fake IPs via the query_type rule; LAN/NTP/probes get
         # real IPs from dns-direct. `final` must be a real resolver —
         # sing-box forbids fakeip as the default server.
         realip_suffixes = [
@@ -2153,7 +2039,7 @@ def run(
     singbox_out: str = "singbox_config.json",
     outputs: str = "both",
     tun_enabled: bool = False,
-    allow_lan: bool = False,
+    allow_lan: bool = True,
     controller_secret: str = "",
     unique_host: bool = False,
 ) -> int:
@@ -2292,7 +2178,8 @@ def main() -> None:
     ap.add_argument(
         "--allow-lan",
         action="store_true",
-        help="Allow LAN connections and bind to all interfaces (loopback-only by default)",
+        default=True,
+        help="Allow LAN connections and bind to all interfaces (on by default)",
     )
     ap.add_argument(
         "--controller-secret",

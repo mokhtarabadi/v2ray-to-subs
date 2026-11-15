@@ -20,18 +20,18 @@ export MIHOMO_CONTROLLER_SECRET="$(cat "$CONF_DIR/.controller_secret")"
 # Lets the systemd unit pin one or several subs without editing code.
 URLS=()
 if [[ $# -gt 0 ]]; then
-  URLS=("$@")
+	URLS=("$@")
 elif [ -n "${SUB_URL:-}" ]; then
-  URLS=("$SUB_URL")
+	URLS=("$SUB_URL")
 fi
 if [[ ${#URLS[@]} -gt 0 ]]; then
-  echo "[refresh] sources: ${URLS[*]}"
+	echo "[refresh] sources: ${URLS[*]}"
 else
-  echo "[refresh] source: converter default"
+	echo "[refresh] source: converter default"
 fi
 
 echo "[refresh] generating to $TMP ..."
-"$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host
+"$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host --allow-lan
 
 echo "[refresh] validating with mihomo -t ..."
 mihomo -t -f "$TMP"
@@ -40,16 +40,16 @@ BAK="$CONF_DIR/config.yaml.refresh-$(date +%Y%m%d-%H%M%S).bak"
 cp "$LIVE" "$BAK"
 echo "[refresh] backup: $BAK"
 
-cat "$TMP" > "$LIVE"
+cat "$TMP" >"$LIVE"
 chmod 600 "$LIVE"
 echo "[refresh] installed fresh config -> $LIVE"
 
 if systemctl --user is-active --quiet mihomo-subs.service; then
-  echo "[refresh] restarting mihomo-subs.service ..."
-  systemctl --user restart mihomo-subs.service
+	echo "[refresh] restarting mihomo-subs.service ..."
+	systemctl --user restart mihomo-subs.service
 else
-  echo "[refresh] starting mihomo-subs.service ..."
-  systemctl --user start mihomo-subs.service
+	echo "[refresh] starting mihomo-subs.service ..."
+	systemctl --user start mihomo-subs.service
 fi
 
 # keep only last 5 backups

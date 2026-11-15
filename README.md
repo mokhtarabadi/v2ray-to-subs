@@ -12,9 +12,10 @@ A comprehensive Python tool that downloads V2Ray subscription links, parses vari
 > cp clash_config.yaml ~/Desktop/mihomo/config.yaml
 > cd ~/Desktop/mihomo && ./manager.sh check && sudo ./manager.sh restart
 > ```
-> Routing policy: private/LAN → `DIRECT`, ads → `REJECT`, everything else →
-> subscription proxies (`MATCH,PROXY`). No process bypass and no Iran/CN geo
-> rules: this config targets a foreign server with no local sidecar.
+> Routing policy: private/LAN → `DIRECT`, everything else →
+> subscription proxies (`MATCH,PROXY`). No ads rules, no process bypass and
+> no Iran/CN geo rules: this config targets a foreign server with no local
+> sidecar.
 >
 > **Dashboard:** the generated config serves the official MetaCubeX dashboard
 > at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
@@ -134,8 +135,8 @@ sing-box check -c singbox_config.json
   subnets in `route_exclude_address` (loop-free system-wide proxy)
 - **DNS**: FakeIP by default (`198.18.0.0/15`) with real-IP exceptions for
   LAN/NTP; hijacked port-53 handled via `hijack-dns`
-- **Routing**: sniff → hijack-dns → `ip_is_private` → ads reject →
-  `final: auto` (urltest)
+- **Routing**: sniff → hijack-dns → `ip_is_private` →
+  `final: auto` (urltest, proxy-everything)
 - **URL Test Outbound**: Automatic proxy selection based on latency
 - **Auto Interface Detection**: Prevents routing loops
 
@@ -151,9 +152,9 @@ sing-box check -c singbox_config.json
   - `Auto`: url-test, automatic selection based on latency
   - `Load Balance`: Consistent-hashing load balancing with 60s active checks
   - `Fallback`: Failover group
-- **Rules** (first match wins): private/LAN → ads REJECT → foreign services →
-  `MATCH,PROXY`. No process rules and no Iran/CN geo rules: the host is a
-  foreign server with no local xray sidecar to bypass.
+- **Rules** (first match wins): private/LAN → `DIRECT`, everything else →
+  `MATCH,PROXY`. No ads rules, no process rules and no Iran/CN geo rules:
+  the host is a foreign server with no local xray sidecar to bypass.
 
 ### Load Balancing and URL Testing
 
@@ -252,22 +253,25 @@ then open the dashboard at <http://127.0.0.1:9090/ui>.
 
 ### Clash Structure
 ```yaml
-mixed-port: 10801
+mixed-port: 7890
 allow-lan: true
 mode: rule
 proxies:
-  - name: proxy-0
-    type: vmess
+  - name: vless-abc123def456
+    type: vless
 proxy-groups:
-  - name: URL-Test
-    type: url-test
-  - name: Load-Balance
-    type: load-balance
-  - name: Proxy
+  - name: PROXY
     type: select
+  - name: Auto
+    type: url-test
+  - name: Load Balance
+    type: load-balance
+    strategy: consistent-hashing
+  - name: Fallback
+    type: fallback
 rules:
-  - DOMAIN-SUFFIX,google.com,Proxy
-  - MATCH,Proxy
+  - GEOIP,private,DIRECT,no-resolve
+  - MATCH,PROXY
 ```
 
 ## Advanced Features
