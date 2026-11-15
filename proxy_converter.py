@@ -1528,8 +1528,9 @@ class ConfigGenerator:
             "tun": {
                 # Opt-in via --tun (needs root/CAP_NET_ADMIN).
                 "enable": self.tun_enabled,
-                # mixed: TCP via system stack, UDP via gvisor (recommended).
-                "stack": "mixed",
+                # gvisor: fully userspace stack (no kernel interplay needed,
+                # works rootless once the device exists).
+                "stack": "gvisor",
                 "device": "mihomo",
                 "auto-route": True,
                 # Linux iptables/nftables auto redirect; keep false on a
@@ -1886,8 +1887,8 @@ class ConfigGenerator:
                     "interface_name": "mihomo",
                     # Outside the fake-ip pool (198.18.0.0/15) to avoid overlap.
                     "address": ["172.19.0.1/30"],
-                    # mixed: TCP via system stack, UDP via gvisor (recommended).
-                    "stack": "mixed",
+                    # gvisor: fully userspace stack (no kernel interplay needed).
+                    "stack": "gvisor",
                     "mtu": 9000,
                     "auto_route": True,
                     "strict_route": True,
