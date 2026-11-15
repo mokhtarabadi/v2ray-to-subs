@@ -1,9 +1,10 @@
 # Task 02: Balance across all proxies with consistent-hashing
 
-**File:** `tasks/qa/02-balance-consistent-hashing.md`
+**File:** `tasks/completed/02-balance-consistent-hashing.md`
 **Source:** manager
 **Type:** improvement
-**Status:** open
+**Status:** closed
+**Finished:** 2026-11-15T08:23:38Z
 
 ## Goal
 
@@ -56,23 +57,11 @@ Manager reported ~5000 active proxies but only the top ones used by the balance 
 - Fix round (QA_REJECTED auditability): generator change is committed as bb5cb93, so the Factual Git Diff stays empty with no uncommitted production delta; audit trail is the commit hash plus fresh generator output. Q1 health-check target is https://www.gstatic.com/generate_204 with expected-status 204, tolerance inherited from url-test defaults, max-failed-times 3. Q2 generated config resolved to /tmp/qa02-fresh.yaml (live subs dir and service are absent in this environment, so refresh.sh and the service check could not run here and were not faked). Q3 spread is not directly measured: consistent-hashing plus active checks is the mechanism, live spread measurement stays a follow-up. Empty feed exits 1 without writing config (both single and merged paths); all-unhealthy behavior is mihomo-side after 3 failed checks. README Load Balance line synced from round-robin to consistent-hashing.
 - Fix round 2 (REJECTED_NEEDS_FIXES dispositions): F1 audited via the bb5cb93 hunk quoted in the supplement, no production edits made. F2/F3 answered by the emitted block (gstatic generate_204, expected-status 204, max-failed-times 3, about 70 probes per second). F4 grounded by the re-run mihomo -t pass and py_compile exit 0. F5 closed: CHANGELOG entry verified present, README synced, root DECISIONS.md absent so no ADR. F6 disputed with evidence: the pre-closure commit is by design, since the Manager's Notes record this as a retroactive quick fix with no Kanban tracking during implementation; rewriting history to re-route the hunk through staging would destroy the audit trail the reviewer asks for, so the hunk is surfaced by reference instead.
 - Reviewer verdict: APPROVED with PO_REVIEW_PENDING. File stays in tasks/qa/ pending the explicit closure word.
+- Manager closure approval (verbatim): "Approved for closure". Preconditions verified: file present in tasks/qa/ and PO_REVIEW_PENDING recorded in this log.
+- Closure 2026-11-15: micro-steps tracked in the session todo list rather than file boxes (same practice as the accepted QA fix rounds). No behavior change in this close; CHANGELOG entry stands without duplication.
 
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
-```diff
-diff --git a/README.md b/README.md
-index 1c285f1..90bca5e 100644
---- a/README.md
-+++ b/README.md
-@@ -149,7 +149,7 @@ sing-box check -c singbox_config.json
- - **Proxy Groups**:
-   - `PROXY`: Manual selection group
-   - `Auto`: url-test, automatic selection based on latency
--  - `Load Balance`: Round-robin load balancing
-+  - `Load Balance`: Consistent-hashing load balancing with 60s active checks
-   - `Fallback`: Failover group
- - **Rules** (first match wins): private/LAN → ads REJECT → foreign services →
-   `MATCH,PROXY`. No process rules and no Iran/CN geo rules: the host is a
-```
+**Factual Git Diff:** Stored in Commit Hash: `d745abbc5072af1c6319ae5e5f865f59d6ff75f3`
 <!-- END_GIT_DIFF -->
