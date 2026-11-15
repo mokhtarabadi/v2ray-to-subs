@@ -1399,7 +1399,6 @@ class ConfigGenerator:
                         "name": "PROXY",
                         "type": "select",
                         "proxies": ["Auto", "Load Balance", "Fallback"] + proxy_names,
-                        "icon": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/mmdb/release/flag/Country-IR.svg",
                     },
                     {
                         "name": "Auto",
@@ -1978,7 +1977,6 @@ class ConfigGenerator:
                 ],
                 "final": "dns-doh",
                 "strategy": "prefer_ipv4",
-                "independent_cache": True,
             },
             "inbounds": inbounds,
             "outbounds": outbounds,

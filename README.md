@@ -77,6 +77,9 @@ pip install -r requirements.txt
 python proxy_converter.py
 ```
 
+> Bringing up the live stack (units, secret, first config, panel) on a new
+> host: follow [`docs/fresh-install.md`](docs/fresh-install.md).
+
 ## Usage
 
 ### Basic Usage
