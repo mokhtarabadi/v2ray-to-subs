@@ -37,14 +37,22 @@ The feed list the old refresh drop-in used is embedded in the script.
   counts, so the decision to enable a country lock is data-driven.
 - **Selection**: `rotate` picks the lowest `(uses, delay_ms)` row among alive,
   fresh, non-quarantined nodes and selects it in the `PROXY` group.
-- **Failure causes**: `skip` / `next --reason google|country|manual`
-  quarantines the node for 24 h. `google` also increments `google_fails`.
-- **Google-clean gate**: `rotate` reads `https://www.google.com/search?q=test`
-  through the live mixed-port with redirects disabled. A 302 to `/sorry`
-  means the exit IP is anti-abuse flagged, so the candidate is quarantined
-  with cause `google` and the next candidate is tried. `--no-google-check`
-  restores the pre-gate behavior; the gate is skipped when Google is
-  unreachable directly (infrastructure guard).
+- **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual`
+  quarantines the node for 24 h. Each probe cause increments its own
+  counter (`google_fails`, `youtube_fails`, `spotify_fails`, `gemini_fails`).
+- **Multi-service clean gate**: `rotate` probes each candidate through the
+  live mixed-port with redirects disabled, all-must-pass in order Google
+  (`search?q=test`: 200 clean, 302 `/sorry` flagged) → YouTube backend
+  (`oembed`: 200 clean, 403 flagged; landing pages are 200-weak and unused)
+  → Spotify API (401 JSON clean = edge reached auth, 403 HTML flagged =
+  edge IP block) → Gemini spare (200 clean, 403 flagged). The first
+  flagged service quarantines with its cause and the next candidate is
+  tried; an inconclusive new-probe measurement keeps the candidate
+  without quarantine. Per-service `--no-*-check` flags restore fewer
+  gates; the battery is skipped when Google is unreachable directly
+  (infrastructure guard). One shared attempt budget (max of the four
+  `--*-attempts`, default 5) bounds the run; an all-dirty pool fails
+  open to the best candidate.
 - **Country lock**: `--require-country CC` (on `rotate`, `skip`, `next`) keeps
   rotation inside one observed country. Candidates with no measurement never
   match, and when nothing matches the current node is kept instead of falling
@@ -65,7 +73,11 @@ The feed list the old refresh drop-in used is embedded in the script.
 
 ## Risks
 
-- The Google gate selects a candidate in order to probe it, so a rejected
-  node carries traffic for roughly `GOOGLE_SETTLE_SECONDS` before the next
-  candidate is tried. Bounded by `--google-attempts`.
+- The probe gates select a candidate in order to probe it, so a rejected
+  node carries traffic for roughly `GOOGLE_SETTLE_SECONDS` per probe
+  before the next candidate is tried. Bounded by the shared attempt
+  budget (max of the four `--*-attempts`, default 5).
+- A stricter battery can reject the whole pool where every exit is
+  flagged for at least one service; fail-open then serves the least-bad
+  candidate instead of going dark.
 - `data/balancer_state.db` is runtime state. Losing it only loses history.

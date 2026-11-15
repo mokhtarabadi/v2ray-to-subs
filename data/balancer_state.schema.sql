@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS nodes (
   quarantined_until INTEGER NOT NULL DEFAULT 0,
   last_fail_cause TEXT NOT NULL DEFAULT '',
   google_fails INTEGER NOT NULL DEFAULT 0,
+  youtube_fails INTEGER NOT NULL DEFAULT 0,
+  spotify_fails INTEGER NOT NULL DEFAULT 0,
+  gemini_fails INTEGER NOT NULL DEFAULT 0,
   country TEXT NOT NULL DEFAULT '',
   country_checked INTEGER NOT NULL DEFAULT 0
 );

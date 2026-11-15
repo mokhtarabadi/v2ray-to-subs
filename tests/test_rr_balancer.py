@@ -9,6 +9,8 @@ import tempfile
 import time
 import unittest
 import unittest.mock
+import urllib.error
+import urllib.request
 
 sys.path.insert(
     0,
@@ -89,12 +91,24 @@ class Args:
                 max_fails=3,
                 test_url="https://www.gstatic.com/generate_204",
                 timeout_ms=3000,
-                # Keep unit tests network-free; the google-gate test opts in
-                # and patches the direct reachability probe.
+                # Keep unit tests network-free; gate tests opt in and patch
+                # all probes. Production CLI defaults are gates-on.
                 no_google_check=True,
+                no_youtube_check=True,
+                no_spotify_check=True,
+                no_gemini_check=True,
                 google_url=rr_balancer.DEFAULT_GOOGLE_URL,
                 google_timeout_ms=8000,
                 google_attempts=5,
+                youtube_url=rr_balancer.DEFAULT_YOUTUBE_URL,
+                youtube_timeout_ms=8000,
+                youtube_attempts=5,
+                spotify_url=rr_balancer.DEFAULT_SPOTIFY_URL,
+                spotify_timeout_ms=8000,
+                spotify_attempts=5,
+                gemini_url=rr_balancer.DEFAULT_GEMINI_URL,
+                gemini_timeout_ms=8000,
+                gemini_attempts=5,
                 # Country fields default to the lock being off.
                 require_country=None,
                 trace_url=rr_balancer.DEFAULT_TRACE_URL,
@@ -166,6 +180,296 @@ class RotateTest(unittest.TestCase):
         ):
             self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
         self.assertEqual(api.selected[-1], ("PROXY", "a"))
+
+    def test_rotate_rejects_youtube_flagged(self):
+        conn, path = make_db()
+        now = int(time.time())
+        # "blocked" passes Google but answers 403 on the YouTube backend.
+        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+        api = FakeAPI({"blocked": 50, "clean": 200})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "youtube.com" in url and api.selected[-1][1] == "blocked":
+                return 403
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause, youtube_fails, google_fails FROM nodes "
+            "WHERE name='blocked'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "youtube", 1, 0))
+
+    def test_rotate_rejects_spotify_flagged(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+        api = FakeAPI({"blocked": 50, "clean": 200})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_spotify(url, proxy, timeout):
+            return api.selected[-1][1] != "blocked"
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", return_value=200
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", side_effect=fake_spotify
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause, spotify_fails FROM nodes "
+            "WHERE name='blocked'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "spotify", 1))
+
+    def test_rotate_youtube_unknown_keeps_without_quarantine(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "lonely", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"lonely": 50})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "youtube.com" in url:
+                return None
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "lonely"))
+        row = conn.execute(
+            "SELECT status, youtube_fails FROM nodes WHERE name='lonely'"
+        ).fetchone()
+        self.assertEqual(row, ("alive", 0))
+
+    def test_rotate_rejects_gemini_flagged(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+        api = FakeAPI({"blocked": 50, "clean": 200})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "gemini.google.com" in url and api.selected[-1][1] == "blocked":
+                return 403
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause, gemini_fails FROM nodes "
+            "WHERE name='blocked'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "gemini", 1))
+
+    def test_rotate_gemini_unknown_keeps(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "lonely", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"lonely": 50})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "gemini.google.com" in url:
+                return 429
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "lonely"))
+        row = conn.execute(
+            "SELECT status, gemini_fails FROM nodes WHERE name='lonely'"
+        ).fetchone()
+        self.assertEqual(row, ("alive", 0))
+
+    def test_rotate_all_dirty_fail_open_youtube(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "b", "alive", delay=60, uses=0, last_check=now)
+        api = FakeAPI({"a": 50, "b": 60})
+        args = Args(
+            db=path,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "youtube.com" in url:
+                return 403
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        # Both quarantined with youtube, fail-open keeps the best first.
+        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+        rows = conn.execute(
+            "SELECT name, status, last_fail_cause FROM nodes ORDER BY name"
+        ).fetchall()
+        self.assertEqual(rows, [("a", "failed", "youtube"), ("b", "failed", "youtube")])
+
+    def test_rotate_unknown_probe_keeps_without_quarantine(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "flaky", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"flaky": 50})
+        args = Args(db=path, no_google_check=False)
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", return_value=None
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=None
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        # Google is legacy-strict (None counts as flagged); a single-node
+        # pool then fail-opens to it, quarantined as google like before.
+        self.assertEqual(api.selected[-1], ("PROXY", "flaky"))
+
+    def test_spotify_shape_clean_flagged_unknown(self):
+        opener_status = {}
+
+        class FakeResp:
+            def __init__(self, status, body):
+                self.status = status
+                self._body = body
+
+            def read(self, n=-1):
+                return self._body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeOpener:
+            def open(self, req, timeout=None):
+                status, body = opener_status["next"]
+                if status >= 400:
+                    err = urllib.error.HTTPError(req.full_url, status, "x", {}, None)
+                    err.read = lambda n=-1: body
+                    raise err
+                return FakeResp(status, body)
+
+        with unittest.mock.patch.object(
+            urllib.request, "build_opener", return_value=FakeOpener()
+        ):
+            url = "https://api.spotify.example/v1/search?q=test&type=track"
+            opener_status["next"] = (401, b'{"error":{"status":401}}')
+            self.assertTrue(rr_balancer.probe_spotify_clean(url, "p", 1))
+            opener_status["next"] = (403, b"<html>Forbidden</html>")
+            self.assertFalse(rr_balancer.probe_spotify_clean(url, "p", 1))
+            opener_status["next"] = (429, b"rate limited")
+            self.assertIsNone(rr_balancer.probe_spotify_clean(url, "p", 1))
 
     def test_second_rotate_moves_on(self):
         conn, path = make_db()

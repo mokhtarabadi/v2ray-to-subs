@@ -46,6 +46,22 @@ DEFAULT_GOOGLE_URL = "https://www.google.com/search?q=test"
 DEFAULT_PROXY_URL = "http://127.0.0.1:7890"
 GOOGLE_SETTLE_SECONDS = 0.3
 
+# YouTube backend is the app-relevant discriminator: flagged exits answer
+# 403 on oEmbed metadata while youtube.com/ and music.youtube.com/ still
+# answer 200, so landing pages cannot be used. Clean exits answer 200 JSON.
+DEFAULT_YOUTUBE_URL = (
+    "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+)
+
+# Spotify API edge block is an HTML 403 before auth evaluation; a clean
+# exit reaches auth evaluation and answers 401 JSON ("no token"). So the
+# probe classifies by status AND body shape, not status alone.
+DEFAULT_SPOTIFY_URL = "https://api.spotify.com/v1/search?q=test&type=track"
+
+# Gemini is the strict spare: Google's datacenter-IP detection 403s exits
+# that pass Search, so a Gemini-clean exit is clean everywhere measured.
+DEFAULT_GEMINI_URL = "https://gemini.google.com/"
+
 # Cloudflare's trace endpoint reports the country Cloudflare sees for the
 # connection ("loc=XX"). Read through a candidate exit it is the observed
 # country of that exit, which is what a geo-locked client actually gets --
@@ -216,6 +232,9 @@ def connect_db(db_path: str) -> sqlite3.Connection:
             "quarantined_until INTEGER NOT NULL DEFAULT 0",
             "last_fail_cause TEXT NOT NULL DEFAULT ''",
             "google_fails INTEGER NOT NULL DEFAULT 0",
+            "youtube_fails INTEGER NOT NULL DEFAULT 0",
+            "spotify_fails INTEGER NOT NULL DEFAULT 0",
+            "gemini_fails INTEGER NOT NULL DEFAULT 0",
             "country TEXT NOT NULL DEFAULT ''",
             "country_checked INTEGER NOT NULL DEFAULT 0",
         ):
@@ -331,6 +350,176 @@ def google_clean(
     if GOOGLE_SETTLE_SECONDS:
         time.sleep(GOOGLE_SETTLE_SECONDS)
     return probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0) == 200
+
+
+def youtube_clean(
+    api: ClashAPI,
+    group: str,
+    name: str,
+    url: str,
+    timeout_ms: int,
+    proxy_url: str = DEFAULT_PROXY_URL,
+) -> Optional[bool]:
+    """Same select-settle shape as google_clean, tri-state YouTube verdict.
+
+    200 is clean, 403 is flagged, anything else (transport error,
+    rate-limit, removed video) is unknown and never a verdict.
+    """
+    api.select(group, name)
+    if GOOGLE_SETTLE_SECONDS:
+        time.sleep(GOOGLE_SETTLE_SECONDS)
+    status = probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0)
+    if status is None:
+        return None
+    if status == 200:
+        return True
+    if status == 403:
+        return False
+    return None
+
+
+def gemini_clean(
+    api: ClashAPI,
+    group: str,
+    name: str,
+    url: str,
+    timeout_ms: int,
+    proxy_url: str = DEFAULT_PROXY_URL,
+) -> Optional[bool]:
+    """Same select-settle shape as google_clean, tri-state Gemini verdict.
+
+    200 is clean, 403 is flagged, anything else is unknown and never
+    a verdict.
+    """
+    api.select(group, name)
+    if GOOGLE_SETTLE_SECONDS:
+        time.sleep(GOOGLE_SETTLE_SECONDS)
+    status = probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0)
+    if status is None:
+        return None
+    if status == 200:
+        return True
+    if status == 403:
+        return False
+    return None
+
+
+def probe_spotify_clean(url: str, proxy_url: str, timeout_s: float) -> Optional[bool]:
+    """Classify a Spotify API read: True clean, False flagged, None unknown.
+
+    The edge answers 401 JSON once the request reaches auth evaluation
+    (documented no-token behavior) and 403 HTML when the exit IP is
+    blocked before auth. Anything else (rate-limit, transport error) is
+    unknown, and unknown is never a verdict.
+    """
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+        _NoRedirect,
+    )
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+    )
+    try:
+        with opener.open(req, timeout=timeout_s) as resp:
+            status, body = resp.status, resp.read(512)
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        try:
+            body = exc.read(512)
+        except Exception:
+            body = b""
+    except Exception:
+        return None
+    if status == 401 and b'"error"' in body:
+        return True
+    if status == 403:
+        return False
+    return None
+
+
+def spotify_clean(
+    api: ClashAPI,
+    group: str,
+    name: str,
+    url: str,
+    timeout_ms: int,
+    proxy_url: str = DEFAULT_PROXY_URL,
+) -> Optional[bool]:
+    """Select, settle, then classify the Spotify API shape (None = unknown)."""
+    api.select(group, name)
+    if GOOGLE_SETTLE_SECONDS:
+        time.sleep(GOOGLE_SETTLE_SECONDS)
+    return probe_spotify_clean(url, proxy_url, timeout_ms / 1000.0)
+
+
+def multi_gate_cause(
+    api: ClashAPI, group: str, name: str, args: argparse.Namespace
+) -> Optional[str]:
+    """First-flagged cause across the probe battery, or None when clean.
+
+    Order is Google, YouTube, Spotify, Gemini(spare): cheapest and most
+    discriminating first. "unknown" means a new-probe measurement failed
+    (transport or unexpected shape) and must not quarantine anyone;
+    legacy Google keeps its strict None-is-flagged shape. No gate
+    enabled returns None.
+    """
+    battery = []
+    if not getattr(args, "no_google_check", False):
+        battery.append(
+            (
+                "google",
+                getattr(args, "google_url", DEFAULT_GOOGLE_URL),
+                getattr(args, "google_timeout_ms", 8000),
+            )
+        )
+    if not getattr(args, "no_youtube_check", False):
+        battery.append(
+            (
+                "youtube",
+                getattr(args, "youtube_url", DEFAULT_YOUTUBE_URL),
+                getattr(args, "youtube_timeout_ms", 8000),
+            )
+        )
+    if not getattr(args, "no_spotify_check", False):
+        battery.append(
+            (
+                "spotify",
+                getattr(args, "spotify_url", DEFAULT_SPOTIFY_URL),
+                getattr(args, "spotify_timeout_ms", 8000),
+            )
+        )
+    if not getattr(args, "no_gemini_check", False):
+        battery.append(
+            (
+                "gemini",
+                getattr(args, "gemini_url", DEFAULT_GEMINI_URL),
+                getattr(args, "gemini_timeout_ms", 8000),
+            )
+        )
+    if not battery:
+        return None
+    # All probes share the live mixed-port; google_proxy names that port.
+    proxy_url = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
+    for cause, url, timeout_ms in battery:
+        if cause == "spotify":
+            verdict = spotify_clean(api, group, name, url, timeout_ms, proxy_url)
+            if verdict is True:
+                continue
+            return "unknown" if verdict is None else cause
+        if cause == "youtube":
+            passed = youtube_clean(api, group, name, url, timeout_ms, proxy_url)
+        elif cause == "gemini":
+            passed = gemini_clean(api, group, name, url, timeout_ms, proxy_url)
+        else:
+            passed = google_clean(api, group, name, url, timeout_ms, proxy_url)
+        if cause == "google":
+            if not passed:
+                return cause
+        elif passed is None:
+            return "unknown"
+        elif not passed:
+            return cause
+    return None
 
 
 def probe_status_via_proxy(url: str, proxy_url: str, timeout_s: float) -> Optional[int]:
@@ -453,21 +642,33 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
             )
             return 0
         ordered = locked
-    enforce_google = not getattr(args, "no_google_check", False)
+    gates_on = [
+        svc
+        for svc in ("google", "youtube", "spotify", "gemini")
+        if not getattr(args, "no_%s_check" % svc, False)
+    ]
     google_url = getattr(args, "google_url", DEFAULT_GOOGLE_URL)
-    google_timeout = getattr(args, "google_timeout_ms", 8000)
-    google_proxy = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
-    max_attempts = max(1, getattr(args, "google_attempts", 5))
-    if enforce_google and not google_reachable_direct(google_url):
-        print("rotate: google unreachable directly, skipping google gate")
-        enforce_google = False
+    max_attempts = max(
+        1,
+        max(
+            getattr(args, "%s_attempts" % svc, 5)
+            for svc in ("google", "youtube", "spotify", "gemini")
+        ),
+    )
+    if gates_on and not google_reachable_direct(google_url):
+        print("rotate: google unreachable directly, skipping probe gates")
+        gates_on = []
     selected_by_probe = False
     for candidate in ordered:
-        if enforce_google and attempts < max_attempts:
+        if gates_on and attempts < max_attempts:
             attempts += 1
-            if google_clean(
-                api, args.group, candidate[0], google_url, google_timeout, google_proxy
-            ):
+            cause = multi_gate_cause(api, args.group, candidate[0], args)
+            if cause is None or cause == "unknown":
+                if cause == "unknown":
+                    print(
+                        "rotate: probe inconclusive for %s, keeping without quarantine"
+                        % candidate[0]
+                    )
                 name, delay = candidate[0], candidate[2]
                 selected_by_probe = True
                 break
@@ -476,7 +677,7 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
                 candidate[0],
                 getattr(args, "max_fails", 3),
                 now,
-                "google",
+                cause,
             )
             continue
         name, delay = candidate[0], candidate[2]
@@ -486,7 +687,7 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
         # one so the client keeps working instead of going dark. When a
         # country lock is active, this stays inside the locked subset.
         name, delay = ordered[0][0], ordered[0][2]
-        print("rotate: all candidates google-blocked, failing open to %s" % name)
+        print("rotate: all candidates gate-blocked, failing open to %s" % name)
     if not selected_by_probe:
         api.select(args.group, name)
     if current and current != name:
@@ -532,10 +733,12 @@ def _mark_failed(
     """Mark one node failed and quarantine it for 24h (retest readmits after expiry).
 
     Causes are the ones this balancer actually acts on: google (Search
-    answers /sorry), country (exit does not match the required country),
-    and manual (an operator skipped it). Only google increments its
-    counter; the retired quota/transport/region causes belonged to the
-    rate-limit-rescue plugin and were removed with their columns.
+    answers /sorry), youtube (oEmbed answers 403), spotify (API edge
+    answers HTML 403), gemini (app answers 403), country (exit does not
+    match the required country), and manual (an operator skipped it).
+    Each probe cause increments its own counter; the retired
+    quota/transport/region causes belonged to the rate-limit-rescue
+    plugin and were removed with their columns.
     """
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
@@ -545,13 +748,19 @@ def _mark_failed(
         cur.execute(
             "UPDATE nodes SET status = 'failed', fails = ?, last_check = ?, "
             "quarantined_until = ?, last_fail_cause = ?, "
-            "google_fails = google_fails + ? WHERE name = ?",
+            "google_fails = google_fails + ?, "
+            "youtube_fails = youtube_fails + ?, "
+            "spotify_fails = spotify_fails + ?, "
+            "gemini_fails = gemini_fails + ? WHERE name = ?",
             (
                 max_fails,
                 now,
                 now + QUARANTINE_SECONDS,
                 reason,
                 1 if reason == "google" else 0,
+                1 if reason == "youtube" else 0,
+                1 if reason == "spotify" else 0,
+                1 if reason == "gemini" else 0,
                 name,
             ),
         )
@@ -796,6 +1005,69 @@ def add_google_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_youtube_args(parser: argparse.ArgumentParser) -> None:
+    """YouTube-backend gate flags shared by rotate/skip/next."""
+    parser.add_argument(
+        "--youtube-url",
+        default=DEFAULT_YOUTUBE_URL,
+        help="URL that must answer 200; flagged exits answer 403",
+    )
+    parser.add_argument("--youtube-timeout-ms", type=int, default=8000)
+    parser.add_argument(
+        "--youtube-attempts",
+        type=int,
+        default=5,
+        help="max gated candidates before failing open (shared budget)",
+    )
+    parser.add_argument(
+        "--no-youtube-check",
+        action="store_true",
+        help="disable the YouTube-clean gate for this run",
+    )
+
+
+def add_spotify_args(parser: argparse.ArgumentParser) -> None:
+    """Spotify-API gate flags shared by rotate/skip/next."""
+    parser.add_argument(
+        "--spotify-url",
+        default=DEFAULT_SPOTIFY_URL,
+        help="URL that must answer 401 JSON; flagged exits answer HTML 403",
+    )
+    parser.add_argument("--spotify-timeout-ms", type=int, default=8000)
+    parser.add_argument(
+        "--spotify-attempts",
+        type=int,
+        default=5,
+        help="max gated candidates before failing open (shared budget)",
+    )
+    parser.add_argument(
+        "--no-spotify-check",
+        action="store_true",
+        help="disable the Spotify-clean gate for this run",
+    )
+
+
+def add_gemini_args(parser: argparse.ArgumentParser) -> None:
+    """Gemini spare-gate flags shared by rotate/skip/next."""
+    parser.add_argument(
+        "--gemini-url",
+        default=DEFAULT_GEMINI_URL,
+        help="URL that must answer 200; flagged exits answer 403",
+    )
+    parser.add_argument("--gemini-timeout-ms", type=int, default=8000)
+    parser.add_argument(
+        "--gemini-attempts",
+        type=int,
+        default=5,
+        help="max gated candidates before failing open (shared budget)",
+    )
+    parser.add_argument(
+        "--no-gemini-check",
+        action="store_true",
+        help="disable the Gemini-clean gate for this run",
+    )
+
+
 def add_country_lock_arg(parser: argparse.ArgumentParser) -> None:
     """Country lock shared by rotate/skip/next.
 
@@ -822,6 +1094,9 @@ def build_parser() -> argparse.ArgumentParser:
     rot = sub.add_parser("rotate", help="select next alive node")
     rot.add_argument("--stale-after", type=int, default=7200)
     add_google_args(rot)
+    add_youtube_args(rot)
+    add_spotify_args(rot)
+    add_gemini_args(rot)
     add_country_lock_arg(rot)
 
     ret = sub.add_parser("retest", help="check oldest batch of nodes")
@@ -839,11 +1114,14 @@ def build_parser() -> argparse.ArgumentParser:
     skp.add_argument("--max-fails", type=int, default=3)
     skp.add_argument(
         "--reason",
-        choices=("google", "country", "manual"),
+        choices=("google", "youtube", "spotify", "gemini", "country", "manual"),
         default="manual",
         help="failure cause recorded for the node",
     )
     add_google_args(skp)
+    add_youtube_args(skp)
+    add_spotify_args(skp)
+    add_gemini_args(skp)
     add_country_lock_arg(skp)
 
     nxt = sub.add_parser("next", help="skip the current node and rotate now")
@@ -851,11 +1129,14 @@ def build_parser() -> argparse.ArgumentParser:
     nxt.add_argument("--max-fails", type=int, default=3)
     nxt.add_argument(
         "--reason",
-        choices=("google", "country", "manual"),
+        choices=("google", "youtube", "spotify", "gemini", "country", "manual"),
         default="manual",
         help="failure cause recorded for the node",
     )
     add_google_args(nxt)
+    add_youtube_args(nxt)
+    add_spotify_args(nxt)
+    add_gemini_args(nxt)
     add_country_lock_arg(nxt)
 
     cty = sub.add_parser("country", help="fill observed exit countries for a batch")
@@ -896,6 +1177,18 @@ def validate_args(args: argparse.Namespace) -> Optional[str]:
             return "--google-timeout-ms must be >= 500"
         if args.google_attempts < 1:
             return "--google-attempts must be >= 1"
+        if args.youtube_timeout_ms < 500:
+            return "--youtube-timeout-ms must be >= 500"
+        if args.youtube_attempts < 1:
+            return "--youtube-attempts must be >= 1"
+        if args.spotify_timeout_ms < 500:
+            return "--spotify-timeout-ms must be >= 500"
+        if args.spotify_attempts < 1:
+            return "--spotify-attempts must be >= 1"
+        if args.gemini_timeout_ms < 500:
+            return "--gemini-timeout-ms must be >= 500"
+        if args.gemini_attempts < 1:
+            return "--gemini-attempts must be >= 1"
         if args.require_country is not None:
             cc = args.require_country.strip()
             if len(cc) != 2 or not cc.isalpha():

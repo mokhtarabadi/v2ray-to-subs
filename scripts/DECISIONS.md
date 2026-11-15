@@ -137,3 +137,13 @@ deleting them; the column migrated idempotently.
 **Consequences.** All non-LAN traffic goes through a Google-clean US exit held by the balancer (retest 500, country 20, 6h refresh gate). LAN exposure of the mixed port is the accepted trade-off for serving LAN clients.
 
 **Rollback.** `git checkout` the generator, regenerate, reinstall the last `.bak` live config; disable the timer pair to stop scheduled refreshes.
+
+## 2026-11-15 — Multi-service clean gate (YouTube, Spotify, Gemini)
+
+**Context.** Google-clean exits still failed the YouTube Music and Spotify apps: Search answers 200 while the YouTube oEmbed backend answers 403, the Spotify API edge answers HTML 403, and Gemini answers 403. Landing pages (`youtube.com/`, `music.youtube.com/`, `open.spotify.com/`) stay 200 on flagged exits, so they cannot discriminate. Live battery on a US exit confirmed the shapes (research searches timed out; experiments substituted).
+
+**Decision.** Rotation probes all-must-pass Google → YouTube → Spotify → Gemini(spare) via `multi_gate_cause()`, reusing the redirect-disabled mixed-port pattern. First-flagged service quarantines 24h with its own cause and counter (`youtube_fails`, `spotify_fails`, `gemini_fails` via idempotent migration); inconclusive new-probe measurements never quarantine. One shared attempt budget (max of the four `--*-attempts`, default 5); per-service `--no-*-check` flags; all-dirty still fail-opens.
+
+**Consequences.** Selection rejects exits that pass Google but fail reputation-sensitive apps; a fully-flagged pool serves the least-bad candidate instead of going dark. First live run quarantined two US nodes (`youtube`, `gemini`) and fail-opened to the best remaining.
+
+**Rollback.** Per-service `--no-*-check` flags; `git checkout` the balancer to restore the Google-only gate.
