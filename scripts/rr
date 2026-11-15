@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# rr launcher — short alias for scripts/rr_balancer.py.
+# Bare `rr` rotates to a clean exit in the default country (US);
+# RR_COUNTRY=DE overrides it, RR_COUNTRY= (empty) disables the lock.
+# Any explicit arguments pass straight through to rr_balancer.py.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+if [[ $# -eq 0 ]]; then
+  if [[ -n "${RR_COUNTRY+set}" && -z "$RR_COUNTRY" ]]; then
+    exec "$DIR/rr_balancer.py" rotate
+  else
+    exec "$DIR/rr_balancer.py" rotate --require-country "${RR_COUNTRY:-US}"
+  fi
+fi
+
+exec "$DIR/rr_balancer.py" "$@"
