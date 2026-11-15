@@ -149,7 +149,7 @@ sing-box check -c singbox_config.json
 - **Proxy Groups**:
   - `PROXY`: Manual selection group
   - `Auto`: url-test, automatic selection based on latency
-  - `Load Balance`: Round-robin load balancing
+  - `Load Balance`: Consistent-hashing load balancing with 60s active checks
   - `Fallback`: Failover group
 - **Rules** (first match wins): private/LAN → ads REJECT → foreign services →
   `MATCH,PROXY`. No process rules and no Iran/CN geo rules: the host is a
