@@ -39,10 +39,10 @@ if ! "$PY" "$BALANCER" country --batch 40; then
 	echo "maintain: country warned (continuing)"
 fi
 
-# Guarded auto-rotate: keep the best gate-tested NL exit without churn.
+# Guarded auto-rotate: keep the best gate-tested DE exit without churn.
 # --keep-if-clean only moves when the current exit is dirty; a healthy
 # exit is kept untouched, so stable connections never flap.
-if ! "$PY" "$BALANCER" rotate --require-country NL --keep-if-clean; then
+if ! "$PY" "$BALANCER" rotate --require-country DE --keep-if-clean; then
 	echo "maintain: rotate warned (continuing)"
 fi
 

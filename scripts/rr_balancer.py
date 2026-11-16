@@ -62,6 +62,12 @@ DEFAULT_SPOTIFY_URL = "https://api.spotify.com/v1/search?q=test&type=track"
 # that pass Search, so a Gemini-clean exit is clean everywhere measured.
 DEFAULT_GEMINI_URL = "https://gemini.google.com/"
 
+# Throughput probe: Cloudflare serves an exact byte count, so the test is
+# bounded by construction. Big enough to separate throttled exits from
+# healthy ones, small enough to stay polite to free nodes.
+DEFAULT_SPEED_URL = "https://speed.cloudflare.com/__down?bytes=3000000"
+DEFAULT_SPEED_BYTES = 3000000
+
 # Cloudflare's trace endpoint reports the country Cloudflare sees for the
 # connection ("loc=XX"). Read through a candidate exit it is the observed
 # country of that exit, which is what a geo-locked client actually gets --
@@ -861,6 +867,142 @@ def cmd_next(args: argparse.Namespace, api: ClashAPI) -> int:
     return rc
 
 
+def probe_throughput(
+    url: str, proxy_url: str, max_bytes: int, timeout_s: float
+) -> Optional[float]:
+    """Download up to max_bytes through the live selector, return bytes/sec.
+
+    One bounded read: slow or failing exits cost at most timeout_s, never
+    a stall. Returns None on any transport failure. Slowness is a signal,
+    never a quarantine verdict — callers must not fail nodes on it.
+    """
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+        _NoRedirect,
+    )
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+    )
+    if max_bytes < 65536:
+        max_bytes = 65536
+    start = time.monotonic()
+    deadline = start + timeout_s
+    total = 0
+    try:
+        with opener.open(req, timeout=timeout_s) as resp:
+            if resp.status != 200:
+                return None
+            while total < max_bytes:
+                if time.monotonic() >= deadline:
+                    break
+                chunk = resp.read(min(65536, max_bytes - total))
+                if not chunk:
+                    break
+                total += len(chunk)
+    except Exception:
+        return None
+    elapsed = time.monotonic() - start
+    if total <= 0 or elapsed <= 0:
+        return None
+    return total / elapsed
+
+
+def cmd_fastest(args: argparse.Namespace, api: ClashAPI) -> int:
+    """Pick the fastest of the top gate-clean finalists, on demand only.
+
+    Gates the ordered pool like rotate (flagged candidates quarantine
+    with cause), speed-tests the first --top clean finalists with a
+    bounded download each, and selects the fastest. Slow losers are
+    never quarantined. Never runs on the timer: speed costs traffic
+    and time, so this stays a manual decision.
+    """
+    now = utc_now_epoch()
+    conn = connect_db(args.db)
+    pool_names, current = api.group_members(args.group)
+    seed_names(conn, pool_names)
+    pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
+    ordered = order_pool(pool)
+    require_country = getattr(args, "require_country", None)
+    if require_country:
+        require_country = require_country.strip().upper()
+        locked = [row for row in ordered if (row[3] or "").upper() == require_country]
+        if not locked:
+            print(
+                "fastest: no %s candidates in the alive pool, keeping current %s"
+                % (require_country, current or "selection")
+            )
+            return 0
+        ordered = locked
+    max_attempts = max(
+        1,
+        max(
+            getattr(args, "%s_attempts" % svc, 5)
+            for svc in ("google", "youtube", "spotify", "gemini")
+        ),
+    )
+    proxy_url = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
+    speed_url = getattr(args, "speed_url", DEFAULT_SPEED_URL)
+    speed_bytes = max(65536, getattr(args, "speed_bytes", DEFAULT_SPEED_BYTES))
+    speed_timeout = getattr(args, "speed_timeout_ms", 30000) / 1000.0
+    top_n = max(1, getattr(args, "top", 3))
+    attempts = 0
+    finalists = []
+    for candidate in ordered:
+        if len(finalists) >= top_n or attempts >= max_attempts:
+            break
+        attempts += 1
+        cause = multi_gate_cause(api, args.group, candidate[0], args)
+        if cause is None or cause == "unknown":
+            finalists.append(candidate[0])
+        elif cause != "unknown":
+            _mark_failed(conn, candidate[0], getattr(args, "max_fails", 3), now, cause)
+    if not finalists:
+        print("fastest: no clean finalists, keeping current selection")
+        return 0
+    results = []
+    for name in finalists:
+        api.select(args.group, name)
+        if GOOGLE_SETTLE_SECONDS:
+            time.sleep(GOOGLE_SETTLE_SECONDS)
+        rate = probe_throughput(speed_url, proxy_url, speed_bytes, speed_timeout)
+        print("fastest: %s %.0f B/s" % (name, rate if rate is not None else -1))
+        results.append((name, rate if rate is not None else -1))
+    results.sort(key=lambda row: row[1], reverse=True)
+    winner = results[0][0]
+    api.select(args.group, winner)
+    if current and current != winner:
+        try:
+            closed, failed = close_stale_connections(api, current)
+        except Exception as exc:
+            print("close stale after switch to %s failed: %s" % (winner, exc))
+        else:
+            print(
+                "closed %d stale connections of %s after switch to %s%s"
+                % (
+                    closed,
+                    current,
+                    winner,
+                    (" (failed ids: %s)" % ",".join(failed)) if failed else "",
+                )
+            )
+    cur = conn.cursor()
+    cur.execute("UPDATE nodes SET uses = uses + 1 WHERE name = ?", (winner,))
+    cur.execute(
+        "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
+        "VALUES (?, ?, ?, 'fastest')",
+        (now, winner, None),
+    )
+    cur.execute(
+        "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
+        "VALUES (1, (SELECT COALESCE(position, 0) FROM rotation_state "
+        "WHERE id = 1) + 1, ?)",
+        (now,),
+    )
+    conn.commit()
+    print("fastest: selected %s" % winner)
+    return 0
+
+
 def check_one(
     api: ClashAPI, name: str, test_url: str, timeout_ms: int
 ) -> Tuple[str, Optional[int]]:
@@ -1189,6 +1331,30 @@ def build_parser() -> argparse.ArgumentParser:
     add_gemini_args(nxt)
     add_country_lock_arg(nxt)
 
+    fst = sub.add_parser(
+        "fastest", help="pick the fastest of the top gate-clean finalists"
+    )
+    fst.add_argument("--stale-after", type=int, default=7200)
+    fst.add_argument(
+        "--top",
+        type=int,
+        default=3,
+        help="gate-clean finalists to speed-test before picking",
+    )
+    fst.add_argument(
+        "--speed-url",
+        default=DEFAULT_SPEED_URL,
+        help="exact-byte download read through each finalist",
+    )
+    fst.add_argument("--speed-bytes", type=int, default=DEFAULT_SPEED_BYTES)
+    fst.add_argument("--speed-timeout-ms", type=int, default=30000)
+    fst.add_argument("--max-fails", type=int, default=3)
+    add_google_args(fst)
+    add_youtube_args(fst)
+    add_spotify_args(fst)
+    add_gemini_args(fst)
+    add_country_lock_arg(fst)
+
     cty = sub.add_parser("country", help="fill observed exit countries for a batch")
     cty.add_argument("--batch", type=int, default=20)
     cty.add_argument("--trace-url", default=DEFAULT_TRACE_URL)
@@ -1222,7 +1388,7 @@ def validate_args(args: argparse.Namespace) -> Optional[str]:
             return "--trace-timeout-ms must be >= 500"
     if args.cmd in ("rotate", "skip", "next") and args.stale_after < 60:
         return "--stale-after must be >= 60"
-    if args.cmd in ("rotate", "skip", "next"):
+    if args.cmd in ("rotate", "skip", "next", "fastest"):
         if args.google_timeout_ms < 500:
             return "--google-timeout-ms must be >= 500"
         if args.google_attempts < 1:
@@ -1243,6 +1409,11 @@ def validate_args(args: argparse.Namespace) -> Optional[str]:
             cc = args.require_country.strip()
             if len(cc) != 2 or not cc.isalpha():
                 return "--require-country must be a two-letter country code"
+    if args.cmd == "fastest":
+        if args.top < 1:
+            return "--top must be >= 1"
+        if args.speed_timeout_ms < 1000:
+            return "--speed-timeout-ms must be >= 1000"
     return None
 
 
@@ -1265,6 +1436,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return cmd_skip(args, api)
     if args.cmd == "next":
         return cmd_next(args, api)
+    if args.cmd == "fastest":
+        return cmd_fastest(args, api)
     if args.cmd == "country":
         return cmd_country(args, api)
     return cmd_retest(args, api)

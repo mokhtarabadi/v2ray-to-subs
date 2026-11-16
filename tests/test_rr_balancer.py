@@ -111,6 +111,10 @@ class Args:
                 gemini_timeout_ms=8000,
                 gemini_attempts=5,
                 keep_if_clean=False,
+                top=3,
+                speed_url=rr_balancer.DEFAULT_SPEED_URL,
+                speed_bytes=rr_balancer.DEFAULT_SPEED_BYTES,
+                speed_timeout_ms=30000,
                 # Country fields default to the lock being off.
                 require_country=None,
                 trace_url=rr_balancer.DEFAULT_TRACE_URL,
@@ -364,6 +368,95 @@ class RotateTest(unittest.TestCase):
         ):
             self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
         self.assertEqual(api.selected[-1], ("PROXY", "a"))
+
+    def test_fastest_picks_quickest_clean_finalist(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "slow", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "mid", "alive", delay=60, uses=0, last_check=now)
+        mark(conn, "fast", "alive", delay=70, uses=0, last_check=now)
+        api = FakeAPI({"slow": 50, "mid": 60, "fast": 70})
+        args = Args(cmd="fastest", db=path, top=3)
+        speeds = {"slow": 100000.0, "mid": 500000.0, "fast": 2000000.0}
+
+        def fake_throughput(url, proxy, max_bytes, timeout):
+            return speeds[api.selected[-1][1]]
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "multi_gate_cause", return_value=None
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_throughput", side_effect=fake_throughput
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "fast"))
+        for name in ("slow", "mid", "fast"):
+            row = conn.execute(
+                "SELECT status FROM nodes WHERE name=?", (name,)
+            ).fetchone()
+            self.assertEqual(row, ("alive",))
+
+    def test_fastest_skips_gate_flagged_candidate(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "dirty", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+        api = FakeAPI({"dirty": 50, "clean": 200})
+        args = Args(cmd="fastest", db=path, top=3)
+
+        def fake_gate(api_, group, name, args_):
+            return "youtube" if name == "dirty" else None
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "multi_gate_cause", side_effect=fake_gate
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_throughput", return_value=1000000.0
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause FROM nodes WHERE name='dirty'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "youtube"))
+
+    def test_fastest_all_unmeasured_keeps_first_without_quarantine(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+        mark(conn, "b", "alive", delay=60, uses=0, last_check=now)
+        api = FakeAPI({"a": 50, "b": 60})
+        args = Args(cmd="fastest", db=path, top=3)
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "multi_gate_cause", return_value=None
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_throughput", return_value=None
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+        rows = conn.execute(
+            "SELECT status FROM nodes WHERE name IN ('a', 'b')"
+        ).fetchall()
+        self.assertEqual(rows, [("alive",), ("alive",)])
+
+    def test_rejects_bad_fastest_numbers(self):
+        for kw in (
+            {"cmd": "fastest", "top": 0},
+            {"cmd": "fastest", "speed_timeout_ms": 999},
+        ):
+            args = Args(**kw)
+            args.cmd = kw["cmd"]
+            self.assertIsNotNone(rr_balancer.validate_args(args), kw)
 
     def test_rotate_youtube_unknown_keeps_without_quarantine(self):
         conn, path = make_db()

@@ -157,3 +157,23 @@ deleting them; the column migrated idempotently.
 **Consequences.** The pool holds the best gate-tested NL exit on its own and moves only on real dirt — no churn, no manual watching. Manual `rr` and the timer now agree on NL.
 
 **Rollback.** Remove the rotate line from `maintain.sh`; flip the launcher default back to US; `--keep-if-clean` stays inert unless passed.
+
+## 2026-11-16 — Hold country flipped NL to DE
+
+**Context.** The NL exit stayed clean but the operator asked for a German hold: the DE bench is deep and the current DE exit tests clean on all four probes.
+
+**Decision.** Default lock flipped NL to DE in `maintain.sh` and the `rr` launcher (`RR_COUNTRY` still overrides, empty still disables). Nothing else changes: same keep-if-clean guard, same battery, same fail-open.
+
+**Consequences.** Every tick holds the best gate-tested DE exit; manual `rr` agrees.
+
+**Rollback.** Flip both lines back to NL.
+
+## 2026-11-16 — On-demand speed pick (`fastest`)
+
+**Context.** Delay (HTTP 204 round-trip) says nothing about throughput: 28ms exits delivered 48–196 KB/s. Full speedtest-cli per node is over-engineering (60s+, ~100MB per candidate, abusive to free nodes, and it 502s through exits).
+
+**Decision.** New manual-only `fastest` subcommand: gate the ordered pool (flagged quarantine with cause, same battery), speed-test the first `--top` (default 3) clean finalists with a bounded exact-byte download (default 3MB, 30s cap each), select the fastest. Slow losers are never quarantined; nobody clean loses standing. Not wired to the timer.
+
+**Consequences.** Operator can escape a clean-but-slow exit in about a minute without disturbing the pool's learned state.
+
+**Rollback.** Remove the subcommand; `rotate` behavior unchanged.

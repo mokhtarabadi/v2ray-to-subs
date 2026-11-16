@@ -40,7 +40,12 @@ The feed list the old refresh drop-in used is embedded in the script.
   With `--keep-if-clean` the current exit is gate-tested first and kept
   when clean, so healthy exits never flap; rotation moves only on a
   dirty verdict. The maintenance tick runs this guarded rotate with the
-  NL lock, so the pool self-heals without manual runs.
+  DE lock, so the pool self-heals without manual runs.
+- **Speed pick**: `fastest` speed-tests the top `--top` gate-clean
+  finalists (default 3) with a bounded exact-byte download each
+  (default 3MB, 30s cap) and selects the fastest. Slow losers keep
+  their standing — throughput is a signal, never a quarantine verdict.
+  Manual only, never on the timer.
 - **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual`
   quarantines the node for 24 h. Each probe cause increments its own
   counter (`google_fails`, `youtube_fails`, `spotify_fails`, `gemini_fails`).

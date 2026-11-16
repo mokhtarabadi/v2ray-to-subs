@@ -31,7 +31,7 @@ else
 fi
 
 echo "[refresh] generating to $TMP ..."
-"$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host --allow-lan --tun
+"$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host --allow-lan
 
 echo "[refresh] validating with mihomo -t ..."
 MIHOMO_BIN="$(command -v mihomo || true)"
