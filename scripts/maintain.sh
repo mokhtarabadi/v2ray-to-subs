@@ -23,18 +23,27 @@ REFRESH_AFTER_SEC=21600
 # that this dispatcher replaces. Without these the converter falls back to its
 # built-in default feed, which would silently swap the pool.
 SUB_URLS=(
-	"https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt"
+	"https://raw.githubusercontent.com/barry-far/V2ray-Config/main/All_Configs_Sub.txt"
+	"https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/all/configs.txt"
+	"https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/base64/all_sub.txt"
 )
 
 echo "maintain: tick start"
 
 # A failing job must not abort the tick: retest and country both touch the
 # live selector, so one bad batch should never block the refresh check.
-if ! "$PY" "$BALANCER" retest --batch 500; then
+if ! "$PY" "$BALANCER" retest --batch 1000; then
 	echo "maintain: retest warned (continuing)"
 fi
-if ! "$PY" "$BALANCER" country --batch 20; then
+if ! "$PY" "$BALANCER" country --batch 40; then
 	echo "maintain: country warned (continuing)"
+fi
+
+# Guarded auto-rotate: keep the best gate-tested NL exit without churn.
+# --keep-if-clean only moves when the current exit is dirty; a healthy
+# exit is kept untouched, so stable connections never flap.
+if ! "$PY" "$BALANCER" rotate --require-country NL --keep-if-clean; then
+	echo "maintain: rotate warned (continuing)"
 fi
 
 NEED_REFRESH=0

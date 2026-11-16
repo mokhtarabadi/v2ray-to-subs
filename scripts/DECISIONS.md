@@ -147,3 +147,13 @@ deleting them; the column migrated idempotently.
 **Consequences.** Selection rejects exits that pass Google but fail reputation-sensitive apps; a fully-flagged pool serves the least-bad candidate instead of going dark. First live run quarantined two US nodes (`youtube`, `gemini`) and fail-opened to the best remaining.
 
 **Rollback.** Per-service `--no-*-check` flags; `git checkout` the balancer to restore the Google-only gate.
+
+## 2026-11-16 — Guarded auto-rotate with NL lock (`--keep-if-clean`)
+
+**Context.** US exits kept flapping (repeated manual `rr` runs in one day) while the NL bench measured deeper and cleaner. Manual-only rotation also meant a dirty exit stayed until an operator noticed. But naive auto-rotate re-picks least-used every tick and would flap healthy exits.
+
+**Decision.** `rotate` gains `--keep-if-clean`: the current exit is gate-tested first and kept (uses+1, `keep-clean` log) when clean or inconclusive; rotation proceeds only on a dirty verdict, with the dirty current quarantined under its cause. `maintain.sh` runs `rotate --require-country NL --keep-if-clean` every tick after the country batch. The `rr` launcher default flips US to NL (`RR_COUNTRY` still overrides, empty still disables).
+
+**Consequences.** The pool holds the best gate-tested NL exit on its own and moves only on real dirt — no churn, no manual watching. Manual `rr` and the timer now agree on NL.
+
+**Rollback.** Remove the rotate line from `maintain.sh`; flip the launcher default back to US; `--keep-if-clean` stays inert unless passed.

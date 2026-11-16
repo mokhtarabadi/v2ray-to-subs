@@ -620,17 +620,6 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     seed_names(conn, pool_names)
     pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
     ordered = order_pool(pool)
-    if not ordered:
-        conn.execute(
-            "INSERT INTO rotation_log (ts, node, reason) VALUES (?, '', 'noop-empty-pool')",
-            (now,),
-        )
-        conn.commit()
-        print("rotate: empty alive pool, no-op (group untouched)")
-        return 0
-    name = None
-    delay = None
-    attempts = 0
     require_country = getattr(args, "require_country", None)
     if require_country:
         require_country = require_country.strip().upper()
@@ -642,6 +631,61 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
             )
             return 0
         ordered = locked
+    if getattr(args, "keep_if_clean", False) and current:
+        alive_names = set(row[0] for row in ordered)
+        if current in alive_names:
+            keep_cause = multi_gate_cause(api, args.group, current, args)
+            if keep_cause is None or keep_cause == "unknown":
+                if keep_cause == "unknown":
+                    print(
+                        "rotate: current %s probe inconclusive, keeping without quarantine"
+                        % current
+                    )
+                else:
+                    print("rotate: current %s still clean, keeping" % current)
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE nodes SET uses = uses + 1 WHERE name = ?", (current,)
+                )
+                cur.execute(
+                    "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
+                    "VALUES (?, ?, ?, 'keep-clean')",
+                    (now, current, None),
+                )
+                cur.execute(
+                    "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
+                    "VALUES (1, (SELECT COALESCE(position, 0) FROM rotation_state "
+                    "WHERE id = 1) + 1, ?)",
+                    (now,),
+                )
+                conn.commit()
+                return 0
+            _mark_failed(
+                conn,
+                current,
+                getattr(args, "max_fails", 3),
+                now,
+                keep_cause,
+            )
+            ordered = [row for row in ordered if row[0] != current]
+            if not ordered:
+                print(
+                    "rotate: current %s dirty and no other candidates, "
+                    "failing open to current" % current
+                )
+                api.select(args.group, current)
+                return 0
+    if not ordered:
+        conn.execute(
+            "INSERT INTO rotation_log (ts, node, reason) VALUES (?, '', 'noop-empty-pool')",
+            (now,),
+        )
+        conn.commit()
+        print("rotate: empty alive pool, no-op (group untouched)")
+        return 0
+    name = None
+    delay = None
+    attempts = 0
     gates_on = [
         svc
         for svc in ("google", "youtube", "spotify", "gemini")
@@ -1093,6 +1137,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     rot = sub.add_parser("rotate", help="select next alive node")
     rot.add_argument("--stale-after", type=int, default=7200)
+    rot.add_argument(
+        "--keep-if-clean",
+        action="store_true",
+        help="gate the current node first and keep it when clean; "
+        "rotate only when it is dirty",
+    )
     add_google_args(rot)
     add_youtube_args(rot)
     add_spotify_args(rot)

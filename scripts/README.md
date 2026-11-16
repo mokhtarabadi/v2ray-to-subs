@@ -37,6 +37,10 @@ The feed list the old refresh drop-in used is embedded in the script.
   counts, so the decision to enable a country lock is data-driven.
 - **Selection**: `rotate` picks the lowest `(uses, delay_ms)` row among alive,
   fresh, non-quarantined nodes and selects it in the `PROXY` group.
+  With `--keep-if-clean` the current exit is gate-tested first and kept
+  when clean, so healthy exits never flap; rotation moves only on a
+  dirty verdict. The maintenance tick runs this guarded rotate with the
+  NL lock, so the pool self-heals without manual runs.
 - **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual`
   quarantines the node for 24 h. Each probe cause increments its own
   counter (`google_fails`, `youtube_fails`, `spotify_fails`, `gemini_fails`).

@@ -28,10 +28,11 @@ class FakeAPI:
     google_blocked names answer /sorry (302) on the expected=200 probe.
     """
 
-    def __init__(self, delays, group="PROXY", google_blocked=None):
+    def __init__(self, delays, group="PROXY", google_blocked=None, current="old-node"):
         self.delays = delays
         self.google_blocked = set(google_blocked or ())
         self.group = group
+        self.current = current
         self.selected = []
         self.members = list(delays) + ["Auto", "Load Balance", "Fallback"]
         self.connections = []
@@ -40,7 +41,7 @@ class FakeAPI:
 
     def group_members(self, group):
         pool = [m for m in self.members if m not in rr_balancer.META_NAMES]
-        return pool, "old-node"
+        return pool, self.current
 
     def select(self, group, name):
         self.selected.append((group, name))
@@ -109,6 +110,7 @@ class Args:
                 gemini_url=rr_balancer.DEFAULT_GEMINI_URL,
                 gemini_timeout_ms=8000,
                 gemini_attempts=5,
+                keep_if_clean=False,
                 # Country fields default to the lock being off.
                 require_country=None,
                 trace_url=rr_balancer.DEFAULT_TRACE_URL,
@@ -257,6 +259,111 @@ class RotateTest(unittest.TestCase):
             "WHERE name='blocked'"
         ).fetchone()
         self.assertEqual(row, ("failed", "spotify", 1))
+
+    def test_keep_if_clean_keeps_current(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "incumbent", "alive", delay=200, uses=3, last_check=now)
+        mark(conn, "challenger", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"incumbent": 200, "challenger": 50}, current="incumbent")
+        args = Args(
+            db=path,
+            keep_if_clean=True,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", return_value=200
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        # Challenger is faster and unused, but the clean incumbent stays.
+        self.assertEqual(api.selected[-1], ("PROXY", "incumbent"))
+        row = conn.execute(
+            "SELECT status, uses FROM nodes WHERE name='incumbent'"
+        ).fetchone()
+        self.assertEqual(row, ("alive", 4))
+        log = conn.execute(
+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        self.assertEqual(log, ("keep-clean",))
+
+    def test_keep_if_clean_rotates_when_dirty(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "incumbent", "alive", delay=200, uses=3, last_check=now)
+        mark(conn, "challenger", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"incumbent": 200, "challenger": 50}, current="incumbent")
+        args = Args(
+            db=path,
+            keep_if_clean=True,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+
+        def fake_status(url, proxy, timeout):
+            if "youtube.com" in url and api.selected[-1][1] == "incumbent":
+                return 403
+            return 200
+
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "challenger"))
+        row = conn.execute(
+            "SELECT status, last_fail_cause FROM nodes WHERE name='incumbent'"
+        ).fetchone()
+        self.assertEqual(row, ("failed", "youtube"))
+
+    def test_keep_if_clean_without_current_rotates_normally(self):
+        conn, path = make_db()
+        now = int(time.time())
+        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+        api = FakeAPI({"a": 50}, current=None)
+        args = Args(
+            db=path,
+            keep_if_clean=True,
+            no_google_check=False,
+            no_youtube_check=False,
+            no_spotify_check=False,
+            no_gemini_check=False,
+        )
+        with (
+            unittest.mock.patch.object(
+                rr_balancer, "google_reachable_direct", return_value=True
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_status_via_proxy", return_value=200
+            ),
+            unittest.mock.patch.object(
+                rr_balancer, "probe_spotify_clean", return_value=True
+            ),
+            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+        ):
+            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "a"))
 
     def test_rotate_youtube_unknown_keeps_without_quarantine(self):
         conn, path = make_db()
