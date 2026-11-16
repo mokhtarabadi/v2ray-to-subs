@@ -8,11 +8,8 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 if [[ $# -eq 0 ]]; then
-  if [[ -n "${RR_COUNTRY+set}" && -z "$RR_COUNTRY" ]]; then
-    exec "$DIR/rr_balancer.py" rotate
-  else
-    exec "$DIR/rr_balancer.py" rotate --require-country "${RR_COUNTRY:-NL}"
-  fi
+  exec "$DIR/rr_balancer.py" rotate \
+    --no-google-check --no-youtube-check --no-spotify-check --no-gemini-check
 fi
 
 exec "$DIR/rr_balancer.py" "$@"

@@ -39,16 +39,11 @@ The feed list the old refresh drop-in used is embedded in the script.
   fresh, non-quarantined nodes and selects it in the `PROXY` group.
   With `--keep-if-clean` the current exit is gate-tested first and kept
   when clean, so healthy exits never flap; rotation moves only on a
-  dirty verdict. The maintenance tick runs this guarded rotate with the
-  NL lock, so the pool self-heals without manual runs.
-- **Tailscale exit steering**: `tailnet-mihomo-setup.sh` (root, idempotent)
-  marks internet-bound packets arriving on `tailscale0`
-  (`!100.64.0.0/10` → fwmark `0x55`), policy-routes them through table
-  100 (`default dev mihomo`, mihomo's interface-only TUN), and skips
-  tailscaled MASQUERADE for the TUN oif. Host OUTPUT is never marked,
-  so local traffic stays direct. `tailnet-mihomo-teardown.sh` removes
-  steering only (never the mihomo device). `systemd/tailnet-mihomo-route.service`
-  (system unit, install to `/etc/systemd/system`) reapplies it at boot.
+  dirty verdict. Rotation is manual-only (`rr`); the timer never rotates.
+- **Tailscale exit (direct again)**: peer steering removed — exit traffic
+  leaves with the server IP. The setup/teardown scripts and boot unit
+  stay in the tree, disabled, as the documented rollback path. Host
+  OUTPUT was never marked and stays direct.
 - **Speed pick**: `fastest` speed-tests the top `--top` gate-clean
   finalists (default 3) with a bounded exact-byte download each
   (default 3MB, 30s cap) and selects the fastest. Slow losers keep

@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Hold country flipped NL→DE and TUN retired: the live stack is proxy-only again (mixed-port 7890 + allow-lan, no TUN device), and the timer plus `rr` default hold the best gate-tested DE exit.
 - Tailscale peers via interface-only mihomo TUN: `scripts/tailnet-mihomo-setup.sh` + `systemd/tailnet-mihomo-route.service` (root, enabled once) steer exit-node peer traffic into the TUN with no host route changes; hold country flipped DE→US.
 - Hold country set to NL (via a same-day FR detour) with a gate-clean exit (Google/YouTube/Spotify pass, Gemini inconclusive-kept).
+- Back to simple: tailnet steering removed (peers exit direct), TUN fully off, timer back to retest + country + refresh with manual-only rotation, and bare `rr` rotates gate-free with no lock. Gate flags, locks, `fastest`, and the steering scripts stay available for explicit use.
 
 ### Fixed
 - Hysteria2 links carrying `fp=` now emit `client-fingerprint`; mihomo rejects a uTLS name under `fingerprint` (that key is a TLS certificate pin) and aborts the whole `mihomo -t` run.

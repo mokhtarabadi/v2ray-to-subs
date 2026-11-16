@@ -197,3 +197,13 @@ deleting them; the column migrated idempotently.
 **Consequences.** Every tick holds the best gate-tested NL exit; manual `rr` agrees.
 
 **Rollback.** Flip both lines back to US.
+
+## 2026-11-16 — Back to simple: no gates, no lock, direct tailnet, manual rr
+
+**Context.** The operator wants zero automation beyond pool upkeep: steering, gates, and locks removed after the US/NL/DE hold tour. What stays automatic: periodic feed refresh and interval delay retests.
+
+**Decision.** `maintain.sh` tick is retest 1000 + country 40 + refresh-if-due (rotate line removed — manual-only again). Bare `rr` rotates gate-free with no lock (all four `--no-*-check` flags); explicit flags still work. Tailscale steering torn down (user runs teardown + disables the unit); peers exit direct again. TUN returns to fully off (refresh.sh loses `--tun`).
+
+**Consequences.** `rr` picks least-used/fastest-delay alive node, any country; dead nodes still quarantine via retest. No auto-switching of any kind.
+
+**Rollback.** Re-add the rotate line with a lock; re-enable the tailnet unit; re-add `--tun`.
