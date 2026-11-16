@@ -1,0 +1,21 @@
+# tailnet-mihomo-route.service - steer tailnet exit traffic into mihomo TUN.
+# SYSTEM unit (root). Install once:
+#   sudo cp systemd/tailnet-mihomo-route.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now tailnet-mihomo-route.service
+# The mihomo TUN device itself is owned by the mihomo user service;
+# this unit only installs the nft mark + policy route, and removes
+# them on stop. TUN_DEV/TABLE/MARK/PRIO overridable via Environment=.
+[Unit]
+Description=Steer tailnet exit traffic into mihomo TUN
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/mohammad/v2ray-to-subs/scripts/tailnet-mihomo-setup.sh
+ExecStop=/home/mohammad/v2ray-to-subs/scripts/tailnet-mihomo-teardown.sh
+
+[Install]
+WantedBy=multi-user.target

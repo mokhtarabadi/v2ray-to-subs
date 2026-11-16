@@ -1526,19 +1526,24 @@ class ConfigGenerator:
                 },
             },
             "tun": {
-                # Opt-in via --tun (needs root/CAP_NET_ADMIN).
+                # Interface-only mode: the device is created but mihomo
+                # injects NO routes (auto-route false), so the host default
+                # route and local traffic stay untouched. Peer traffic is
+                # steered into this device by external policy routing
+                # (nft mark + ip rule, see tailnet setup scripts).
                 "enable": self.tun_enabled,
-                # gvisor: fully userspace stack (no kernel interplay needed,
-                # works rootless once the device exists).
-                "stack": "gvisor",
+                # mips: mihomo's own stack (upstream default/recommended);
+                # fully userspace, no kernel interplay for routed-in packets.
+                # Fallback is gvisor if mips ever misbehaves.
+                "stack": "mips",
                 "device": "mihomo",
-                "auto-route": True,
-                # Linux iptables/nftables auto redirect; keep false on a
-                # desktop (auto-route alone is enough), true on routers.
+                "auto-route": False,
+                # Linux iptables/nftables auto redirect; keep false —
+                # steering is done by our own nft+rule, not mihomo.
                 "auto-redirect": False,
                 "auto-detect-interface": True,
                 "dns-hijack": ["any:53", "tcp://any:53"],
-                "mtu": 9000,
+                "mtu": 1500,
                 "gso": True,
                 "gso-max-size": 65536,
                 "strict-route": True,

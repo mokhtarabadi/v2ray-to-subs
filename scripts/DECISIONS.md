@@ -177,3 +177,13 @@ deleting them; the column migrated idempotently.
 **Consequences.** Operator can escape a clean-but-slow exit in about a minute without disturbing the pool's learned state.
 
 **Rollback.** Remove the subcommand; `rotate` behavior unchanged.
+
+## 2026-11-16 — Tailscale peers via interface-only mihomo TUN
+
+**Context.** The server is a Tailscale exit node, but peer traffic left via the host default route (server IP), never touching the clean proxy exits. mihomo docs confirm `auto-route: false` still creates the TUN device without injecting any routes; `stack: mips` (upstream default) keeps all processing in userspace.
+
+**Decision.** Generator emits TUN interface-only (`enable: true`, `auto-route: false`, `stack: mips`, `mtu: 1500`, `dns-hijack` kept); `refresh.sh` passes `--tun` again. New `scripts/tailnet-mihomo-setup.sh` (root, idempotent) marks peer internet traffic (`iifname tailscale0`, `!100.64.0.0/10` → fwmark `0x55`), policy-routes it through table 100 (`default dev mihomo`), and skips tailscaled MASQUERADE for the TUN oif; `scripts/tailnet-mihomo-teardown.sh` rolls back steering only. New `systemd/tailnet-mihomo-route.service` (system oneshot, install to `/etc/systemd/system`) reapplies at boot. Hold country flipped DE→US in timer and launcher. Tailscale exit-node peers now exit with the selected US node IP; host OUTPUT stays unmarked and direct.
+
+**Consequences.** Peers inherit the clean-exit gates and US geolocation; host traffic never enters the tunnel. If mihomo is down, the route still points at a dead device and peers lose connectivity until it restarts (no automatic fail-open by design).
+
+**Rollback.** `teardown.sh`, disable the unit, `git checkout` the generator, regenerate, restore `.bak`.

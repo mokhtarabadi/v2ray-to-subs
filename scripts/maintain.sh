@@ -42,7 +42,7 @@ fi
 # Guarded auto-rotate: keep the best gate-tested DE exit without churn.
 # --keep-if-clean only moves when the current exit is dirty; a healthy
 # exit is kept untouched, so stable connections never flap.
-if ! "$PY" "$BALANCER" rotate --require-country DE --keep-if-clean; then
+if ! "$PY" "$BALANCER" rotate --require-country US --keep-if-clean; then
 	echo "maintain: rotate warned (continuing)"
 fi
 
