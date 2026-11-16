@@ -11,7 +11,7 @@ if [[ $# -eq 0 ]]; then
   if [[ -n "${RR_COUNTRY+set}" && -z "$RR_COUNTRY" ]]; then
     exec "$DIR/rr_balancer.py" rotate
   else
-    exec "$DIR/rr_balancer.py" rotate --require-country "${RR_COUNTRY:-US}"
+    exec "$DIR/rr_balancer.py" rotate --require-country "${RR_COUNTRY:-NL}"
   fi
 fi
 

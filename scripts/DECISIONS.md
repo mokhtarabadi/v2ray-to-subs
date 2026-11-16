@@ -187,3 +187,13 @@ deleting them; the column migrated idempotently.
 **Consequences.** Peers inherit the clean-exit gates and US geolocation; host traffic never enters the tunnel. If mihomo is down, the route still points at a dead device and peers lose connectivity until it restarts (no automatic fail-open by design).
 
 **Rollback.** `teardown.sh`, disable the unit, `git checkout` the generator, regenerate, restore `.bak`.
+
+## 2026-11-16 — Hold country to NL (via FR detour)
+
+**Context.** The operator first asked for a French hold, then corrected to the Netherlands before commit: the NL bench is the deepest measured and the selected exit tests clean on Google/YouTube/Spotify (Gemini inconclusive-kept).
+
+**Decision.** Hold country set to NL in timer and launcher (`RR_COUNTRY` still overrides, empty still disables). Nothing else changes.
+
+**Consequences.** Every tick holds the best gate-tested NL exit; manual `rr` agrees.
+
+**Rollback.** Flip both lines back to US.
