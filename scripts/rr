@@ -12,4 +12,13 @@ if [[ $# -eq 0 ]]; then
     --no-google-check --no-youtube-check --no-spotify-check --no-gemini-check
 fi
 
+# The rescue plugin calls the bare launcher with flags (`rr --reason quota`).
+# argparse needs the subcommand before its flags, so forward flag-only calls
+# to `rotate`. Explicit subcommands (`rr skip NAME`, `rr next`, ...) pass
+# through unchanged.
+if [[ "${1:-}" == -* ]]; then
+  exec "$DIR/rr_balancer.py" rotate \
+    --no-google-check --no-youtube-check --no-spotify-check --no-gemini-check "$@"
+fi
+
 exec "$DIR/rr_balancer.py" "$@"
