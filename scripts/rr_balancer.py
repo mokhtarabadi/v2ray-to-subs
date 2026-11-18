@@ -626,6 +626,31 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     seed_names(conn, pool_names)
     pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
     ordered = order_pool(pool)
+
+    # A quota 429 means the exit itself spent its free-tier allowance, not that
+    # the route is slow or dirty. Park it for 24h so the next rotation cannot
+    # pick the same spent exit, then fall through to the normal selection.
+    # With no other candidate, keep the current node: going dark is worse than
+    # retrying an already-limited exit.
+    reason = getattr(args, "reason", None)
+    log_reason = "rotate"
+    if reason == "quota" and current:
+        _mark_failed(conn, current, getattr(args, "max_fails", 3), now, "quota")
+        ordered = [row for row in ordered if row[0] != current]
+        log_reason = "quota"
+        if not ordered:
+            conn.execute(
+                "INSERT INTO rotation_log (ts, node, reason) VALUES (?, ?, 'quota-failopen')",
+                (now, current),
+            )
+            conn.commit()
+            print(
+                "rotate: quota node %s quarantined, no other candidate, failing open"
+                % current
+            )
+            api.select(args.group, current)
+            return 0
+
     require_country = getattr(args, "require_country", None)
     if require_country:
         require_country = require_country.strip().upper()
@@ -759,8 +784,8 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     cur.execute("UPDATE nodes SET uses = uses + 1 WHERE name = ?", (name,))
     cur.execute(
         "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
-        "VALUES (?, ?, ?, 'rotate')",
-        (now, name, None if delay >= 999999 else delay),
+        "VALUES (?, ?, ?, ?)",
+        (now, name, None if delay >= 999999 else delay, log_reason),
     )
     cur.execute(
         "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
@@ -785,10 +810,12 @@ def _mark_failed(
     Causes are the ones this balancer actually acts on: google (Search
     answers /sorry), youtube (oEmbed answers 403), spotify (API edge
     answers HTML 403), gemini (app answers 403), country (exit does not
-    match the required country), and manual (an operator skipped it).
-    Each probe cause increments its own counter; the retired
-    quota/transport/region causes belonged to the rate-limit-rescue
-    plugin and were removed with their columns.
+    match the required country), quota (the free-tier allowance on this
+    exit is spent), and manual (an operator skipped it).
+    Each probe cause increments its own counter. Quota is stored on
+    ``last_fail_cause`` only: its 24h quarantine is enough to keep a
+    spent exit out of rotation, and no per-cause counter was restored.
+    Transport and region causes remain retired with their columns.
     """
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
@@ -1280,6 +1307,12 @@ def build_parser() -> argparse.ArgumentParser:
     rot = sub.add_parser("rotate", help="select next alive node")
     rot.add_argument("--stale-after", type=int, default=7200)
     rot.add_argument(
+        "--reason",
+        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
+        default="manual",
+        help="failure cause; quota quarantines the current exit for 24h before rotating",
+    )
+    rot.add_argument(
         "--keep-if-clean",
         action="store_true",
         help="gate the current node first and keep it when clean; "
@@ -1306,7 +1339,7 @@ def build_parser() -> argparse.ArgumentParser:
     skp.add_argument("--max-fails", type=int, default=3)
     skp.add_argument(
         "--reason",
-        choices=("google", "youtube", "spotify", "gemini", "country", "manual"),
+        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
         default="manual",
         help="failure cause recorded for the node",
     )
@@ -1321,7 +1354,7 @@ def build_parser() -> argparse.ArgumentParser:
     nxt.add_argument("--max-fails", type=int, default=3)
     nxt.add_argument(
         "--reason",
-        choices=("google", "youtube", "spotify", "gemini", "country", "manual"),
+        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
         default="manual",
         help="failure cause recorded for the node",
     )

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Restored the `quota` failure cause for the active rate-limit-rescue plugin: `rotate`/`skip`/`next --reason quota` quarantines the current exit for 24h, and `rr --reason quota` parks the spent node before rotating with fail-open when no other candidate exists. No per-cause counter was restored. `transport` and `region` stay retired.
+
 ### Added
 
 - External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.

@@ -49,9 +49,12 @@ The feed list the old refresh drop-in used is embedded in the script.
   (default 3MB, 30s cap) and selects the fastest. Slow losers keep
   their standing — throughput is a signal, never a quarantine verdict.
   Manual only, never on the timer.
-- **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual`
+- **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual|quota`
   quarantines the node for 24 h. Each probe cause increments its own
   counter (`google_fails`, `youtube_fails`, `spotify_fails`, `gemini_fails`).
+  `quota` has no counter: `rotate --reason quota` parks the current exit for
+  24 h before picking the next one, and fails open to it when no other
+  candidate is alive. The rescue plugin sends this reason on a free-tier 429.
 - **Multi-service clean gate**: `rotate` probes each candidate through the
   live mixed-port with redirects disabled, all-must-pass in order Google
   (`search?q=test`: 200 clean, 302 `/sorry` flagged) → YouTube backend

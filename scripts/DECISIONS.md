@@ -207,3 +207,26 @@ deleting them; the column migrated idempotently.
 **Consequences.** `rr` picks least-used/fastest-delay alive node, any country; dead nodes still quarantine via retest. No auto-switching of any kind.
 
 **Rollback.** Re-add the rotate line with a lock; re-enable the tailnet unit; re-add `--tun`.
+
+## 2026-11-18 — Restore the quota failure cause for the active rescue plugin
+
+**Context.** An earlier cleanup removed the `quota`, `transport` and `region`
+causes together with the retired rate-limit-rescue plugin. The plugin is active
+again and now reports a free-tier 429 as `rr --reason quota`. In the observed
+burst, ten distinct nodes were rotated in 41 seconds and every one returned
+429, so plain rotation could not escape a spent allowance.
+
+**Decision.** Re-add `quota` to the `--reason` choices for `skip` and `next`,
+and add `--reason` to `rotate`. `rotate --reason quota` marks the current exit
+with `last_fail_cause=quota` and the existing 24h `quarantined_until`, removes
+it from this run's candidates, then continues normal selection. With no other
+candidate it keeps the current node and logs `quota-failopen` rather than going
+dark. No per-cause counter or selection weighting is restored: the quarantine
+alone keeps a spent exit out of rotation for a day.
+
+**Consequences.** A quota burst can quarantine many exits for 24h, but fail-open
+keeps the proxy usable when the alive pool is exhausted. Transport and region
+causes stay retired; the plugin only sends a reason for quota.
+
+**Rollback.** Remove `quota` from the argparse choices and the quarantine branch
+in `cmd_rotate`; existing rows keep their cause strings.

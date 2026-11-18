@@ -1324,5 +1324,56 @@ class CountryArgsTest(unittest.TestCase):
         )
 
 
+class QuotaReasonTest(unittest.TestCase):
+    """A quota 429 quarantines the spent exit for 24h instead of reusing it."""
+
+    def test_rotate_quota_reason_quarantines_current_and_switches(self):
+        conn, path = make_db()
+        api = FakeAPI({"cur": 50, "n2": 5})
+        api.group_members = lambda group: (["cur", "n2"], "cur")
+        mark(conn, "cur", "alive", delay=50, uses=3)
+        mark(conn, "n2", "alive", delay=5, uses=0)
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path, reason="quota"), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+        conn = sqlite3.connect(path)
+        cause, until = conn.execute(
+            "SELECT last_fail_cause, quarantined_until FROM nodes WHERE name='cur'"
+        ).fetchone()
+        self.assertEqual(cause, "quota")
+        self.assertGreater(until, int(time.time()))
+        reason = conn.execute(
+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0]
+        self.assertEqual(reason, "quota")
+        conn.close()
+
+    def test_rotate_quota_reason_fails_open_when_no_other_candidate(self):
+        conn, path = make_db()
+        api = FakeAPI({"cur": 50})
+        api.group_members = lambda group: (["cur"], "cur")
+        mark(conn, "cur", "alive", delay=50, uses=3)
+        conn.close()
+        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path, reason="quota"), api)
+        self.assertEqual(rc, 0)
+        self.assertEqual(api.selected[-1], ("PROXY", "cur"))
+        conn = sqlite3.connect(path)
+        reason = conn.execute(
+            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0]
+        self.assertEqual(reason, "quota-failopen")
+        conn.close()
+
+    def test_quota_reason_is_accepted_by_rotate_skip_and_next(self):
+        parser = rr_balancer.build_parser()
+        for argv in (
+            ["rotate", "--reason", "quota"],
+            ["skip", "n1", "--reason", "quota"],
+            ["next", "--reason", "quota"],
+        ):
+            self.assertEqual(parser.parse_args(argv).reason, "quota", argv)
+
+
 if __name__ == "__main__":
     unittest.main()
