@@ -85,6 +85,22 @@ The feed list the old refresh drop-in used is embedded in the script.
    fails open to the best candidate, and with a country lock that failure stays
    inside the locked country.
 5. An unreadable country trace is a measurement gap, never a node verdict.
+6. A spent exit is quarantined for a configurable window (code default 24h,
+   this host sets 12h via `RR_QUARANTINE_SECONDS`); rotation picks the
+   least-used, then fastest, non-quarantined node and never goes dark.
+7. A node's REALITY short-id is sanitized at generation: only even-length hex
+   is emitted, so one bad feed entry cannot abort the whole mihomo config.
+
+## Background opencode.ai probe
+
+`rr_balancer.py opencode-probe --batch 20` opens `https://opencode.ai`
+through the mixed port for a small batch, records `opencode_ok`,
+`opencode_checked` (epoch seconds) and `opencode_delay_ms` on each node, and
+restores the previous PROXY selection in a `finally` block. A low mihomo
+`/delay` is not proof the exit carries traffic, so this is the real-HTTPS
+verdict that a quota rotation can trust. `maintain.sh` runs it every tick,
+on by default (`RR_OPENCODE_PROBE_ENABLED=0` disables, `RR_OPENCODE_URL`
+overrides the URL). A probe failure is a measurement, never a quarantine.
 
 ## Risks
 

@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- Simple quota rescue (task 25): `rr_balancer.py opencode-probe --batch 20` opens `https://opencode.ai` through the mixed port for a bounded batch, records `opencode_ok`/`opencode_checked`/`opencode_delay_ms`, and restores the previous selector in a `finally` block; on by default in `maintain.sh`, disabled with `RR_OPENCODE_PROBE_ENABLED=0`, URL overridable with `RR_OPENCODE_URL`. Added `tests/test_opencode_probe.py` (11 tests) and `tests/test_reality_short_id.py` (6 tests).
+- Configurable quarantine (task 25): `RR_QUARANTINE_SECONDS` env and `--quarantine-seconds` CLI override the 24h code default; this host sets 12h via a systemd drop-in and a `maintain.sh` export.
+
+### Changed
+
+- REALITY short-ids are sanitized at generation (task 25): only even-length hex is emitted, so a single odd-length or non-hex feed value can no longer abort the whole config at `mihomo -t` (the cause of the failing maintain service). `tests/test_proxy_converter.py` REJECT-rule assertions were corrected to the current no-REJECT rule set and the stub-only balancer test was removed.
+
 - External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.
 - Manual `skip NAME` subcommand (task 05): marks a flagged node failed and immediately rotates to the next alive node, so a rate-limited exit can be escaped without waiting for the timer.
 - Manual `next` subcommand + `~/.local/bin/rr` launcher (task 05 follow-up): bare `rr` auto-detects the currently active node via the controller, marks it failed, and rotates immediately.

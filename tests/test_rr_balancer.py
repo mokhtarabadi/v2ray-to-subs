@@ -704,10 +704,6 @@ class RotateTest(unittest.TestCase):
         pool = rr_balancer.alive_pool(conn, 1_700_000_000, 3600)
         self.assertEqual([n for n, _, _, _ in pool], ["fresh"])
 
-    def test_meta_members_never_in_pool(self):
-        api = FakeAPI({"real": 100})
-        pool, _ = api.group_members("PROXY")
-        self.assertEqual(pool, ["real"])
 
 
 class RetestTest(unittest.TestCase):

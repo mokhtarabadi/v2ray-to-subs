@@ -230,3 +230,37 @@ causes stay retired; the plugin only sends a reason for quota.
 
 **Rollback.** Remove `quota` from the argparse choices and the quarantine branch
 in `cmd_rotate`; existing rows keep their cause strings.
+
+## 2026-11-19 — Simple quota rescue: configurable quarantine, real HTTPS probe, REALITY sanitizer
+
+**Context.** The Manager asked to make quota rescue simpler and ensure the next
+exit actually works. Three concrete problems: the quarantine was hardcoded 24h;
+mihomo `/delay` reported a low latency for a node that carried no traffic (task
+24 measured 35ms with no data); and a single odd-length REALITY short-id from a
+feed aborted the whole generated config at `mihomo -t` (the failing maintain
+service on 2026-11-19). The Manager chose 12h via both a systemd drop-in and a
+`maintain.sh` export, the probe on by default with a small batch, and confirmed
+bare `rr` stays IP-only because the bridge already clears its session in its own
+quota path.
+
+**Decision.**
+- Quarantine length is resolved CLI > `RR_QUARANTINE_SECONDS` > 24h code default
+  in `resolve_quarantine_seconds`, threaded through `_mark_failed` and `retest`;
+  this host sets 12h in two places so every caller agrees.
+- New `opencode-probe` subcommand opens `https://opencode.ai` through the mixed
+  port for a bounded batch, persists `opencode_ok`/`opencode_checked`/
+  `opencode_delay_ms`, and restores the prior selector in `finally`. It is a
+  measurement only, never a quarantine. `maintain.sh` runs it each tick, on by
+  default.
+- `_sanitize_reality_short_id` emits only even-length hex (or empty) so one bad
+  feed entry cannot break every proxy. The 24h cause string and fail-open
+  behavior from the 2026-11-18 ADR are unchanged.
+
+**Consequences.** Quarantine is now operator-tunable without a code edit. The
+probe adds a bounded 20-request HTTPS check per 30-minute tick and slightly
+longer maintain runs. Invalid short-ids are dropped with a warning instead of
+failing config validation. No gate/country/keep-if-clean behavior was removed.
+
+**Rollback.** Remove the `opencode-probe` dispatch and its DB columns, revert
+`_mark_failed`/`retest` to the constant, and delete the sanitizer; existing DB
+rows keep their extra columns harmlessly.

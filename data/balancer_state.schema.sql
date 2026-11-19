@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS nodes (
   spotify_fails INTEGER NOT NULL DEFAULT 0,
   gemini_fails INTEGER NOT NULL DEFAULT 0,
   country TEXT NOT NULL DEFAULT '',
-  country_checked INTEGER NOT NULL DEFAULT 0
+  country_checked INTEGER NOT NULL DEFAULT 0,
+  opencode_ok INTEGER NOT NULL DEFAULT 0,
+  opencode_checked INTEGER NOT NULL DEFAULT 0,
+  opencode_delay_ms INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS rotation_state (

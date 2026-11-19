@@ -270,6 +270,32 @@ def _sanitize_reality_pbk(value: Optional[str]) -> Optional[str]:
     return key if len(raw) == 32 else None
 
 
+def _sanitize_reality_short_id(value: Optional[str]) -> str:
+    """Return a REALITY short-id mihomo accepts, or "" for an invalid one.
+
+    mihomo aborts the *entire* generated config with "invalid REALITY short
+    ID" when a node carries an odd-length or non-hex short-id. A single bad
+    feed entry therefore breaks every proxy for the host. The sanitizer
+    normalises the value and substitutes "" (which mihomo treats as "no short
+    id") for anything invalid, logging a warning so the source is visible.
+
+    Accepted: None/empty -> ""; "0xDEADbeef" -> "deadbeef" (even-length hex);
+    a bare even-length hex string -> lowercased. Rejected: odd-length hex and
+    any string containing non-hex characters -> "" with a warning.
+    """
+    if value is None:
+        return ""
+    text = "".join(str(value).split()).lower()
+    if text.startswith("0x"):
+        text = text[2:]
+    if text == "":
+        return ""
+    if len(text) % 2 == 0 and re.fullmatch(r"[0-9a-f]+", text):
+        return text
+    logging.warning("invalid REALITY short-id %r; emitting empty short-id", value)
+    return ""
+
+
 def _usable_proxies(proxies: List[ProxyConfig]) -> List[ProxyConfig]:
     """Drop nodes that can never establish a session (bad REALITY key)."""
     return [p for p in proxies if not (p.security == "reality" and not p.pbk)]
@@ -1087,8 +1113,10 @@ class ConfigGenerator:
             block["alpn"] = alpn
         if cfg.security == "reality" and cfg.pbk:
             reality: Dict[str, Any] = {"public-key": _QuotedStr(cfg.pbk)}
-            if cfg.sid is not None:
-                reality["short-id"] = _QuotedStr(cfg.sid)
+            sid = _sanitize_reality_short_id(cfg.sid)
+            if sid:
+                # Quote so Go-YAML never reads a hex value like "2e00" as a float.
+                reality["short-id"] = _QuotedStr(sid)
             block["reality-opts"] = reality
         return block
 
@@ -1627,8 +1655,9 @@ class ConfigGenerator:
             if "utls" not in tls:
                 tls["utls"] = {"enabled": True, "fingerprint": "chrome"}
             reality: Dict[str, Any] = {"enabled": True, "public_key": cfg.pbk}
-            if cfg.sid is not None:
-                reality["short_id"] = cfg.sid
+            sid = _sanitize_reality_short_id(cfg.sid)
+            if sid:
+                reality["short_id"] = sid
             tls["reality"] = reality
         return tls
 

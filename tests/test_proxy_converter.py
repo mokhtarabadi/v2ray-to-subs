@@ -227,7 +227,10 @@ class RuleShapeTest(unittest.TestCase):
         rules = self.gen.generate_clash_config(self.proxies)["rules"]
         self.assertIn("IP-CIDR,192.168.0.0/16,DIRECT,no-resolve", rules)
         self.assertIn("DOMAIN-SUFFIX,localhost,DIRECT", rules)
-        self.assertTrue([r for r in rules if r.endswith(",REJECT")])
+        # Ads REJECT rules were intentionally removed (ADR 2026-11-15): the
+        # host is a foreign server with no local sidecar to bypass. The final
+        # catch-all still routes everything else through PROXY.
+        self.assertFalse([r for r in rules if r.endswith(",REJECT")])
         self.assertEqual(rules[-1], "MATCH,PROXY")
 
     def test_clash_process_lookup_is_off(self):
@@ -253,7 +256,9 @@ class RuleShapeTest(unittest.TestCase):
     def test_singbox_rules_keep_private_and_reject(self):
         rules = self.gen.generate_singbox_config(self.proxies)["route"]["rules"]
         self.assertTrue([r for r in rules if r.get("ip_is_private")])
-        self.assertTrue([r for r in rules if r.get("action") == "reject"])
+        # REJECT rules were intentionally removed (ADR 2026-11-15); sniff stays
+        # first and private LAN traffic is routed DIRECT.
+        self.assertFalse([r for r in rules if r.get("action") == "reject"])
         self.assertEqual(rules[0], {"action": "sniff"})
 
 

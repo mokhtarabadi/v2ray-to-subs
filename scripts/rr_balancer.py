@@ -80,8 +80,46 @@ TRACE_SETTLE_SECONDS = 0.3
 META_NAMES = {"Auto", "Load Balance", "Fallback", "DIRECT", "REJECT", "PASS"}
 
 # Failed nodes stay out of rotation and retest for this long, so a
-# rate-limited exit cannot come back minutes later.
+# rate-limited exit cannot come back minutes later. This is the *code default*;
+# the effective value for a process is resolved from CLI > env > this default.
 QUARANTINE_SECONDS = 24 * 3600
+
+# Effective quarantine window for this process. ``main()`` resolves it once
+# from --quarantine-seconds / RR_QUARANTINE_SECONDS; direct function callers and
+# unit tests that never enter main() keep the 24h default.
+_quarantine_seconds: int = QUARANTINE_SECONDS
+
+
+def resolve_quarantine_seconds(cli_value: Optional[int] = None) -> int:
+    """Resolve the quarantine window: CLI, then env, then the 24h default.
+
+    Why: the operator may want a shorter window (e.g. 12h) without editing code,
+    while unit tests must stay deterministic with no environment configured.
+
+    Args:
+        cli_value: value of ``--quarantine-seconds`` when supplied, else None.
+
+    Returns:
+        Positive integer number of seconds to quarantine a failed node.
+
+    Edge cases: an empty env string counts as unset; a non-integer or
+    non-positive value raises ValueError so callers fail loudly rather than
+    parking nodes for a nonsensical interval.
+    """
+    if cli_value is not None:
+        seconds = int(cli_value)
+        if seconds <= 0:
+            raise ValueError("quarantine seconds must be positive, got %r" % (cli_value,))
+        return seconds
+    env_value = os.environ.get("RR_QUARANTINE_SECONDS")
+    if env_value is not None and env_value.strip() != "":
+        seconds = int(env_value)
+        if seconds <= 0:
+            raise ValueError(
+                "RR_QUARANTINE_SECONDS must be positive, got %r" % (env_value,)
+            )
+        return seconds
+    return QUARANTINE_SECONDS
 
 
 def utc_now_epoch() -> int:
@@ -243,6 +281,9 @@ def connect_db(db_path: str) -> sqlite3.Connection:
             "gemini_fails INTEGER NOT NULL DEFAULT 0",
             "country TEXT NOT NULL DEFAULT ''",
             "country_checked INTEGER NOT NULL DEFAULT 0",
+            "opencode_ok INTEGER NOT NULL DEFAULT 0",
+            "opencode_checked INTEGER NOT NULL DEFAULT 0",
+            "opencode_delay_ms INTEGER",
         ):
             col = coldef.split()[0]
             if col not in cols:
@@ -299,7 +340,7 @@ def alive_pool(
 
     When allowed is given, only names present in the controller's current
     member list are returned, so ghosts from older feeds are never picked.
-    Quarantined nodes (failed less than 24h ago) are always excluded.
+    Quarantined nodes (still inside their configurable window) are always excluded.
     country is the last observed exit country ("" when never measured), so
     a country lock can filter the pool without another probe.
     """
@@ -604,6 +645,48 @@ def probe_country_via_proxy(
     return parse_trace_country(body)
 
 
+def probe_opencode_via_proxy(
+    url: str,
+    proxy_url: str = DEFAULT_PROXY_URL,
+    timeout_s: float = 8.0,
+) -> Tuple[bool, Optional[int]]:
+    """Real-HTTPS verdict for ``url`` read through the mihomo mixed-port.
+
+    Why: mihomo's /delay only proves a TCP/TLS handshake, not that the exit can
+    actually carry a request to opencode.ai (task 24 measured a node with a
+    35ms delay that carried no traffic). This opens the URL through
+    ``proxy_url`` with redirects disabled and classifies the response.
+
+    Returns ``(ok, delay_ms)``. ``ok`` is True only for HTTP 200; 429 (quota or
+    gate), 4xx/5xx and any transport failure are False. ``delay_ms`` is the
+    round trip in integer milliseconds, or None when the request failed.
+
+    Edge cases: non-200 is a normal failure verdict, not an exception; a
+    timeout or malformed URL yields ``(False, None)``; redirects are not
+    followed so a gate redirect is not mistaken for success.
+    """
+    started = time.monotonic()
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+    )
+    try:
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+            _NoRedirect,
+        )
+        with opener.open(req, timeout=timeout_s) as resp:
+            status = resp.status
+            resp.read()  # drain so the connection closes cleanly
+        elapsed_ms = int(round((time.monotonic() - started) * 1000))
+        return (status == 200, elapsed_ms)
+    except urllib.error.HTTPError as exc:
+        # A non-2xx is a real network answer but not a working exit.
+        elapsed_ms = int(round((time.monotonic() - started) * 1000))
+        return (False, elapsed_ms)
+    except Exception:
+        return (False, None)
+
+
 def google_reachable_direct(url: str, timeout_s: float = 8.0) -> bool:
     """Guard against quarantining the whole pool during a Google outage.
 
@@ -628,8 +711,8 @@ def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
     ordered = order_pool(pool)
 
     # A quota 429 means the exit itself spent its free-tier allowance, not that
-    # the route is slow or dirty. Park it for 24h so the next rotation cannot
-    # pick the same spent exit, then fall through to the normal selection.
+    # the route is slow or dirty. Park it for the configured window so the next
+    # rotation cannot pick the same spent exit, then fall through to selection.
     # With no other candidate, keep the current node: going dark is worse than
     # retrying an already-limited exit.
     reason = getattr(args, "reason", None)
@@ -804,8 +887,13 @@ def _mark_failed(
     max_fails: int,
     now: int,
     reason: str = "manual",
+    quarantine_seconds: Optional[int] = None,
 ) -> None:
-    """Mark one node failed and quarantine it for 24h (retest readmits after expiry).
+    """Mark one node failed and quarantine it (retest readmits after expiry).
+
+    The quarantine length is the process-wide effective value resolved by
+    ``resolve_quarantine_seconds``; callers may override it explicitly. The
+    default of ``None`` keeps direct callers and unit tests deterministic.
 
     Causes are the ones this balancer actually acts on: google (Search
     answers /sorry), youtube (oEmbed answers 403), spotify (API edge
@@ -813,10 +901,13 @@ def _mark_failed(
     match the required country), quota (the free-tier allowance on this
     exit is spent), and manual (an operator skipped it).
     Each probe cause increments its own counter. Quota is stored on
-    ``last_fail_cause`` only: its 24h quarantine is enough to keep a
-    spent exit out of rotation, and no per-cause counter was restored.
+    ``last_fail_cause`` only: its quarantine is enough to keep a spent exit
+    out of rotation, and no per-cause counter was restored.
     Transport and region causes remain retired with their columns.
     """
+    if quarantine_seconds is None:
+        quarantine_seconds = _quarantine_seconds
+
     cur = conn.cursor()
     row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
     if row is None:
@@ -832,7 +923,7 @@ def _mark_failed(
             (
                 max_fails,
                 now,
-                now + QUARANTINE_SECONDS,
+                now + quarantine_seconds,
                 reason,
                 1 if reason == "google" else 0,
                 1 if reason == "youtube" else 0,
@@ -842,7 +933,10 @@ def _mark_failed(
             ),
         )
         conn.commit()
-        print("skip: marked %s failed (%s, quarantined 24h)" % (name, reason))
+        print(
+            "skip: marked %s failed (%s, quarantined %sh)"
+            % (name, reason, quarantine_seconds // 3600)
+        )
 
 
 def _relabel_latest(conn: sqlite3.Connection, reason: str) -> None:
@@ -1097,7 +1191,13 @@ def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
                 "ELSE status END, "
                 "quarantined_until=CASE WHEN fails+1 >= ? THEN ? "
                 "ELSE quarantined_until END WHERE name=?",
-                (now, args.max_fails, args.max_fails, now + QUARANTINE_SECONDS, name),
+                (
+                    now,
+                    args.max_fails,
+                    args.max_fails,
+                    now + _quarantine_seconds,
+                    name,
+                ),
             )
             failed += 1
     conn.commit()
@@ -1162,6 +1262,76 @@ def cmd_country(args: argparse.Namespace, api: ClashAPI) -> int:
     print(
         "country: checked %d (seed +%d prune -%d): %d measured, %d unknown"
         % (len(batch), added, pruned, measured, checked - measured)
+    )
+    return 0
+
+
+def cmd_opencode_probe(args: argparse.Namespace, api: ClashAPI) -> int:
+    """Verify through a real HTTPS request that bounded nodes reach opencode.ai.
+
+    A low mihomo /delay is not proof a node carries traffic (task 24). This
+    selects each node briefly, opens ``args.opencode_url`` through the mixed
+    port, records a 200-only verdict plus delay, and restores the previous
+    PROXY selection in a ``finally`` block so a sweep never strands traffic on
+    a probed node. A failed probe is a measurement, never a quarantine.
+
+    Gated by ``args.opencode_enabled`` (env RR_OPENCODE_PROBE_ENABLED); off
+    means a no-op so operators can disable a noisy probe without editing units.
+    """
+    if not getattr(args, "opencode_enabled", True):
+        print("opencode-probe: disabled (RR_OPENCODE_PROBE_ENABLED=0)")
+        return 0
+    now = utc_now_epoch()  # epoch seconds, consistent with other stamps
+    conn = connect_db(args.db)
+    pool_names, prev = api.group_members(args.group)
+    added, pruned = seed_names(conn, pool_names)
+    cur = conn.cursor()
+    batch = []
+    working = 0
+    try:
+        if pool_names:
+            cur.execute(
+                "SELECT name FROM nodes WHERE name IN (%s) "
+                "AND quarantined_until <= ? "
+                "ORDER BY opencode_checked ASC, last_check ASC LIMIT ?"
+                % ",".join("?" * len(pool_names)),
+                (*pool_names, now, args.batch),
+            )
+            batch = [row[0] for row in cur.fetchall()]
+        for name in batch:
+            api.select(args.group, name)
+            if TRACE_SETTLE_SECONDS:
+                time.sleep(TRACE_SETTLE_SECONDS)
+            # A probe exception is a failed measurement for this node, never a
+            # reason to abort the sweep or strand the selector on a probed exit.
+            try:
+                ok, delay_ms = probe_opencode_via_proxy(
+                    args.opencode_url,
+                    args.opencode_proxy,
+                    args.opencode_timeout_ms / 1000.0,
+                )
+            except Exception as exc:
+                print("opencode-probe: %s probe error: %s" % (name, exc))
+                ok, delay_ms = False, None
+            cur.execute(
+                "UPDATE nodes SET opencode_ok = ?, opencode_checked = ?, "
+                "opencode_delay_ms = ? WHERE name = ?",
+                (1 if ok else 0, now, delay_ms, name),
+            )
+            conn.commit()
+            if ok:
+                working += 1
+            print("opencode-probe: %s -> %s" % (name, "ok" if ok else "failed"))
+    finally:
+        # Always put the selector back, even on a probe exception.
+        if prev:
+            try:
+                api.select(args.group, prev)
+            except Exception as exc:
+                print("opencode-probe: could not restore %s: %s" % (prev, exc))
+    print(
+        "opencode-probe: checked %d (seed +%d prune -%d): %d working, %d failed"
+        % (len(batch), added, pruned, working, len(batch) - working)
     )
     return 0
 
@@ -1302,6 +1472,12 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--secret-file", default=DEFAULT_SECRET_FILE)
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--group", default="PROXY")
+    ap.add_argument(
+        "--quarantine-seconds",
+        type=int,
+        default=None,
+        help="failed-node quarantine window in seconds (overrides RR_QUARANTINE_SECONDS; default 86400)",
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     rot = sub.add_parser("rotate", help="select next alive node")
@@ -1310,7 +1486,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--reason",
         choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
         default="manual",
-        help="failure cause; quota quarantines the current exit for 24h before rotating",
+        help="failure cause; quota quarantines the current exit before rotating",
     )
     rot.add_argument(
         "--keep-if-clean",
@@ -1398,6 +1574,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="mihomo mixed-port used to read the trace through each candidate",
     )
 
+    ocp = sub.add_parser(
+        "opencode-probe",
+        help="verify via real HTTPS that a batch of exits reaches opencode.ai",
+    )
+    ocp.add_argument("--batch", type=int, default=20)
+    ocp.add_argument(
+        "--url",
+        dest="opencode_url",
+        default=os.environ.get("RR_OPENCODE_URL", "https://opencode.ai"),
+        help="URL opened through the proxy; override with RR_OPENCODE_URL",
+    )
+    # dest must match what cmd_opencode_probe reads (args.opencode_timeout_ms);
+    # a bare --timeout-ms would expose args.timeout_ms and silently skip probes.
+    ocp.add_argument(
+        "--timeout-ms", dest="opencode_timeout_ms", type=int, default=8000
+    )
+    ocp.add_argument(
+        "--proxy",
+        dest="opencode_proxy",
+        default=DEFAULT_PROXY_URL,
+        help="mihomo mixed-port used to open the URL through each candidate",
+    )
+    ocp.add_argument(
+        "--enabled",
+        dest="opencode_enabled",
+        default=os.environ.get("RR_OPENCODE_PROBE_ENABLED", "1") != "0",
+        action="store_true",
+        help="enable the probe (default on; RR_OPENCODE_PROBE_ENABLED=0 disables)",
+    )
+    ocp.add_argument(
+        "--no-probe",
+        dest="opencode_enabled",
+        action="store_false",
+        help="disable this probe run regardless of env",
+    )
+
     sub.add_parser("report", help="print country coverage and per-country counts")
     return ap
 
@@ -1456,6 +1668,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     if err:
         print("error: %s" % err, file=sys.stderr)
         return 2
+    global _quarantine_seconds
+    try:
+        _quarantine_seconds = resolve_quarantine_seconds(
+            getattr(args, "quarantine_seconds", None)
+        )
+    except (ValueError, TypeError) as exc:
+        print("error: invalid quarantine configuration: %s" % exc, file=sys.stderr)
+        return 2
     if args.cmd == "report":
         return cmd_report(args)
     secret = os.environ.get("MIHOMO_CONTROLLER_SECRET") or load_secret(args.secret_file)
@@ -1473,6 +1693,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return cmd_fastest(args, api)
     if args.cmd == "country":
         return cmd_country(args, api)
+    if args.cmd == "opencode-probe":
+        return cmd_opencode_probe(args, api)
     return cmd_retest(args, api)
 
 

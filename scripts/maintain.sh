@@ -12,6 +12,11 @@
 # without a proxy.
 set -euo pipefail
 
+# A spent free-tier exit is quarantined for 12h in this deployment (code
+# default remains 24h). Exported so every subscript in this tick, including
+# both rr invocations below, inherits the same window.
+export RR_QUARANTINE_SECONDS=43200
+
 REPO="$HOME/v2ray-to-subs"
 PY="$REPO/.venv/bin/python"
 BALANCER="$REPO/scripts/rr_balancer.py"
@@ -34,6 +39,13 @@ echo "maintain: tick start"
 # live selector, so one bad batch should never block the refresh check.
 if ! "$PY" "$BALANCER" retest --batch 1000; then
 	echo "maintain: retest warned (continuing)"
+fi
+# Real-HTTPS verdict: verify a small batch actually reaches opencode.ai through
+# the mixed-port (a low mihomo delay alone does not prove the exit carries
+# traffic). On by default with a small batch; the command restores the previous
+# selector in its finally block, so one bad probe never strands the group.
+if ! "$PY" "$BALANCER" opencode-probe --batch 20; then
+	echo "maintain: opencode-probe warned (continuing)"
 fi
 if ! "$PY" "$BALANCER" country --batch 40; then
 	echo "maintain: country warned (continuing)"
