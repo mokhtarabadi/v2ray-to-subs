@@ -1,10 +1,11 @@
 # Task 24: Proxy and Quarantine Recovery
 
-**File:** `tasks/qa/24-quota-recovery.md`
+**File:** `tasks/completed/24-quota-recovery.md`
 **Source:** manager
 **Type:** bug
-**Status:** open
+**Status:** closed
 **Submitted:** 2026-11-19T08:19:24Z
+**Finished:** 2026-11-19T17:05:17Z
 
 ## Goal
 
@@ -64,34 +65,12 @@ S1: copied the SQLite DB to a timestamped backup before mutation and recorded co
 
 Docs: root README now warns that delay_ms is not proof of a live node; CHANGELOG records the recovery. ZAC held: no git add, commit, checkout, or push.
 
+Closure note: the code for this task was committed earlier as `3236fa1` (fix: restore proxy egress and clear false quota quarantines). Task file was closed via bookkeeping on 2026-11-19 after Manager approval: moved to tasks/completed/, Status set closed, Finished stamp added, diff block replaced with the commit hash reference.
+
 ## Factual Git Diff
 
 <!-- BEGIN_GIT_DIFF -->
 ```diff
-diff --git a/CHANGELOG.md b/CHANGELOG.md
-index e49dc9a..4900ea4 100644
---- a/CHANGELOG.md
-+++ b/CHANGELOG.md
-@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
- 
- - Restored the `quota` failure cause for the active rate-limit-rescue plugin: `rotate`/`skip`/`next --reason quota` quarantines the current exit for 24h, and `rr --reason quota` parks the spent node before rotating with fail-open when no other candidate exists. No per-cause counter was restored. `transport` and `region` stay retired.
- - `rr` launcher forwards flag-only calls to `rotate` with gates off, so the rescue plugin's `rr --reason quota` reaches argparse as `rotate --reason quota`; explicit subcommands still pass through unchanged.
-+- Recovery after the global free-tier 429: cleared 106 false `quota` quarantines from the balancer DB plus 2 more re-quarantined rows from a later external caller (backup retained), quarantined the dead selectable node with cause `manual`, and restored proxy egress by rotating to a working exit. Delay probes had reported the dead node healthy.
- 
- ### Added
- 
-diff --git a/README.md b/README.md
-index 60b3676..61735ee 100644
---- a/README.md
-+++ b/README.md
-@@ -172,7 +172,7 @@ and the balancer moves traffic to the next best node automatically:
- - **Tailscale exit**: peer traffic goes direct (server IP) — steering removed; the setup/teardown scripts and boot unit remain in the tree, disabled, as the documented rollback path. See `scripts/README.md`
- - **Failure causes**: `rr next --reason google|youtube|spotify|gemini|country|manual|quota` (default `manual`) records the cause and quarantines 24h; each probe cause increments its own counter. `quota` is restored for the active rescue plugin: `rr --reason quota` parks the current exit for 24h before rotating, and fails open when no other candidate is alive. Quota has no counter — the 24h quarantine is the whole mechanism. `transport` and `region` remain retired
- - **Country**: `rr country --batch 40` reads `https://www.cloudflare.com/cdn-cgi/trace` through each selected node and stores the observed exit country (`country`, `country_checked`); unreadable traces are stored as unknown, never as failures. `rr report` prints coverage (checked/total) and per-country counts
--- **Country lock**: `--require-country CC` keeps rotation inside one observed country when passed explicitly; bare `rr` and the timer use no lock. When no candidate matches, the current node is kept rather than switching country
-+- **Country lock**: `--require-country CC` keeps rotation inside one observed country when passed explicitly; bare `rr` and the timer use no lock. When no candidate matches, the current node is kept rather than switching country. A low delay_ms is not proof a node carries traffic: an actual `cdn-cgi/trace` through the mixed-port is the authority; quarantine a dead selectable node with `rr skip NAME`
- - **One maintenance unit**: `v2ray-to-subs.timer` → `v2ray-to-subs-maintain.service` runs `scripts/maintain.sh` every 30 minutes: retest 1000, then a country batch of 40, then a refresh only when the live config is older than 6 hours. Rotation is manual-only (`rr`). This replaces the former refresh/retest/country timers — the project now owns two units, `mihomo-subs.service` and this pair
- - **Multi-service clean gate**: before selecting a node, rotation probes Google Search, the YouTube backend, the Spotify API, and Gemini through the candidate (live mixed-port, redirects disabled). The first flagged service quarantines with its own cause (24h, per-cause counter). Up to the shared attempt budget candidates are rejected, then the best remaining is used so the client never goes dark. Per-service `--no-*-check` flags disable gates; the battery is skipped when Google is unreachable directly (infra guard)
- - **Retest**: 1000 oldest controller-present nodes on every maintenance tick, dead nodes readmitted on recovery
+No code changes detected or staged.
 ```
 <!-- END_GIT_DIFF -->
