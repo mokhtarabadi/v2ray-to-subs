@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Restored the `quota` failure cause for the active rate-limit-rescue plugin: `rotate`/`skip`/`next --reason quota` quarantines the current exit for 24h, and `rr --reason quota` parks the spent node before rotating with fail-open when no other candidate exists. No per-cause counter was restored. `transport` and `region` stay retired.
 - `rr` launcher forwards flag-only calls to `rotate` with gates off, so the rescue plugin's `rr --reason quota` reaches argparse as `rotate --reason quota`; explicit subcommands still pass through unchanged.
+- Recovery after the global free-tier 429: cleared 106 false `quota` quarantines from the balancer DB plus 2 more re-quarantined rows from a later external caller (backup retained), quarantined the dead selectable node with cause `manual`, and restored proxy egress by rotating to a working exit. Delay probes had reported the dead node healthy.
 
 ### Added
 
