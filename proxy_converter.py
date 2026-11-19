@@ -31,12 +31,9 @@ logger = logging.getLogger(__name__)
 # Stable proxy identity naming.
 #
 # Provider remarks reshuffle on every feed refresh (positional indexes like
-# "US-1" or colliding labels needing feed-order suffixes), which orphans the
-# balancer's per-name history (delay, fails, uses, quarantine). These helpers
-# derive a deterministic identity from protocol + normalized host + port so
-# the same server always maps to the same node name across refreshes. The
-# balancer (scripts/rr_balancer.py) keys its SQLite rows by these names and
-# needs no change: stable names automatically persist its history.
+# "US-1" or colliding labels needing feed-order suffixes), so these helpers
+# derive a deterministic identity from protocol + normalized host + port.
+# The same server always maps to the same node name across refreshes.
 # ---------------------------------------------------------------------------
 
 
@@ -1387,8 +1384,8 @@ class ConfigGenerator:
         clash_proxies: List[Dict[str, Any]] = []
         proxy_names: List[str] = []
         # Stable identity names: same proto/host/port always yields the same
-        # node name across refreshes, so balancer history persists. Sorted
-        # emission makes output independent of feed order.
+        # node name across refreshes. Sorted emission makes output independent
+        # of feed order.
         entries = []
         for proxy in _usable_proxies(proxies):
             try:
@@ -1530,25 +1527,21 @@ class ConfigGenerator:
                 "fake-ip-filter-mode": "blacklist",
                 "fake-ip-filter": list(REALIP_SUFFIXES),
                 # Plain IPs only: used to resolve DoH/DoT hostnames themselves.
-                # Cloudflare/Google: the host is outside Iran and China, so the
-                # former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
-                "default-nameserver": ["1.1.1.1", "1.0.0.1", "8.8.8.8"],
+                # Cloudflare resolvers: the host is outside Iran and China, so
+                # the former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
+                "default-nameserver": ["1.1.1.1", "1.0.0.1"],
                 "nameserver": [
                     "https://cloudflare-dns.com/dns-query",
-                    "https://dns.google/dns-query",
                     "tls://1.1.1.1",
-                    "tls://8.8.8.8",
                 ],
                 "proxy-server-nameserver": ["https://cloudflare-dns.com/dns-query"],
-                "fallback": ["tls://1.1.1.1", "tls://8.8.4.4"],
+                "fallback": ["tls://1.1.1.1", "tls://1.0.0.1"],
                 "fallback-filter": {
                     # No geoip country filter: the exit is outside Iran/China,
                     # so a CN-result heuristic is meaningless here.
                     "ipcidr": ["240.0.0.0/4"],
                     "domain": [
-                        "+.google.com",
                         "+.facebook.com",
-                        "+.youtube.com",
                         "+.twitter.com",
                     ],
                 },
@@ -1981,7 +1974,7 @@ class ConfigGenerator:
                     },
                     {
                         "type": "tls",
-                        "server": "8.8.8.8",
+                        "server": "1.1.1.1",
                         "tag": "dns-remote",
                     },
                     {

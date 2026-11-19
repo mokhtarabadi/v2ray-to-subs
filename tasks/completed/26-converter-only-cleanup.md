@@ -1,0 +1,8212 @@
+# Task 26: Converter-only cleanup
+
+**File:** `tasks/qa/26-converter-only-cleanup.md`
+**Source:** manager
+**Type:** improvement
+**Status:** open
+**Submitted:** 2026-11-19T20:01:14Z
+
+## Source Context
+
+### Variant C: Manager (manager)
+
+## Goal
+
+Convert the repository into a converter-only project. Manager confirmed the
+"Minimal converter repo" end state: keep only `proxy_converter.py`,
+`requirements.txt`, `LICENSE`, `.gitignore` (plus `.git/` and the active task
+file until QA transition). Remove all balancer, checker, systemd, scripts,
+docs, tests, generated configs, and platform/governance files. Remove the
+Google/YouTube/Spotify/Gemini/OpenCode checker and related references.
+
+## Manager's Notes
+
+- End state chosen: minimal converter repo.
+- Remove anything related to Google, YouTube, Spotify, OpenCode checker.
+- Keep the pure converter only.
+- `Brainstorm: not required — single-discipline deletion with explicit keep and delete lists.`
+- Approved plan verbatim via question tool answer "Approved".
+
+<!-- These sections are unconditional per lint contract — DO NOT move back inside variants -->
+
+## Governance + Docs Extension (Manager-approved)
+
+### New-work checklist
+
+- [x] S1: Read governance template + converter truth (--help, TUN/groups grep)
+- [x] S2: Recreate AGENTS.md from Mode 1 template
+- [x] S3: Recreate docs/conventions.md with 7 sections
+- [x] S4: Create SEO README.md grounded in code
+- [x] S5: Verify TUN-off and proxy groups, no code change
+- [x] S6: Gates + task file evidence, lint, stage, QA brain turn
+
+### Governance + docs extension evidence
+
+- Created `AGENTS.md` from governance Mode 1 template; verified sections:
+  First-Read Rule, ZAC, Mandatory End-of-Task Sequence (grep count 3).
+- Created `docs/conventions.md` with DateTime, SOLID, Financial Ledger,
+  DSP, Edit Tool Discipline, Task-Number Discipline, Living Folder Docs.
+- Created SEO `README.md`; all 7 CLI flags from `--help` present.
+- S5 defaults confirmed: `tun_enabled=False` at L1073/L2067, `--tun`
+  `store_true` at L2199, groups at L1424/1429/1443/1458. Zero code edits;
+  `git diff --stat proxy_converter.py` empty.
+- No forbidden restores: `scripts`, `systemd`, `tests`, `opencode.json`
+  all absent.
+- Gates: `py_compile` exit 0; converter run exit 0 (9 proxies, 4 groups);
+  `yaml.safe_load` + `json.load` parse-ok exit 0.
+- Living Folder Docs skip: single root converter file, no component
+  subdirectories, so no slice README/DECISIONS pairs apply.
+- Strict-tooling skip record unchanged from prior scope (pure stdlib CLI).
+- QA-strengthening: final checker grep found only intentional doc statements
+  ("no checker", "no Google resolvers", section name "OPENCODE RULES"), no
+  functional references. Output sizes: Clash 7695 bytes, SingBox 6575 bytes.
+
+### Autopilot README extension (Manager-approved)
+
+- Mode: autopilot locked (Manager message "pass auto pilot"). Continued from
+  QA-held state; no second qa_transition (tool requires in-progress lane).
+- Added README section "Deduplication and multiple feeds" documenting exact
+  duplicate removal via seen set, opt-in same-host `--unique-host`, and
+  merged-pool dedup across multiple feeds. Grounded in proxy_converter.py
+  lines 999-1009, 1039-1047, 535-551, 2081-2129.
+- Gate: `py_compile` exit 0; README checker grep clean (only intentional
+  "no Google resolvers" statement); no forbidden restores; task stays in QA.
+
+### S1 evidence
+
+- `--help` exit 0; 9 flags captured. TUN defaults: `tun_enabled=False` at
+  `proxy_converter.py:1073` and `:2067`, `--tun` at `:2199`. Groups
+  PROXY/Auto/Load Balance/Fallback at `:1424-1458`. Protocols VMess/VLESS/
+  Trojan/Shadowsocks/Hysteria/Hysteria2/TUIC at `:424-471`.
+
+## Local TODOs
+
+- [x] Step 1: Pre-flight and rollback branch/tag
+- [x] Step 2: Locate and confirm delete targets
+- [x] Step 3: Pre-deletion baseline verification
+- [x] Step 4: Grep-verify proxy_converter.py edit targets
+- [x] Step 5: Native edit of proxy_converter.py
+- [x] Step 6: Ordered deletion preserving active task file
+- [x] Step 7: Post-prune verification
+
+### Evidence detail
+
+- Pre-flight: branch `main`, HEAD `d54e331`; dirty files were the in-scope
+  `data/balancer_state.db.bak-*` and the new task file. Backup branch
+  `backup-pre-converter-prune` and tag `backup-pre-converter-prune-20261119`
+  created and verified.
+- Pre py_compile: exit 0. `--help` captured 8 CLI flags.
+- `rtk test python3 -m pytest tests/test_proxy_converter.py -v`: exit 1 —
+  `python3: No module named pytest`. Same via `.venv/bin/python`. `pip install
+  pytest` blocked by PEP 668 externally-managed environment; not overridden.
+  Converter run used as authoritative gate instead.
+- Pre converter run: exit 0, 9 proxies, Clash 343 lines, SingBox 297 lines.
+- Grep targets: balancer L35/L38/L1390, quarantine L35, google L1533/L1538/
+  L1549, 8.8.8.8 L1535/L1540/L1984 plus fallback 8.8.4.4. All removed via
+  native `edit`. Final residual grep: NO MATCHES.
+- Post py_compile: exit 0. Post converter run: exit 0, 9 proxies, Clash 7695
+  bytes, SingBox 6575 bytes.
+- Final top-level: `.git`, `.gitignore`, `.venv`, `LICENSE`,
+  `proxy_converter.py`, `requirements.txt`, `tasks/` (active file only).
+- QA-strengthening checks: `yaml.safe_load` of post Clash config exit 0;
+  `json.load` of post SingBox config exit 0; case-insensitive grep for
+  `youtube|spotify|gemini|opencode|checker|google|8.8.` — NO MATCHES.
+
+## Acceptance Criteria
+
+- [x] Backup branch `backup-pre-converter-prune` and tag `backup-pre-converter-prune-20261119` exist
+- [x] Grep edit targets verified before edit
+- [x] `proxy_converter.py` compiles pre and post with exit 0
+- [x] Converter runs into temp dir pre and post with exit 0
+- [x] Tests run pre-deletion with recorded evidence (attempted; pytest unavailable, constraint recorded)
+- [x] Only keep list plus active task file plus `.git` remains
+- [x] Google DNS assumption logged
+- [x] No git commit or push executed
+
+## Verification Evidence
+
+- **Test command:** rtk test python3 -m pytest tests/test_proxy_converter.py -v
+- **Expected result:** all converter tests pass pre-deletion
+- **Actual result:** pytest unavailable in both `python3` and `.venv/bin/python`
+  (PEP 668 blocks install); authoritative converter-run gate passed pre and
+  post (exit 0, 9 proxies, non-empty Clash + SingBox outputs). `py_compile`
+  passed pre and post (exit 0). Zero residual checker references.
+- **Exit code:** converter run 0; py_compile 0; pytest 1 (module not installed —
+  environment constraint, not a code failure).
+- **Strict-tooling skip record:** repo root `/home/mohammad/v2ray-to-subs`;
+  marker scan: no `pyproject.toml`/`package.json`/`build.gradle.kts`, single
+  stdlib+PyYAML `proxy_converter.py`; matched skills: none (python-fastapi and
+  flask-python are not applicable to a plain CLI); reason: pure single-file
+  converter, no stack blueprint; used converter run + py_compile as the gate.
+
+> Verification runner rule: the first verification run MUST use the `rtk test` prefix. A raw rerun is allowed only after a failed RTK run for detailed diagnostics.
+
+## Definition of Done
+
+The task is NOT done unless ALL of the following are true (unconditional, applies to every source type):
+
+- [x] Build/Test/Lint pass with exit code 0 (py_compile 0; converter run 0)
+- [x] `lint_task_file` passes on the active task file — MCP lint returned
+  "passed Task File linting"
+- [ ] `CHANGELOG.md` updated via Parse-Then-Append — not applicable: file
+  deleted by approved scope
+- [x] `testing-verification` applied and evidence recorded
+
+> **Box-checking mandate:** During the implementation `<summary_phase>`, the Hands MUST check every `## Acceptance Criteria` and `## Definition of Done` box that is genuinely satisfied by the recorded `## Verification Evidence`.
+
+## Risk & Rollback
+
+- **Risk:** destructive deletion is irreversible without git; Google DNS removal may affect resolution; governance/task deletion disables platform bootstrap.
+- **Rollback plan:** `git branch backup-pre-converter-prune` and tag `backup-pre-converter-prune-20261119` provide one-command restore.
+- **Assumption A1:** Google DNS resolver entries and `+.google.com` allowlist in `proxy_converter.py` are in scope for removal because Manager said remove anything related to Google. If removal leaves no DNS resolver or breaks verification, stop and report exact lines rather than invent a replacement.
+- **Assumption A2:** the active task file is preserved through execution to satisfy the QA transition; final approved scope removes `tasks/` at closure.
+
+---
+
+## Execution Log & Reasoning
+
+Implemented the Manager-approved converter-only cleanup. Created a rollback branch/tag first. Verified all edit targets by grep before touching code. Removed balancer/quarantine comment references from the stable-identity helpers, removed Google DNS resolvers (`dns.google`, `8.8.8.8`, `8.8.4.4`) and the `+.google.com`/`+.youtube.com` allowlist entries from the Clash DNS block, and replaced the sing-box `8.8.8.8` TLS resolver with `1.1.1.1`. Cloudflare resolvers remain, so DNS stays functional (Assumption A1). Then deleted, in order: `scripts/`, `systemd/`, `manager.sh`, `refresh.sh`, `opencode.json`, `AGENTS.md`, `docs/`, `data/`, all task files except the active one, `tests/`, `.opencode/`, `.idea/`, `.ruff_cache/`, `__pycache__/`, `context-reports/`, `README.md`, `CHANGELOG.md`, and the generated configs. Preserved the active task file through execution for the QA transition (Assumption A2). No git commit, add, checkout, or push was executed.
+
+## Factual Git Diff
+
+<!-- BEGIN_GIT_DIFF -->
+```diff
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+deleted file mode 100644
+index 8b09084..0000000
+--- a/.idea/.gitignore
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Default ignored files
+-/shelf/
+-/workspace.xml
+-# Editor-based HTTP Client requests
+-/httpRequests/
+-# Datasource local storage ignored files
+-/dataSources/
+-/dataSources.local.xml
+-ChatHistory_schema_v2.xml
+diff --git a/.idea/compiler.xml b/.idea/compiler.xml
+deleted file mode 100644
+index a1757ae..0000000
+--- a/.idea/compiler.xml
++++ /dev/null
+@@ -1,8 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="CompilerConfiguration">
+-    <annotationProcessing>
+-      <profile default="true" name="Default" enabled="true" />
+-    </annotationProcessing>
+-  </component>
+-</project>
+\ No newline at end of file
+diff --git a/.idea/git_toolbox_prj.xml b/.idea/git_toolbox_prj.xml
+deleted file mode 100644
+index 02b915b..0000000
+--- a/.idea/git_toolbox_prj.xml
++++ /dev/null
+@@ -1,15 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="GitToolBoxProjectSettings">
+-    <option name="commitMessageIssueKeyValidationOverride">
+-      <BoolValueOverride>
+-        <option name="enabled" value="true" />
+-      </BoolValueOverride>
+-    </option>
+-    <option name="commitMessageValidationEnabledOverride">
+-      <BoolValueOverride>
+-        <option name="enabled" value="true" />
+-      </BoolValueOverride>
+-    </option>
+-  </component>
+-</project>
+\ No newline at end of file
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+deleted file mode 100644
+index 32c31ab..0000000
+--- a/.idea/misc.xml
++++ /dev/null
+@@ -1,9 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="Black">
+-    <option name="sdkName" value="Python 3.11" />
+-  </component>
+-  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true">
+-    <output url="file://$PROJECT_DIR$/out" />
+-  </component>
+-</project>
+\ No newline at end of file
+diff --git a/.idea/modules.xml b/.idea/modules.xml
+deleted file mode 100644
+index 2706ee0..0000000
+--- a/.idea/modules.xml
++++ /dev/null
+@@ -1,8 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ProjectModuleManager">
+-    <modules>
+-      <module fileurl="file://$PROJECT_DIR$/.idea/v2ray-to-subs.iml" filepath="$PROJECT_DIR$/.idea/v2ray-to-subs.iml" />
+-    </modules>
+-  </component>
+-</project>
+\ No newline at end of file
+diff --git a/.idea/v2ray-to-subs.iml b/.idea/v2ray-to-subs.iml
+deleted file mode 100644
+index d438d90..0000000
+--- a/.idea/v2ray-to-subs.iml
++++ /dev/null
+@@ -1,18 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<module type="JAVA_MODULE" version="4">
+-  <component name="FacetManager">
+-    <facet type="Python" name="Python">
+-      <configuration sdkName="Python 3.11" />
+-    </facet>
+-  </component>
+-  <component name="NewModuleRootManager" inherit-compiler-output="true">
+-    <exclude-output />
+-    <content url="file://$MODULE_DIR$">
+-      <excludeFolder url="file://$MODULE_DIR$/docs" />
+-      <excludeFolder url="file://$MODULE_DIR$/venv" />
+-    </content>
+-    <orderEntry type="inheritedJdk" />
+-    <orderEntry type="sourceFolder" forTests="false" />
+-    <orderEntry type="library" name="Python 3.11 interpreter library" level="application" />
+-  </component>
+-</module>
+\ No newline at end of file
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+deleted file mode 100644
+index 94a25f7..0000000
+--- a/.idea/vcs.xml
++++ /dev/null
+@@ -1,6 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="VcsDirectoryMappings">
+-    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+-  </component>
+-</project>
+\ No newline at end of file
+diff --git a/.opencode/memory/index.md b/.opencode/memory/index.md
+deleted file mode 100644
+index a3cc7f8..0000000
+--- a/.opencode/memory/index.md
++++ /dev/null
+@@ -1,8 +0,0 @@
+-# Project Memory Index
+-
+-> Auto-generated by `mcp-memory-server`. Do not edit directly.
+-
+-| Namespace | Key | Summary | Tags |
+-| :--- | :--- | :--- | :--- |
+-| integrations | rate-limit-rescue-plugin | OpenCode rate-limit-rescue plugin source of truth is the private GitHub repo mokhtarabadi/opencode-rate-limit-rescue ... |  |
+-| project | exit_country_observation_rules | Exit country is observed, never inferred; unknown is never a failure. | balancer, country, google-gate |
+diff --git a/.opencode/memory/integrations/rate-limit-rescue-plugin.md b/.opencode/memory/integrations/rate-limit-rescue-plugin.md
+deleted file mode 100644
+index fe0f87e..0000000
+--- a/.opencode/memory/integrations/rate-limit-rescue-plugin.md
++++ /dev/null
+@@ -1,8 +0,0 @@
+----
+-created_at: '2026-10-16T08:55:38.063937+00:00'
+-status: active
+-tags: []
+-updated_at: '2026-10-16T08:55:38.063955+00:00'
+----
+-
+-OpenCode rate-limit-rescue plugin source of truth is the private GitHub repo mokhtarabadi/opencode-rate-limit-rescue (extracted out of cognitive-lead-hq, commit a4a36f6). Global opencode.json references it as github:mokhtarabadi/opencode-rate-limit-rescue; server caches under ~/.cache/opencode/npm/git-opencode-rate-limit-rescue-*/. Change flow lives in THAT repo: edit index.js, verify with node --check index.js && node --test test.mjs, commit+push, then systemctl --user restart openchamber; if stale, delete the server cache dir and restart again, confirm the loading-plugin line in opencode.log. The old ~/.config/opencode/plugins/rate-limit-rescue path is NOT source. Rescue kinds: quota, transport, region; metrics sink ~/.local/share/opencode/ratelimit-metrics.jsonl. NEVER commit the metrics file: it contains real node names from rotation output.
+\ No newline at end of file
+diff --git a/.opencode/memory/project/exit_country_observation_rules.md b/.opencode/memory/project/exit_country_observation_rules.md
+deleted file mode 100644
+index 50469e6..0000000
+--- a/.opencode/memory/project/exit_country_observation_rules.md
++++ /dev/null
+@@ -1,6 +0,0 @@
+----
+-tags: [balancer, country, google-gate]
+----
+-Exit country is observed, never inferred; unknown is never a failure.
+-
+-The balancer stores the country Cloudflare reports for an exit (`cdn-cgi/trace`, `loc=XX`) in `nodes.country`, because provider remarks are unreliable (most feed remarks are hash-style). Rules that must survive future edits: an unreadable or `XX` trace is stored as unknown with a fresh `country_checked` stamp and MUST NOT quarantine the node; `--require-country CC` is opt-in and, when no candidate matches, rotation keeps the current node instead of switching country; selection order is `uses` then `delay_ms` with no per-cause weighting. Details: `scripts/DECISIONS.md`.
+\ No newline at end of file
+diff --git a/AGENTS.md b/AGENTS.md
+index 2c87f7c..c12d85f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -2,22 +2,21 @@
+ 
+ ## Project Overview
+ 
+-Python CLI tool that downloads V2Ray subscription links, parses share-link
+-proxy formats (vmess, vless, trojan, ss, hysteria/hy2, tuic, socks), and
+-generates ready-to-run `clash_config.yaml` (mihomo) and `singbox_config.json`
+-(sing-box) with TUN, Fake-IP DNS, Iran/CN bypass routing, and url-test /
+-load-balance / fallback proxy groups. Live config is refreshed every 6h by a
+-systemd user timer (`v2ray-to-subs-refresh.timer` → `refresh.sh`) into
+-`~/.config/mihomo-subs/`. Stack: Python 3.8+ stdlib plus PyYAML; bash
+-wrappers (`manager.sh`, `refresh.sh`).
++A converter-only Python CLI tool that downloads V2Ray subscription links,
++parses share-link proxy formats (vmess, vless, trojan, ss, hysteria/hy2, tuic,
++socks), and generates ready-to-run `clash_config.yaml` (mihomo) and
++`singbox_config.json` (sing-box). TUN is off by default and opt-in via `--tun`.
++Stack: Python 3.8+ standard library plus PyYAML. The repository is intentionally
++minimal: a single converter file with no balancer, systemd units, wrapper
++scripts, checker probes, or bundled test suite.
+ 
+ ## Setup & Dev Commands
+ 
+ - Install: `pip install -r requirements.txt` (or use `.venv/bin/python`)
+-- Generate: `./manager.sh generate` or `python3 proxy_converter.py`
+-- Validate: `./manager.sh check` (`mihomo -t` + `sing-box check`)
+-- Refresh live: `./refresh.sh [url]` (uses converter default when omitted)
+-- Test: no repo test suite; `mihomo -t -f <config>` is the applicable gate
++- Generate: `python3 proxy_converter.py` (or `python3 proxy_converter.py --tun`)
++- Validate generated output: `mihomo -t -f clash_config.yaml` and
++  `sing-box check -c singbox_config.json`
++- Syntax check: `python3 -m py_compile proxy_converter.py`
+ - Lint (tasks): `lint_task_file` on the active task file
+ 
+ ## Actionable Guardrails (Do's & Don'ts)
+@@ -26,7 +25,7 @@ wrappers (`manager.sh`, `refresh.sh`).
+   -> **Do** generate them using the MCP server — context reports via `custom_context_read_source_files`, tree reports via `custom_context_create_tree_report` ("create a tree of the project") — and hand the file path to the Manager.
+ - **Don't** execute Git commands like `git add`, `git commit`, or `git push` autonomously or try to guess when to stage code.
+   -> **Do** execute Git commands ONLY when explicitly instructed by an Orchestrator task block. Otherwise, rely on the `custom_context_stage_and_inject_diff` MCP tool.
+-  -> **Exception:** `git mv` is permitted autonomously for moving task files between Kanban directories (or plain `mv` when the file is untracked).
++  -> **Exception:** `git mv` is permitted autonomously for moving task files between Kanban directories (`backlog`, `in-progress`, `qa`, `completed`, `archive`).
+ - **Don't** guess blindly when facing complex bugs, deadlocks, or silent timeouts.
+   -> **Do** utilize the `debug-instrumentation` skill to inject strategic logs and trace the runtime execution path.
+ - **Don't** write bash scripts without strict mode or mask errors with `2>/dev/null` on data commands.
+@@ -41,8 +40,12 @@ wrappers (`manager.sh`, `refresh.sh`).
+   -> **Do** load the `prompt-refactor` skill to translate and expand the intent into an elite English spec first. (Note: If you receive a standard XML task block, skip this and execute normally).
+ - **Don't** attempt to resolve cross-disciplinary ambiguity within a single persona.
+   -> **Do** trigger the Multi-Agent Brainstorming Loop if the Manager explicitly requests brainstorming or a task exhibits cross-disciplinary ambiguity. Interpret the `<brainstorming_session>` results in backlog tasks as non-functional guidelines that govern execution.
+-- **Don't** emit YAML values that Go-YAML can misread (e.g. REALITY `short-id: 2e00` parses as float 2.0).
+-  -> **Do** force double-quoted scalars for hex/opaque strings in generated Clash configs (see `_QuotedStr` in `proxy_converter.py`).
++- **Don't** silently alter slice architecture or domain invariants without updating the sibling `README.md` and appending a dated ADR to `DECISIONS.md`.
++  -> **Do** inspect sibling `README.md` and `DECISIONS.md` before modifying code, and keep them in sync with implementation changes.
++- **Don't** skip the execution workflow for trivial, single-file changes.
++  -> **Do** traverse the full workflow for every task; keep scope minimal for trivial changes.
++- **Don't** restore the deleted balancer, checker, systemd, scripts, tests, or OpenCode config.
++  -> **Do** keep the repository converter-only. Manager explicitly chose the minimal-converter end state and declined restoring the external balancer.
+ 
+ ## Documentation Sync Rules
+ 
+@@ -50,7 +53,7 @@ When modifying this repository, you must keep these files synchronized:
+ 
+ 1. Active task file in `tasks/` (single source of truth for current work items)
+ 2. `CHANGELOG.md` (Keep a Changelog format)
+-3. `DESIGN.md` (absent — no frontend in this project; UI/UX rule below does not apply)
++3. `DESIGN.md` (absent — no frontend in this project; UI/UX rule does not apply)
+ 4. `docs/conventions.md` (syntax rules, datetime standard, SOLID guidelines)
+ 5. Relevant `SKILL.md` files (if structural patterns were altered)
+ 
+@@ -60,7 +63,7 @@ Before any execution, you MUST read `AGENTS.md` first. It routes you to `docs/co
+ 
+ ## 🛑 GATEKEEPER VALIDATION (HALT PROTOCOL)
+ 
+-You (the Hands) are the final gatekeeper. Before executing any implementation task, you MUST evaluate the Orchestrator's instructions against this file and any referenced specs (`docs/architecture.md`, `docs/data_model.md`, etc.). If the instructions violate project rules, ignore them. HALT immediately and output a `⚠️ RULE VIOLATION WARNING` back to the Manager explaining exactly what the Orchestrator got wrong, forcing it to self-correct.
++You (the Hands) are the final gatekeeper. Before executing any implementation task, you MUST evaluate the Orchestrator's instructions against this file and any referenced specs (`DESIGN.md`, `docs/architecture.md`, etc.). If the instructions violate project rules, ignore them. HALT immediately and output a `⚠️ RULE VIOLATION WARNING` back to the Manager explaining exactly what the Orchestrator got wrong, forcing it to self-correct.
+ 
+ ## 🛑 CORE FILE LOCATIONS
+ 
+@@ -76,7 +79,7 @@ You MUST strictly adhere to these exact paths. Do not create duplicates elsewher
+ You MUST follow these skill loading rules in every session:
+ 
+ - **Task-Generator Skill:** Before creating any new task file, you MUST load the `kanban-lifecycle` skill using the `skill` tool to ensure the correct template format with `<!-- BEGIN_GIT_DIFF -->` / `<!-- END_GIT_DIFF -->` markers.
+-- **Project Skills:** Before implementing any task, you MUST load every available skill matching the project's tech stack. This project is plain Python (stdlib plus PyYAML) with bash wrappers — no roster skill matches, so none is required unless the stack changes.
++- **Project Skills:** Before implementing any task, you MUST load every available skill matching the project's tech stack. This project is plain Python (stdlib plus PyYAML) with no matching roster skill, so none is required unless the stack changes.
+ 
+ ## 🛑 CONTEXT BOOTSTRAPPING
+ 
+@@ -84,21 +87,21 @@ At the start of every task, you MUST call `search_memory` or `list_namespaces` t
+ 
+ ## 🛑 TASK MANAGEMENT & OPENCODE RULES
+ 
+-- **Decentralized Task Management:** Use decentralized, individual task files in the Kanban directories as the single source of truth.
++- **Decentralized Task Management:** Use decentralized, individual task files in the Kanban directories (`tasks/backlog`, `tasks/in-progress`, `tasks/qa`, `tasks/completed`, `tasks/archive`) as the single source of truth.
+ - **No Monolithic State:** Creating `TODO.md` or `STATE.md` is strictly forbidden.
+-- **Zero-Autonomous-Commit:** Never execute `git add`, `git commit`, or `git push` autonomously; only on explicit Orchestrator/Manager instruction via the approved MCP commit path. **Exception:** `git mv` for task-file Kanban moves.
++- **Zero-Autonomous-Commit (ZAC):** Never execute `git add`, `git commit`, or `git push` autonomously; only on explicit Orchestrator/Manager instruction via the approved MCP commit path. **Exception:** `git mv` for task-file Kanban moves.
+ - **Explicit Staging Contract (F5):** Always pass an explicit `modified_files` list to `stage_and_inject_diff` — blind `git add -A .` is banned.
+ - **Parallel Index Isolation:** When two tasks run in parallel and share files, touch only your own task's files. If foreign hunks land in your staged diff, call `custom_context_unstage_files` with exactly those files (index-only), redo your hunk-level staging, then call `custom_context_stage_and_inject_diff` with `skip_add=True`. `git commit`, `git checkout`, and `git push` stay forbidden everywhere.
+-- **Edit Tool Discipline:** File edits use ONLY native file-editing tools (`edit` for replacements, file-write tools for new files). Using python, shell, heredoc, or `sed -i` to create or modify files is forbidden; shell stays read-only for file content (`grep`, `cat`, `diff`, `ls`, `git status`). A non-unique anchor must fail loudly and be widened, never forced. See `docs/conventions.md`.
+-- **Living Folder Docs Inspection:** Before modifying code inside a component or script directory, read the sibling `README.md` and `DECISIONS.md`, and update them when domain contracts or architectural decisions change.
+-- **MCP Report Generation:** Generate context/tree reports via the MCP server and hand the file path to the Manager instead of reading report files inline.
++- **Edit Tool Discipline:** File edits use ONLY native file-editing tools (`edit` for replacements, file-write tools for new files). Using python, shell, heredoc, or `sed -i` to create or modify files is strictly forbidden; shell stays read-only for file content (`grep`, `cat`, `diff`, `ls`, `git status`). A non-unique anchor must fail loudly and be widened, never forced. See `docs/conventions.md`.
++- **Living Folder Docs Inspection:** Before modifying code inside a component or script directory, read the sibling `README.md` and `DECISIONS.md`, and update them when domain contracts or architectural decisions change. This repository has a single root converter file and no component subdirectories, so no slice doc pairs apply; add them if a component directory is introduced.
++- **Buffer Isolation:** Treat every task as contextually independent. Flush working assumptions, partial results, and architectural hypotheses from previous tasks. When session-keyed threads are used, the conversation thread persists under the active session ID; only working execution assumptions are flushed.
+ 
+ ## 🛑 MANDATORY END-OF-TASK SEQUENCE
+ 
+-When finishing a task, you MUST execute these exact steps in order:
++When finishing an implementation task, you MUST execute these exact steps in order:
+ 
+ 1. **Update Changelog:** You MUST insert a formal entry into CHANGELOG.md logging your modifications.
+-2. **Write your Summary:** Manually write your architectural reasoning, local TODO checks, and execution notes into the active `tasks/XX-task.md` file under "Execution Log & Reasoning".
++2. **Write your Summary:** Manually write your architectural reasoning, local TODO checks, and execution notes into the active task file under "Execution Log & Reasoning".
+ 3. **Call MCP Tool & QA Transition:** Call `custom_context_qa_transition` once with the active task path and an explicit `modified_files` list. It atomically moves the task to `tasks/qa/`, synchronizes the `**File:**` header, stages the changes, and injects the diff. Do not run a separate task move, header edit, or re-stage. DO NOT execute any `git commit` commands. Closure to `tasks/completed/` happens ONLY after the Manager explicitly says "Approved for closure" or "Close task".
+ 4. **Kanban Metadata Sync:** `custom_context_qa_transition` already keeps the `**File:**` header and the injected diff in sync. If an authorized `git mv` happened outside that tool, update the header, re-run `lint_task_file`, and re-stage with the NEW task path and the full `modified_files` array before notifying the Manager. Never notify the Manager with a stale `**File:**` header.
+ 5. **Notify Manager:** Report that the task is in `tasks/qa/` and that QA/review will be chained directly through `brain_turn`. Never ask the Manager to copy, paste, or relay task contents.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+deleted file mode 100644
+index 098eb15..0000000
+--- a/CHANGELOG.md
++++ /dev/null
+@@ -1,83 +0,0 @@
+-# Changelog
+-
+-All notable changes to this project will be documented in this file.
+-
+-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+-
+-## [Unreleased]
+-
+-### Changed
+-
+-- Restored the `quota` failure cause for the active rate-limit-rescue plugin: `rotate`/`skip`/`next --reason quota` quarantines the current exit for 24h, and `rr --reason quota` parks the spent node before rotating with fail-open when no other candidate exists. No per-cause counter was restored. `transport` and `region` stay retired.
+-- `rr` launcher forwards flag-only calls to `rotate` with gates off, so the rescue plugin's `rr --reason quota` reaches argparse as `rotate --reason quota`; explicit subcommands still pass through unchanged.
+-- Recovery after the global free-tier 429: cleared 106 false `quota` quarantines from the balancer DB plus 2 more re-quarantined rows from a later external caller (backup retained), quarantined the dead selectable node with cause `manual`, and restored proxy egress by rotating to a working exit. Delay probes had reported the dead node healthy.
+-
+-### Added
+-
+-- Simple quota rescue (task 25): `rr_balancer.py opencode-probe --batch 20` opens `https://opencode.ai` through the mixed port for a bounded batch, records `opencode_ok`/`opencode_checked`/`opencode_delay_ms`, and restores the previous selector in a `finally` block; on by default in `maintain.sh`, disabled with `RR_OPENCODE_PROBE_ENABLED=0`, URL overridable with `RR_OPENCODE_URL`. Added `tests/test_opencode_probe.py` (11 tests) and `tests/test_reality_short_id.py` (6 tests).
+-- Configurable quarantine (task 25): `RR_QUARANTINE_SECONDS` env and `--quarantine-seconds` CLI override the 24h code default; this host sets 12h via a systemd drop-in and a `maintain.sh` export.
+-
+-### Changed
+-
+-- REALITY short-ids are sanitized at generation (task 25): only even-length hex is emitted, so a single odd-length or non-hex feed value can no longer abort the whole config at `mihomo -t` (the cause of the failing maintain service). `tests/test_proxy_converter.py` REJECT-rule assertions were corrected to the current no-REJECT rule set and the stub-only balancer test was removed.
+-
+-- External round-robin balancer (task 04): `scripts/rr_balancer.py` rotates the PROXY `select` group across alive nodes (least-used, fastest-delay tiebreak, stale excluded) with per-node delay checks and SQLite state (`data/balancer_state.schema.sql`); `tests/test_rr_balancer.py` (7 tests); `systemd/rr-rotate` (5min) and `systemd/rr-retest` (30min, 250-node batches) user timers.
+-- Manual `skip NAME` subcommand (task 05): marks a flagged node failed and immediately rotates to the next alive node, so a rate-limited exit can be escaped without waiting for the timer.
+-- Manual `next` subcommand + `~/.local/bin/rr` launcher (task 05 follow-up): bare `rr` auto-detects the currently active node via the controller, marks it failed, and rotates immediately.
+-- Live dedup + freshness tuning (task 08): `refresh.sh` generates with `--unique-host` (live pool ~7230 → 3771); retest batch 250→500 with alive-first ordering; stale window 1h→2h; retest coverage ~14.5h → ~3.8h.
+-- `--unique-host` converter flag (task 07, default off): parse-time dedup keeps only the first proxy per server host (case/whitespace normalized) and logs unique vs duplicate counts; both Clash and sing-box outputs consume the same filtered list.
+-- Multi-feed aggregation (task 10): converter/`manager.sh`/`refresh.sh` accept N subscription URLs, merge into one pool, dedup across the merged set with per-feed + merged counts; ss cipher alias `chacha20-poly1305` normalized to `chacha20-ietf-poly1305`.
+-- Balancer seed memory (task 10 follow-up): learned rows survive feed refreshes (only never-tested rows pruned); pool and retest batch exclude controller ghosts; auto-rotate timer disabled, manual `rr` owns switching.
+-- 24h quarantine for failed nodes (task 11): failed nodes stay out of rotation and retest for 24h, then readmit via normal retest confirmation.
+-- Per-cause failure tracking: `skip`/`next` accept `--reason quota|transport|manual`; rotation prefers least-used, then fewest quota fails, then fastest, so exits hitting crawl rate limits sink in priority without deletion.
+-- Close stale connections on proxy switch (task 09): after every successful selection change the balancer closes connections still chained to the previous node (surgical per-id close, non-fatal); shared path covers manual (`rr`/`skip`) and timer (`rotate`) modes.
+-- Upstream parity audit (task 12): fat-graph review of full v2rayNG/mihomo/sing-box clones confirms ss plugin-opts string shape and reality-opts coverage; no new gaps, clones removed afterwards.
+-- Upstream parity fixes (task 12): ss SIP003 trailing-slash parse crash fixed; v2ray-plugin `mode` defaults to websocket (required by mihomo); vless `encryption` emitted only for mihomo-accepted values.
+-- Upstream parity fixes (task 12): emit vless `encryption` to Clash only for values mihomo accepts (`mlkem768x25519plus…`), drop unusable values like `aes-128-gcm` that fail validation.
+-- Stable identity-hash node naming (task 13): converter emits `{proto}-{12hex}` names derived from protocol + normalized host + port (SHA-256), replacing provider remarks that reshuffled or collided each refresh; deterministic sort-then-suffix collision fallback; Clash keeps the original remark in a `remark` key while sing-box omits it (schema rejects unknown fields); balancer history (delay/fails/uses/quarantine) now survives feed refreshes; `tests/test_stable_hash_naming.py` (10 tests).
+-- Geo-block failure cause (`region`): balancer `--reason` accepts `region` and counts it separately (`region_fails` column via idempotent migration, old DBs self-upgrade); the OpenCode rescue plugin now detects `RegionError` ("model is not available in your country/region") model-independently and rotates the exit with the same 2s rescue; exits refused by a provider's country check quarantine 24h like other causes.
+-- Google-clean rotation gate: `scripts/rr_balancer.py` probes each rotation candidate's Google Search through the live mihomo mixed-port with redirects disabled; exits answering 302 `/sorry` are quarantined with a new `google` cause and `google_fails` counter (idempotent schema migration). Bounded by `--google-attempts` with fail-open on an all-blocked pool and a direct-reachability infrastructure guard; `--no-google-check` restores the previous behavior. New flags: `--google-url`, `--google-timeout-ms`, `--google-proxy`, `--google-attempts`, `--no-google-check`; `tests/test_rr_balancer.py` covers skip and fail-open.
+-- Balancer slice docs: `scripts/README.md` (duties, invariants, risks) and `scripts/DECISIONS.md` (dated ADRs for the Google-clean gate, identity-hash naming, and the `region` cause) with a code-pointer line in `scripts/rr_balancer.py`.
+-
+-### Changed
+-
+-- One maintenance unit replaces five: `v2ray-to-subs.timer` → `v2ray-to-subs-maintain.service` → `scripts/maintain.sh` runs retest, a country batch, and a refresh only when the live config is older than 6 h. `rr-retest`, `rr-country`, `rr-rotate`, and `v2ray-to-subs-refresh` units (and the refresh drop-in, whose feed list moved into the dispatcher) are deleted; `mihomo-subs.service` stays separate so maintenance can never stop the proxy.
+-- Foreign-server rule simplification in both generators: the nine `PROCESS-*` bypasses, Iran/China domain and `GEOIP,IR`/`GEOIP,CN` bypasses, `find-process-mode: always`, the `+.ir` nameserver policy, the `geoip-code: CN` fallback filter, and the CN resolvers (`223.5.5.5`, `114.114.114.114`, `doh.pub`, alidns) are gone. Rules are now private/LAN `DIRECT` → ads `REJECT` → `MATCH,PROXY`, with Cloudflare/Google DNS. `tests/test_proxy_converter.py` gained six rule-shape tests.
+-- `rr` with no arguments now rotates with `--require-country US` (Google-clean US exit); `RR_COUNTRY=DE` overrides the country and `RR_COUNTRY=` disables the lock. Explicit arguments pass through unchanged.
+-- `rr_balancer.py` gained observed exit country: `country`/`country_checked` columns, `rr country --batch N` (Cloudflare `cdn-cgi/trace` `loc`, oldest-first, previous selection restored, unreadable traces stored as unknown without quarantine), `rr report` (coverage plus per-country counts), and `--require-country CC` on `rotate`/`skip`/`next` which keeps the current node when no candidate matches. Selection order is now `uses` then `delay_ms`.
+-- Balancer cause cleanup: the `quota`, `transport`, and `region` failure causes, their counters, and their per-cause selection weighting were removed with the retired `opencode-rate-limit-rescue` plugin they served. `--reason` accepts `google|country|manual`; existing databases drop the legacy columns through a guarded `DROP COLUMN` migration that keeps every learned row.
+-- Proxy-everything routing in both generators: the ads `REJECT` block, the ~90-domain foreign-service pin list, and the `geosite:category-ads-all` DNS policy are deleted; rules are now private/LAN `DIRECT` → `MATCH,PROXY` (Clash) and sniff/hijack-dns/`ip_is_private` → final auto (sing-box). `allow-lan` defaults to true with mixed-port 7890, so scheduled refreshes serve LAN clients; TUN stays opt-in. `refresh.sh` and `manager.sh deploy` pass `--allow-lan` explicitly; checked-in samples regenerated via the converter.
+-- `AGENTS.md` brought in line with the audit criteria: the lite-mode bypass removed so every task runs the full workflow, the task-generator reference corrected to `kanban-lifecycle`, the QA transition routed through `custom_context_qa_transition`, and Edit Tool Discipline, Parallel Index Isolation, and Living Folder Docs Inspection rules added. `docs/conventions.md` gained the Edit Tool Discipline and Living Folder Docs Standard sections; `.gitignore` now covers goal-plugin runtime state.
+-- Multi-service clean gate in `rr_balancer.py`: rotation probes all-must-pass Google → YouTube (oEmbed 403 discriminator) → Spotify API (401-JSON clean vs HTML-403 edge block) → Gemini spare, with distinct `youtube`/`spotify`/`gemini` quarantine causes and counters, per-service `--url`/`--timeout-ms`/`--attempts`/`--no-*-check` flags, one shared attempt budget, and fail-open on all-dirty pools. Inconclusive new-probe measurements never quarantine. `tests/test_rr_balancer.py` covers per-cause rejection, unknown-keeps, and the Spotify shape classifier.
+-- Guarded auto-rotate with NL lock: `rotate --keep-if-clean` gate-tests the current exit and keeps it when clean (no churn), rotating only on a dirty verdict; `maintain.sh` runs it with `--require-country NL` every tick, and the `rr` launcher default flips US to NL (`RR_COUNTRY` overrides). Retest batch 500→1000 and country batch 20→40 per tick.
+-- On-demand speed pick: `rr fastest` gates the ordered pool with the same battery, downloads a capped 3MB file through the top 3 clean finalists, and selects the fastest. Slowness alone never quarantines; manual only, never on the timer.
+-- Hold country flipped NL→DE and TUN retired: the live stack is proxy-only again (mixed-port 7890 + allow-lan, no TUN device), and the timer plus `rr` default hold the best gate-tested DE exit.
+-- Tailscale peers via interface-only mihomo TUN: `scripts/tailnet-mihomo-setup.sh` + `systemd/tailnet-mihomo-route.service` (root, enabled once) steer exit-node peer traffic into the TUN with no host route changes; hold country flipped DE→US.
+-- Hold country set to NL (via a same-day FR detour) with a gate-clean exit (Google/YouTube/Spotify pass, Gemini inconclusive-kept).
+-- Back to simple: tailnet steering removed (peers exit direct), TUN fully off, timer back to retest + country + refresh with manual-only rotation, and bare `rr` rotates gate-free with no lock. Gate flags, locks, `fastest`, and the steering scripts stay available for explicit use.
+-
+-### Fixed
+-- Hysteria2 links carrying `fp=` now emit `client-fingerprint`; mihomo rejects a uTLS name under `fingerprint` (that key is a TLS certificate pin) and aborts the whole `mihomo -t` run.
+-- REALITY public keys are sanitized (stray whitespace) and validated (base64url, 32 bytes decoded); nodes with an unusable key are dropped from both outputs instead of failing config validation.
+-- Review hotfix: balancer clock seam, DB parent makedirs, group_members annotation, WAL sidecar ignores.
+-- `opencode.json` permission key corrected from `bash` to `shell` so the project config passes `scripts/validate-opencode.py` (ZAC deny set unchanged).
+-- Balancer hotfix (task 04, QA round): all-fail batches no longer mass-mark nodes (infra-outage guard); numeric CLI args validated with exit 2; SQLite opened in WAL mode with 10s busy timeout for concurrent timers.
+-- `AGENTS.md` project context hub and `docs/conventions.md` (datetime standard, SOLID guidelines, ledger standard, shell protocol).
+-- `AGENTS.md` first-read rule and lite-mode protocol: explicit read-`AGENTS.md`-then-`docs/conventions.md` order with absent-file notes, plus the `[LITE]` bypass procedure with mandatory escalation on hidden complexity.
+-
+-## [2026-09-26]
+-
+-### Fixed
+-
+-- Harden proxy health checks: explicit `expected-status: 204` and `max-failed-times: 3` on Auto, Load Balance, and Fallback groups so dead nodes are filtered out of rotation (task 03).
+-- Force double-quoted REALITY `public-key` / `short-id` in generated Clash configs; values like `2e00` were misread as float by Go-YAML and rejected by mihomo (task 01).
+-
+-### Changed
+-
+-- `refresh.sh` accepts a subscription URL argument or `SUB_URL` env, falling back to the converter default (task 01).
+-- Load Balance group strategy switched from round-robin to consistent-hashing (task 02).
+-
+-### Added
+-
+-- `refresh.sh` for systemd timer: generate, validate, install, and restart mihomo-subs.
+-- Controller secret support for the mihomo external controller.
+diff --git a/README.md b/README.md
+index 61735ee..94b93d5 100644
+--- a/README.md
++++ b/README.md
+@@ -1,359 +1,114 @@
+-# V2Ray Subscription Link Parser and Configuration Generator
+-
+-A comprehensive Python tool that downloads V2Ray subscription links, parses various proxy formats, and generates optimized configurations for SingBox and Clash with automatic URL testing and load balancing.
+-
+-> **Direct-mihomo mode (no xray needed):** the generated `clash_config.yaml`
+-> carries the subscription nodes itself and mirrors the TUN + Fake-IP +
+-> DNS-hijack setup from `~/Desktop/mihomo` (mixed `:7890`, TUN `stack: mixed`
+-> with `dns-hijack: any:53`, DNS on `:1053`, `find-process-mode: off`,
+-> private/LAN bypass). Copy it over the Desktop config and restart:
+-> ```bash
+-> python3 proxy_converter.py
+-> cp clash_config.yaml ~/Desktop/mihomo/config.yaml
+-> cd ~/Desktop/mihomo && ./manager.sh check && sudo ./manager.sh restart
+-> ```
+-> Routing policy: private/LAN → `DIRECT`, everything else →
+-> subscription proxies (`MATCH,PROXY`). No ads rules, no process bypass and
+-> no Iran/CN geo rules: this config targets a foreign server with no local
+-> sidecar.
+->
+-> **Dashboard:** the generated config serves the official MetaCubeX dashboard
+-> at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
+-> zip, auto-downloaded by mihomo on first start into `./ui/`, git-ignored).
+-> No secret is set by default, so the same-origin UI connects without auth.
+-> To protect the controller (required when exposing it, e.g. via a
+-> Cloudflare Tunnel hostname), set a secret — via flag or env:
+->
+-> ```bash
+-> python3 proxy_converter.py --controller-secret "YOUR-SECRET"
+-> MIHOMO_CONTROLLER_SECRET="YOUR-SECRET" python3 proxy_converter.py
+-> ```
+->
+-> This emits `secret: YOUR-SECRET` next to `external-controller`; the
+-> dashboard then asks for it (or send `Authorization: Bearer YOUR-SECRET`
+-> to the REST API). Generate one with `openssl rand -hex 32` and keep it
+-> out of git (env var or a `chmod 600` file).
+-
+-## Features
+-
+-- **Multi-Protocol Support**: VMess, VLESS, Trojan, Shadowsocks, Hysteria, TUIC
+-- **Multiple Link Formats**: V2RayN, DuckSoft, SS-Android, and base64 encoded formats
+-- **Configuration Generation**: SingBox JSON and Clash YAML configurations
+-- **Load Balancing**: URL testing with automatic failover
+-- **Enhanced Routing**: Mixed inbound and TUN inbound for system-wide proxy
+-- **Comprehensive Documentation**: Based on official SingBox and Clash specifications
+-
+-## Supported Protocols
+-
+-### Proxy Protocols
+-- ✅ **VMess** - Multiple formats (Standard, V2RayN, DuckSoft)
+-- ✅ **VLESS** - With flow control and Reality support
+-- ✅ **Trojan** - Password-based with TLS
+-- ✅ **Shadowsocks** - SS-Android and V2RayN formats
+-- ✅ **Hysteria** - Both v1 and v2 (hy2) protocols
+-- ✅ **TUIC** - v5 protocol with congestion control
+-
+-### Transport Layers
+-- TCP, WebSocket (WS), HTTP, gRPC, HTTPUpgrade
+-- TLS with SNI, ALPN, certificate verification
+-- Reality, ECH, uTLS fingerprinting support
++# V2Ray Subscription Parser — Clash (Mihomo) & SingBox Config Generator
++
++A lightweight Python CLI that turns V2Ray subscription links into ready-to-run proxy configurations. It is a **V2Ray subscription parser**, **Clash Mihomo config generator**, and **SingBox config generator** in one standard-library tool. Feed it one or more subscription URLs and it downloads, decodes, deduplicates, and converts proxy share links into `clash_config.yaml` and `singbox_config.json`.
++
++Supported protocols: **VMess, VLESS, Trojan, Shadowsocks, Hysteria / Hysteria2, TUIC**, and SOCKS. It handles V2RayN, DuckSoft, SS-Android, and base64-encoded subscription formats, plus transports TCP, WebSocket, HTTP, gRPC, and HTTPUpgrade with TLS, Reality, ECH, and uTLS fingerprinting.
++
++## Why use this converter
++
++- **Pure converter, no sidecar.** No balancer service, systemd timer, external checker, or dashboard plugin. It generates config files and exits.
++- **Stable node names.** Proxies are named by an identity hash of protocol + host + port, so names stay constant when a feed reshuffles its remarks.
++- **Safe YAML output.** Hex and opaque scalars such as REALITY `short-id` are double-quoted so Go-YAML does not misread them as floats.
++- **TUN is off by default.** Loopback-only unless you opt in with `--tun`.
+ 
+ ## Installation
+ 
+-### Requirements
+-- Python 3.8 or higher
+-- Required packages listed in `requirements.txt`
++Requires Python 3.8 or newer.
+ 
+-### Setup
+ ```bash
+-# Clone the repository
+ git clone <repository-url>
+ cd v2ray-to-subs
+-
+-# Install dependencies
+ pip install -r requirements.txt
+-
+-# Run the tool
+-python proxy_converter.py
+ ```
+ 
+-> Bringing up the live stack (units, secret, first config, panel) on a new
+-> host: follow [`docs/fresh-install.md`](docs/fresh-install.md).
++Dependencies: `requests`, `PyYAML`, `urllib3`, and optionally `cryptography`.
+ 
+ ## Usage
+ 
+-### Basic Usage
+-```python
+-from proxy_converter import SubscriptionDownloader, ProxyParser, ConfigGenerator
++```bash
++# Default subscription (Patterniha Free-Configs) -> both config files
++python3 proxy_converter.py
++
++# One or more subscription URLs; fragment #Name becomes the profile title
++python3 proxy_converter.py "https://example.com/sub#MyProfile"
++python3 proxy_converter.py "https://a.example/sub" "https://b.example/sub"
+ 
+-# Download subscription
+-downloader = SubscriptionDownloader()
+-content = downloader.download_subscription("https://example.com/subscription")
++# Choose output
++python3 proxy_converter.py --only clash
++python3 proxy_converter.py --only singbox -v
+ 
+-# Parse proxies
+-parser = ProxyParser()
+-proxies = parser.parse_subscription_content(content)
++# Write to custom paths
++python3 proxy_converter.py --clash-out out.yaml --singbox-out out.json
+ 
+-# Generate configurations
+-generator = ConfigGenerator()
++# System-wide routing (needs root / CAP_NET_ADMIN) and LAN access
++python3 proxy_converter.py --tun --allow-lan
+ 
+-# SingBox configuration
+-singbox_config = generator.generate_singbox_config(proxies)
+-with open('singbox_config.json', 'w') as f:
+-    json.dump(singbox_config, f, indent=2)
++# Keep only the first proxy per server host
++python3 proxy_converter.py --unique-host
+ 
+-# Clash configuration
+-clash_config = generator.generate_clash_config(proxies)
+-with open('clash_config.yaml', 'w') as f:
+-    yaml.dump(clash_config, f, default_flow_style=False)
++# Protect the mihomo controller (flag or MIHOMO_CONTROLLER_SECRET env)
++python3 proxy_converter.py --controller-secret "YOUR-SECRET"
+ ```
+ 
+-### Command Line Usage
+-```bash
+-# Default: Patterniha Free-Configs subscription → clash_config.yaml + singbox_config.json
+-python proxy_converter.py
++### CLI options
+ 
+-# Custom subscription URL (fragment #Name becomes the profile title)
+-python proxy_converter.py "https://example.com/sub#MyProfile"
++| Option | Meaning |
++| --- | --- |
++| `urls` | Subscription URL(s); `#Name` fragment sets the profile title |
++| `--clash-out PATH` | Clash output path (default `clash_config.yaml`) |
++| `--singbox-out PATH` | SingBox output path (default `singbox_config.json`) |
++| `--only {clash,singbox,both}` | Which config to generate (default `both`) |
++| `--tun` | Enable TUN inbound; **off by default** |
++| `--allow-lan` | Allow LAN clients and bind to all interfaces (on by default) |
++| `--controller-secret SECRET` | mihomo controller secret, or set `MIHOMO_CONTROLLER_SECRET` |
++| `-v`, `--verbose` | Verbose logging |
++| `--unique-host` | Keep only the first proxy per server host |
+ 
+-# Only Clash / only sing-box
+-python proxy_converter.py --only clash
+-python proxy_converter.py --only singbox -v
++Run `python3 proxy_converter.py --help` for the authoritative flag list.
+ 
+-# Defaults: TUN off, loopback-only (allow-lan false, 127.0.0.1 bindings).
+-# Opt in when you need system-wide routing or LAN access:
+-python proxy_converter.py --tun
+-python proxy_converter.py --tun --allow-lan
++## Generated configuration structure
+ 
+-# Validate outputs
+-mihomo -t -f clash_config.yaml
+-sing-box check -c singbox_config.json
+-```
++### Clash / Mihomo (`clash_config.yaml`)
+ 
+-## Configuration Features
+-
+-### SingBox Configuration
+-- **Mixed Inbound**: HTTP/SOCKS5 proxy on `127.0.0.1:10808`
+-- **TUN Inbound**: `stack: mixed`, `mtu: 9000`, `strict-route`, private
+-  subnets in `route_exclude_address` (loop-free system-wide proxy)
+-- **DNS**: FakeIP by default (`198.18.0.0/15`) with real-IP exceptions for
+-  LAN/NTP; hijacked port-53 handled via `hijack-dns`
+-- **Routing**: sniff → hijack-dns → `ip_is_private` →
+-  `final: auto` (urltest, proxy-everything)
+-- **URL Test Outbound**: Automatic proxy selection based on latency
+-- **Auto Interface Detection**: Prevents routing loops
+-
+-### Clash Configuration
+-- **Mixed Port**: HTTP/SOCKS5 proxy on port 7890 (matches `~/Desktop/mihomo`)
+-- **TUN**: `stack: mixed`, `device: mihomo`, `dns-hijack: [any:53, tcp://any:53]`,
+-  `route-exclude-address` for private/LAN (mirrors Desktop setup)
+-- **DNS**: Fake-IP on `0.0.0.0:1053`, DoH/DoT resolvers, fallback + filter
+-  (mirrors Desktop setup)
+-- **Sniffer**: TLS/HTTP/QUIC with Desktop ports and skip lists
+-- **Proxy Groups**:
+-  - `PROXY`: Manual selection group
+-  - `Auto`: url-test, automatic selection based on latency
+-  - `Load Balance`: Consistent-hashing load balancing with 60s active checks
+-  - `Fallback`: Failover group
+-- **Rules** (first match wins): private/LAN → `DIRECT`, everything else →
+-  `MATCH,PROXY`. No ads rules, no process rules and no Iran/CN geo rules:
+-  the host is a foreign server with no local xray sidecar to bypass.
+-
+-### Load Balancing and URL Testing
+-
+-Balancing is done by the external balancer (`scripts/rr_balancer.py` with
+-SQLite state), not by mihomo groups — PROXY stays in `select` mode.
+-It exists to keep high-volume crawling workloads on working exits:
+-when a target rate-limits an exit IP, the crawler reports the cause
+-and the balancer moves traffic to the next best node automatically:
+-
+-- **Rotate**: manual only — bare `rr` picks the lowest `(uses, delay_ms)` alive node with no gates and no country lock. Gate flags (`--google-url`, `--youtube-url`, etc.) and `--require-country` still work when passed explicitly; `--keep-if-clean` keeps a clean incumbent without switching. Flag-only calls are forwarded to `rotate` with gates off, so the rescue plugin's `rr --reason quota` works; explicit subcommands (`rr skip NAME`, `rr next`) pass through unchanged
+-- **Speed pick**: `rr fastest [--require-country CC]` takes the top 3 gate-clean finalists, downloads a capped 3MB file through each (~15s each), and selects the fastest. Slowness alone never quarantines anyone. On-demand only — the timer stays on retest plus refresh
+-- **Tailscale exit**: peer traffic goes direct (server IP) — steering removed; the setup/teardown scripts and boot unit remain in the tree, disabled, as the documented rollback path. See `scripts/README.md`
+-- **Failure causes**: `rr next --reason google|youtube|spotify|gemini|country|manual|quota` (default `manual`) records the cause and quarantines 24h; each probe cause increments its own counter. `quota` is restored for the active rescue plugin: `rr --reason quota` parks the current exit for 24h before rotating, and fails open when no other candidate is alive. Quota has no counter — the 24h quarantine is the whole mechanism. `transport` and `region` remain retired
+-- **Country**: `rr country --batch 40` reads `https://www.cloudflare.com/cdn-cgi/trace` through each selected node and stores the observed exit country (`country`, `country_checked`); unreadable traces are stored as unknown, never as failures. `rr report` prints coverage (checked/total) and per-country counts
+-- **Country lock**: `--require-country CC` keeps rotation inside one observed country when passed explicitly; bare `rr` and the timer use no lock. When no candidate matches, the current node is kept rather than switching country. A low delay_ms is not proof a node carries traffic: an actual `cdn-cgi/trace` through the mixed-port is the authority; quarantine a dead selectable node with `rr skip NAME`
+-- **One maintenance unit**: `v2ray-to-subs.timer` → `v2ray-to-subs-maintain.service` runs `scripts/maintain.sh` every 30 minutes: retest 1000, then a country batch of 40, then a refresh only when the live config is older than 6 hours. Rotation is manual-only (`rr`). This replaces the former refresh/retest/country timers — the project now owns two units, `mihomo-subs.service` and this pair
+-- **Multi-service clean gate**: before selecting a node, rotation probes Google Search, the YouTube backend, the Spotify API, and Gemini through the candidate (live mixed-port, redirects disabled). The first flagged service quarantines with its own cause (24h, per-cause counter). Up to the shared attempt budget candidates are rejected, then the best remaining is used so the client never goes dark. Per-service `--no-*-check` flags disable gates; the battery is skipped when Google is unreachable directly (infra guard)
+-- **Retest**: 1000 oldest controller-present nodes on every maintenance tick, dead nodes readmitted on recovery
+-- **Freshness**: nodes unchecked for over 2h sit out until rechecked
+-- **Stable names**: nodes are named by identity hash (`{proto}-{12hex}` from server + port), so balancer history survives every feed refresh; the provider remark is kept in the Clash `remark` field for humans
+-- **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller
+-- **Manual escape**: `rr next` skips the current node immediately (`rr skip NAME` targets one)
+-- **Subscription refresh**: feeds regenerated by the same maintenance tick when the live config is older than 6 hours
+-
+-## Subscription Link Formats
+-
+-### Supported Sources
+-The tool can parse subscription links from various sources:
+-- Base64 encoded subscription files
+-- Plain text proxy lists
+-- V2RayN format configurations
+-- DuckSoft format links
+-
+-### Example Subscription URLs
+-```bash
+-# Default subscription (also the manager.sh default)
+-https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F
++- Mixed HTTP/SOCKS proxy on port `7890`, Fake-IP DNS on `0.0.0.0:1053`.
++- Optional TUN (`stack: mixed`, DNS hijack on `any:53`) enabled only with `--tun`.
++- Proxy groups: **PROXY** (manual `select`), **Auto** (url-test), **Load Balance** (consistent hashing), and **Fallback** — PROXY contains `Auto`, `Load Balance`, `Fallback`, then the individual nodes.
++- DNS resolvers are Cloudflare (`1.1.1.1`, `1.0.0.1`, `cloudflare-dns.com`); no Google resolvers.
++- Rules: private/LAN ranges go `DIRECT`, everything else matches `PROXY`.
+ 
+-# Other public subscriptions (fragment #Name becomes the profile title)
+-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt
+-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vmess.txt
+-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt
+-```
++### SingBox (`singbox_config.json`)
+ 
+-Multiple feeds can be combined in one run — each is downloaded and
+-counted separately, then merged and deduped as a single pool:
++- Mixed inbound plus optional TUN inbound, FakeIP DNS with a real-IP `dns-direct` resolver.
++- One outbound per proxy plus a `urltest` group tagged `auto`, with `final: auto` when proxies exist.
++- Routing: sniff → hijack-dns → `ip_is_private` → `final: auto`.
+ 
+-```bash
+-python proxy_converter.py \
+-  "https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt" \
+-  "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs_base64.txt" \
+-  --unique-host
+-```
+-
+-## manager.sh (easy use)
+-
+-The repo ships a `manager.sh` wrapper (same style as `~/Desktop/mihomo/manager.sh`).
+-It defaults to the Patterniha subscription above, loopback-only bindings, TUN off:
++### Validate before deploying
+ 
+ ```bash
+-./manager.sh generate                                  # both configs, defaults
+-./manager.sh generate --tun                            # + TUN inbound
+-./manager.sh generate --tun --allow-lan                # + LAN clients
+-./manager.sh tun "https://example.com/sub#MyProfile"   # TUN + custom sub
+-./manager.sh generate "https://a.example/sub" "https://b.example/sub"  # merge feeds
+-./manager.sh clash | ./manager.sh singbox              # single output
+-./manager.sh check                                     # mihomo -t + sing-box check
+-./manager.sh deploy --tun                              # regenerate + install to ~/Desktop/mihomo
+-./manager.sh help                                      # full usage
+-```
+-
+-`deploy` backs up `~/Desktop/mihomo/config.yaml`, installs the fresh
+-`clash_config.yaml`, and runs its `check`. Activate with:
+-```bash
+-cd ~/Desktop/mihomo && sudo ./manager.sh restart
+-```
+-then open the dashboard at <http://127.0.0.1:9090/ui>.
+-
+-## Generated Configuration Structure
+-
+-### SingBox Structure
+-```json
+-{
+-  "log": { "level": "info" },
+-  "dns": { "servers": [...] },
+-  "inbounds": [
+-    { "type": "mixed", "tag": "mixed-in" },
+-    { "type": "tun", "tag": "tun-in" }
+-  ],
+-  "outbounds": [
+-    { "type": "vmess", "tag": "proxy-0" },
+-    { "type": "vless", "tag": "proxy-1" },
+-    { "type": "urltest", "tag": "url-test" }
+-  ],
+-  "route": { "rules": [...] }
+-}
++mihomo -t -f clash_config.yaml
++sing-box check -c singbox_config.json
+ ```
+ 
+-### Clash Structure
+-```yaml
+-mixed-port: 7890
+-allow-lan: true
+-mode: rule
+-proxies:
+-  - name: vless-abc123def456
+-    type: vless
+-proxy-groups:
+-  - name: PROXY
+-    type: select
+-  - name: Auto
+-    type: url-test
+-  - name: Load Balance
+-    type: load-balance
+-    strategy: consistent-hashing
+-  - name: Fallback
+-    type: fallback
+-rules:
+-  - GEOIP,private,DIRECT,no-resolve
+-  - MATCH,PROXY
+-```
++## TUN mode
+ 
+-## Advanced Features
+-
+-### Protocol-Specific Optimizations
+-- **VMES/VLESS**: Flow control, Reality, ECH support
+-- **Trojan**: TLS optimization, header manipulation
+-- **Shadowsocks**: Plugin support, UDP over TCP
+-- **Hysteria**: QUIC protocol, bandwidth control
+-- **TUIC**: Congestion control, UDP relay modes
+-
+-### Security Features
+-- **TLS Verification**: Certificate validation options
+-- **SNI Support**: Custom server name indication
+-- **uTLS Fingerprinting**: Anti-detection capabilities
+-- **Reality Protocol**: Advanced obfuscation
+-
+-### Performance Optimizations
+-- **Connection Multiplexing**: Reduce connection overhead
+-- **Smart Routing**: Domain-based rule matching
+-- **DNS Optimization**: Custom DNS servers
+-- **Auto Interface Detection**: Prevent routing issues
+-
+-## Error Handling
+-
+-The tool includes comprehensive error handling:
+-- **Network Errors**: Timeout and connection failure handling
+-- **Parse Errors**: Graceful handling of malformed links
+-- **Configuration Validation**: Output format validation
+-- **Logging**: Detailed error messages and warnings
+-
+-## Logging
+-
+-Configure logging levels for debugging:
+-```python
+-import logging
+-logging.basicConfig(level=logging.DEBUG)
+-```
++TUN is disabled by default. Pass `--tun` to create the TUN inbound; it needs root or `CAP_NET_ADMIN`. Without it, the converter emits loopback-only inbounds and does not change the host default route.
+ 
+-Log levels:
+-- `INFO`: General operation messages
+-- `WARNING`: Non-critical issues
+-- `ERROR`: Parsing or configuration errors
+-- `DEBUG`: Detailed debugging information
++## Proxy groups and balancing
+ 
+-## Contributing
++Generated Clash configs include four groups: `PROXY` (manual selection), `Auto` (latency-based url-test), `Load Balance` (consistent-hashing load balancing), and `Fallback`. These are standard mihomo proxy groups embedded in the YAML — no external balancer, database, or timer is installed with this tool. Select a group in your client to switch behavior.
+ 
+-1. Fork the repository
+-2. Create a feature branch
+-3. Add tests for new functionality
+-4. Submit a pull request
++## FAQ
+ 
+-## License
+-
+-This project is licensed under the MIT License - see the LICENSE file for details.
++**Does it need xray or a local sidecar?** No. The generated Clash config carries the subscription nodes directly and uses TUN + Fake-IP DNS. There is no Iran/CN geo bypass or process bypass.
+ 
+-## Acknowledgments
++**Can I merge feeds?** Yes. Pass multiple URLs on the command line; they are downloaded separately, merged, and deduplicated.
+ 
+-- **SingBox Documentation**: Configuration format specifications
+-- **Clash Documentation**: Proxy configuration standards
+-- **NekoBox Analysis**: Protocol format references
+-- **V2Ray Community**: Protocol specifications and examples
++**Why do node names look like hashes?** Names are `{proto}-{12hex}` derived from server + port so they remain stable across feed refreshes; the provider remark is retained for humans.
+ 
+-## Support
++**Where do the configs go?** By default to `clash_config.yaml` and `singbox_config.json` in the current directory. Override with `--clash-out` / `--singbox-out`.
+ 
+-For issues and questions:
+-1. Check the generated configuration files
+-2. Review the log output for errors
+-3. Verify subscription link accessibility
+-4. Test individual proxy configurations
++**Is there a dashboard?** The generated Clash config exposes the standard mihomo external controller; set a secret before exposing it on a network.
+ 
+-## Changelog
++## License
+ 
+-### v1.0.0
+-- Initial release
+-- Support for VMess, VLESS, Trojan, Shadowsocks, Hysteria, TUIC
+-- SingBox and Clash configuration generation
+-- URL testing and load balancing
+-- Mixed and TUN inbound support
+-- Comprehensive error handling and logging
++MIT — see [LICENSE](LICENSE).
+diff --git a/data/balancer_state.schema.sql b/data/balancer_state.schema.sql
+deleted file mode 100644
+index 60bd73a..0000000
+--- a/data/balancer_state.schema.sql
++++ /dev/null
+@@ -1,36 +0,0 @@
+-CREATE TABLE IF NOT EXISTS nodes (
+-  name       TEXT PRIMARY KEY,
+-  status     TEXT NOT NULL DEFAULT 'unknown',
+-  delay_ms   INTEGER,
+-  last_check INTEGER NOT NULL DEFAULT 0,
+-  fails      INTEGER NOT NULL DEFAULT 0,
+-  uses       INTEGER NOT NULL DEFAULT 0,
+-  quarantined_until INTEGER NOT NULL DEFAULT 0,
+-  last_fail_cause TEXT NOT NULL DEFAULT '',
+-  google_fails INTEGER NOT NULL DEFAULT 0,
+-  youtube_fails INTEGER NOT NULL DEFAULT 0,
+-  spotify_fails INTEGER NOT NULL DEFAULT 0,
+-  gemini_fails INTEGER NOT NULL DEFAULT 0,
+-  country TEXT NOT NULL DEFAULT '',
+-  country_checked INTEGER NOT NULL DEFAULT 0,
+-  opencode_ok INTEGER NOT NULL DEFAULT 0,
+-  opencode_checked INTEGER NOT NULL DEFAULT 0,
+-  opencode_delay_ms INTEGER
+-);
+-
+-CREATE TABLE IF NOT EXISTS rotation_state (
+-  id         INTEGER PRIMARY KEY CHECK (id = 1),
+-  position   INTEGER NOT NULL DEFAULT 0,
+-  updated_at INTEGER NOT NULL DEFAULT 0
+-);
+-
+-CREATE TABLE IF NOT EXISTS rotation_log (
+-  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+-  ts       INTEGER NOT NULL,
+-  node     TEXT NOT NULL,
+-  delay_ms INTEGER,
+-  reason   TEXT NOT NULL DEFAULT 'rotate'
+-);
+-
+-CREATE INDEX IF NOT EXISTS idx_nodes_status_check ON nodes (status, last_check);
+-CREATE INDEX IF NOT EXISTS idx_rotation_log_ts ON rotation_log (ts);
+diff --git a/docs/clash/config.yaml b/docs/clash/config.yaml
+deleted file mode 100644
+index 2722f55..0000000
+--- a/docs/clash/config.yaml
++++ /dev/null
+@@ -1,1776 +0,0 @@
+-# port: 7890 # HTTP(S) 代理服务器端口
+-# socks-port: 7891 # SOCKS5 代理端口
+-mixed-port: 10801 # HTTP(S) 和 SOCKS 代理混合端口
+-# redir-port: 7892 # 透明代理端口，用于 Linux 和 MacOS
+-
+-# Transparent proxy server port for Linux (TProxy TCP and TProxy UDP)
+-# tproxy-port: 7893
+-
+-allow-lan: true # 允许局域网连接
+-bind-address: "*" # 绑定 IP 地址，仅作用于 allow-lan 为 true，'*'表示所有地址
+-authentication: # http,socks 入口的验证用户名，密码
+-  - "username:password"
+-skip-auth-prefixes: # 设置跳过验证的 IP 段
+-  - 127.0.0.1/8
+-  - ::1/128
+-lan-allowed-ips: # 允许连接的 IP 地址段，仅作用于 allow-lan 为 true, 默认值为 0.0.0.0/0 和::/0
+-  - 0.0.0.0/0
+-  - ::/0
+-lan-disallowed-ips: # 禁止连接的 IP 地址段，黑名单优先级高于白名单，默认值为空
+-  - 192.168.0.3/32
+-
+-#  find-process-mode has 3 values:always, strict, off
+-#  - always, 开启，强制匹配所有进程
+-#  - strict, 默认，由 mihomo 判断是否开启
+-#  - off, 不匹配进程，推荐在路由器上使用此模式
+-find-process-mode: strict
+-
+-mode: rule
+-
+-#自定义 geodata url
+-geox-url:
+-  geoip: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+-  geosite: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+-  mmdb: "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb"
+-
+-geo-auto-update: false # 是否自动更新 geodata
+-geo-update-interval: 24 # 更新间隔，单位：小时
+-
+-# Matcher implementation used by GeoSite, available implementations:
+-# - succinct (default, same as rule-set)
+-# - mph (from V2Ray, also `hybrid` in Xray)
+-# geosite-matcher: succinct
+-
+-log-level: debug # 日志等级 silent/error/warning/info/debug
+-
+-ipv6: true # 开启 IPv6 总开关，关闭阻断所有 IPv6 链接和屏蔽 DNS 请求 AAAA 记录
+-
+-tls:
+-  certificate: string # 证书 PEM 格式，或者 证书的路径
+-  private-key: string # 证书对应的私钥 PEM 格式，或者私钥路径
+-  # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-  # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-  # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-  # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-  # ech-key: |
+-  #   -----BEGIN ECH KEYS-----
+-  #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-  #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-  #   dC5jb20AAA==
+-  #   -----END ECH KEYS-----
+-  custom-certifactes:
+-    - |
+-      -----BEGIN CERTIFICATE-----
+-      format/pem...
+-      -----END CERTIFICATE-----
+-
+-external-controller: 0.0.0.0:9093 # RESTful API 监听地址
+-external-controller-tls: 0.0.0.0:9443 # RESTful API HTTPS 监听地址，需要配置 tls 部分配置文件
+-# secret: "123456" # `Authorization:Bearer ${secret}`
+-
+-# RESTful API CORS标头配置
+-external-controller-cors:
+-  allow-origins:
+-    - "*"
+-  allow-private-network: true
+-
+-# RESTful API Unix socket 监听地址（ windows版本大于17063也可以使用，即大于等于1803/RS4版本即可使用 ）
+-# ！！！注意： 从Unix socket访问api接口不会验证secret， 如果开启请自行保证安全问题 ！！！
+-# 测试方法： curl -v --unix-socket "mihomo.sock" http://localhost/
+-external-controller-unix: mihomo.sock
+-
+-# RESTful API Windows namedpipe 监听地址
+-# ！！！注意： 从Windows namedpipe访问api接口不会验证secret， 如果开启请自行保证安全问题 ！！！
+-external-controller-pipe: \\.\pipe\mihomo
+-
+-# tcp-concurrent: true # TCP 并发连接所有 IP, 将使用最快握手的 TCP
+-
+-# 配置 WEB UI 目录，使用 http://{{external-controller}}/ui 访问
+-external-ui: /path/to/ui/folder/
+-external-ui-name: xd
+-# 目前支持下载zip,tgz格式的压缩包
+-external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+-
+-# 在RESTful API端口上开启DOH服务器
+-# ！！！该URL不会验证secret， 如果开启请自行保证安全问题 ！！！
+-external-doh-server: /dns-query
+-
+-# interface-name: en0 # 设置出口网卡
+-
+-# 全局 TLS 指纹，优先低于 proxy 内的 client-fingerprint
+-# 可选： "chrome","firefox","safari","ios","random","none" options.
+-# Utls is currently support TLS transport in TCP/grpc/WS/HTTP for VLESS/Vmess and trojan.
+-global-client-fingerprint: chrome
+-
+-#  TCP keep alive interval
+-# disable-keep-alive: false #目前在android端强制为true
+-# keep-alive-idle: 15
+-# keep-alive-interval: 15
+-
+-# routing-mark:6666 # 配置 fwmark 仅用于 Linux
+-experimental:
+-  # Disable quic-go GSO support. This may result in reduced performance on Linux.
+-  # This is not recommended for most users.
+-  # Only users encountering issues with quic-go's internal implementation should enable this,
+-  # and they should disable it as soon as the issue is resolved.
+-  # This field will be removed when quic-go fixes all their issues in GSO.
+-  # This equivalent to the environment variable QUIC_GO_DISABLE_GSO=1.
+-  #quic-go-disable-gso: true
+-
+-# 类似于 /etc/hosts, 仅支持配置单个 IP
+-hosts:
+-# '*.mihomo.dev': 127.0.0.1
+-# '.dev': 127.0.0.1
+-# 'alpha.mihomo.dev': '::1'
+-# test.com: [1.1.1.1, 2.2.2.2]
+-# home.lan: lan # lan 为特别字段，将加入本地所有网卡的地址
+-# baidu.com: google.com # 只允许配置一个别名
+-
+-profile: # 存储 select 选择记录
+-  store-selected: false
+-
+-  # 持久化 fake-ip
+-  store-fake-ip: true
+-
+-# Tun 配置
+-tun:
+-  enable: false
+-  stack: system # gvisor/mixed
+-  dns-hijack:
+-    - 0.0.0.0:53 # 需要劫持的 DNS
+-  # auto-detect-interface: true # 自动识别出口网卡
+-  # auto-route: true # 配置路由表
+-  # mtu: 9000 # 最大传输单元
+-  # gso: false # 启用通用分段卸载，仅支持 Linux
+-  # gso-max-size: 65536 # 通用分段卸载包的最大大小
+-  auto-redirect: false # 自动配置 iptables 以重定向 TCP 连接。仅支持 Linux。带有 auto-redirect 的 auto-route 现在可以在路由器上按预期工作，无需干预。
+-  # strict-route: true # 将所有连接路由到 tun 来防止泄漏，但你的设备将无法其他设备被访问
+-  # disable-icmp-forwarding: true # 禁用 ICMP 转发，防止某些情况下的 ICMP 环回问题，ping 将不会显示真实的延迟
+-  route-address-set: # 将指定规则集中的目标 IP CIDR 规则添加到防火墙, 不匹配的流量将绕过路由, 仅支持 Linux，且需要 nftables，`auto-route` 和 `auto-redirect` 已启用。
+-    - ruleset-1
+-    - ruleset-2
+-  route-exclude-address-set: # 将指定规则集中的目标 IP CIDR 规则添加到防火墙, 匹配的流量将绕过路由, 仅支持 Linux，且需要 nftables，`auto-route` 和 `auto-redirect` 已启用。
+-    - ruleset-3
+-    - ruleset-4
+-  route-address: # 启用 auto-route 时使用自定义路由而不是默认路由
+-    - 0.0.0.0/1
+-    - 128.0.0.0/1
+-    - "::/1"
+-    - "8000::/1"
+-  # inet4-route-address: # 启用 auto-route 时使用自定义路由而不是默认路由（旧写法）
+-  #   - 0.0.0.0/1
+-  #   - 128.0.0.0/1
+-  # inet6-route-address: # 启用 auto-route 时使用自定义路由而不是默认路由（旧写法）
+-  #   - "::/1"
+-  #   - "8000::/1"
+-  # endpoint-independent-nat: false # 启用独立于端点的 NAT
+-  # include-interface: # 限制被路由的接口。默认不限制，与 `exclude-interface` 冲突
+-  #   - "lan0"
+-  # exclude-interface: # 排除路由的接口，与 `include-interface` 冲突
+-  #   - "lan1"
+-  # include-uid: # UID 规则仅在 Linux 下被支持，并且需要 auto-route
+-  # - 0
+-  # include-uid-range: # 限制被路由的的用户范围
+-  # - 1000:9999
+-  # exclude-uid: # 排除路由的的用户
+-  #- 1000
+-  # exclude-uid-range: # 排除路由的的用户范围
+-  # - 1000:9999
+-
+-  # Android 用户和应用规则仅在 Android 下被支持
+-  # 并且需要 auto-route
+-
+-  # include-android-user: # 限制被路由的 Android 用户
+-  # - 0
+-  # - 10
+-  # include-package: # 限制被路由的 Android 应用包名
+-  # - com.android.chrome
+-  # exclude-package: # 排除被路由的 Android 应用包名
+-  # - com.android.captiveportallogin
+-
+-# 嗅探域名 可选配置
+-sniffer:
+-  enable: false
+-  ## 对 redir-host 类型识别的流量进行强制嗅探
+-  ## 如：Tun、Redir 和 TProxy 并 DNS 为 redir-host 皆属于
+-  # force-dns-mapping: false
+-  ## 对所有未获取到域名的流量进行强制嗅探
+-  # parse-pure-ip: false
+-  # 是否使用嗅探结果作为实际访问，默认 true
+-  # 全局配置，优先级低于 sniffer.sniff 实际配置
+-  override-destination: false
+-  sniff: # TLS 和 QUIC 默认如果不配置 ports 默认嗅探 443
+-    QUIC:
+-    #  ports: [ 443 ]
+-    TLS:
+-    #  ports: [443, 8443]
+-
+-    # 默认嗅探 80
+-    HTTP: # 需要嗅探的端口
+-      ports: [80, 8080-8880]
+-      # 可覆盖 sniffer.override-destination
+-      override-destination: true
+-  force-domain:
+-    - +.v2ex.com
+-  # skip-src-address: # 对于来源ip跳过嗅探
+-  #   - 192.168.0.3/32
+-  # skip-dst-address: # 对于目标ip跳过嗅探
+-  #   - 192.168.0.3/32
+-  ## 对嗅探结果进行跳过
+-  # skip-domain:
+-  #   - Mijia Cloud
+-  # 需要嗅探协议
+-  # 已废弃，若 sniffer.sniff 配置则此项无效
+-  sniffing:
+-    - tls
+-    - http
+-  # 强制对此域名进行嗅探
+-
+-  # 仅对白名单中的端口进行嗅探，默认为 443，80
+-  # 已废弃，若 sniffer.sniff 配置则此项无效
+-  port-whitelist:
+-    - "80"
+-    - "443"
+-    # - 8000-9999
+-
+-tunnels: # one line config
+-  - tcp/udp,127.0.0.1:6553,114.114.114.114:53,proxy
+-  - tcp,127.0.0.1:6666,rds.mysql.com:3306,vpn
+-  # full yaml config
+-  - network: [tcp, udp]
+-    address: 127.0.0.1:7777
+-    target: target.com
+-    proxy: proxy
+-
+-# DNS 配置
+-dns:
+-  cache-algorithm: arc
+-  enable: false # 关闭将使用系统 DNS
+-  prefer-h3: false # 是否开启 DoH 支持 HTTP/3，将并发尝试
+-  listen: 0.0.0.0:53 # 开启 DNS 服务器监听
+-  # ipv6: false # false 将返回 AAAA 的空结果
+-  # ipv6-timeout: 300 # 单位：ms，内部双栈并发时，向上游查询 AAAA 时，等待 AAAA 的时间，默认 100ms
+-  # 用于解析 nameserver，fallback 以及其他 DNS 服务器配置的，DNS 服务域名
+-  # 只能使用纯 IP 地址，可使用加密 DNS
+-  default-nameserver:
+-    - 114.114.114.114
+-    - 8.8.8.8
+-    - tls://1.12.12.12:853
+-    - tls://223.5.5.5:853
+-    - system # append DNS server from system configuration. If not found, it would print an error log and skip.
+-  enhanced-mode: fake-ip # or redir-host
+-
+-  fake-ip-range: 198.18.0.1/16 # fake-ip 池设置
+-  # fake-ip-range6: fdfe:dcba:9876::1/64 # fake-ip6 池设置
+-
+-  # 配置不使用 fake-ip 的域名
+-  fake-ip-filter:
+-    - '*.lan'
+-    - localhost.ptlogin2.qq.com
+-    # fakeip-filter 为 rule-providers 中的名为 fakeip-filter 规则订阅，
+-    # 且 behavior 必须为 domain/classical，当为 classical 时仅会生效域名类规则
+-    - rule-set:fakeip-filter
+-    # fakeip-filter 为 geosite 中名为 fakeip-filter 的分类（需要自行保证该分类存在）
+-    - geosite:fakeip-filter
+-
+-    # 当 fake-ip-filter-mode: rule 时开启规则模式
+-    # fake-ip 与路由 rules 匹配逻辑一致(自上而下)，语法也一致，支持GEOSITE、RuleSet、DOMAIN*、MATCH
+-    - RULE-SET,reject-domain,fake-ip # 自定义 RuleSet behavior 必须为 domain/classical，当为 classical 时仅会生效域名类规则
+-    - RULE-SET,proxy-domain,fake-ip
+-    - GEOSITE,gfw,fake-ip
+-    - DOMAIN,www.baidu.com,real-ip
+-    - DOMAIN-SUFFIX,qq.com,real-ip
+-    - DOMAIN-SUFFIX,jd.com,fake-ip
+-    - MATCH,fake-ip # 最后 fake-ip or real-ip
+-
+-  # 配置fake-ip-filter的匹配模式，默认为blacklist，即如果匹配成功不返回fake-ip
+-  # 可设置为whitelist，即只有匹配成功才返回fake-ip
+-  # 也可配置为rule，规则模式语法见fake-ip-filter说明
+-  fake-ip-filter-mode: blacklist
+-  # 配置fakeip查询返回的TTL，非必要情况下请勿修改
+-  fake-ip-ttl: 1
+-
+-  # use-hosts: true # 查询 hosts
+-
+-  # 配置后面的nameserver、fallback和nameserver-policy向dns服务器的连接过程是否遵守遵守rules规则
+-  # 如果为false（默认值）则这三部分的dns服务器在未特别指定的情况下会直连
+-  # 如果为true，将会按照rules的规则匹配链接方式（走代理或直连），如果有特别指定则任然以指定值为准
+-  # 仅当proxy-server-nameserver非空时可以开启此选项, 强烈不建议和prefer-h3一起使用
+-  # 此外，这三者配置中的dns服务器如果出现域名会采用default-nameserver配置项解析，也请确保正确配置default-nameserver
+-  respect-rules: false
+-
+-  # DNS 主要域名配置
+-  # 支持 UDP，TCP，DoT，DoH，DoQ
+-  # 这部分为主要 DNS 配置，影响所有直连，确保使用对大陆解析精准的 DNS
+-  nameserver:
+-    - 114.114.114.114 # default value
+-    - 8.8.8.8 # default value
+-    - tls://223.5.5.5:853 # DNS over TLS
+-    - https://doh.pub/dns-query # DNS over HTTPS
+-    - https://dns.alidns.com/dns-query#h3=true # 强制 HTTP/3，与 perfer-h3 无关，强制开启 DoH 的 HTTP/3 支持，若不支持将无法使用
+-    - https://mozilla.cloudflare-dns.com/dns-query#DNS&h3=true # 指定策略组和使用 HTTP/3
+-    - dhcp://en0 # dns from dhcp
+-    - quic://dns.adguard.com:784 # DNS over QUIC
+-    # - '8.8.8.8#RULES' # 效果同respect-rules，但仅对该服务器生效
+-    # - '8.8.8.8#en0' # 兼容指定 DNS 出口网卡
+-
+-  # 当配置 fallback 时，会查询 nameserver 中返回的 IP 是否为 CN，非必要配置
+-  # 当不是 CN，则使用 fallback 中的 DNS 查询结果
+-  # 确保配置 fallback 时能够正常查询
+-  # fallback:
+-  #   - tcp://1.1.1.1
+-  #   - 'tcp://1.1.1.1#ProxyGroupName' # 指定 DNS 过代理查询，ProxyGroupName 为策略组名或节点名，过代理配置优先于配置出口网卡，当找不到策略组或节点名则设置为出口网卡
+-
+-  # 专用于节点域名解析的 DNS 服务器，非必要配置项，如果不填则遵循nameserver-policy、nameserver和fallback的配置
+-  # proxy-server-nameserver:
+-  #   - https://dns.google/dns-query
+-  #   - tls://one.one.one.one
+-
+-  # 专用于direct出口域名解析的 DNS 服务器，非必要配置项，如果不填则遵循nameserver-policy、nameserver和fallback的配置
+-  # direct-nameserver:
+-  #   - system://
+-  # direct-nameserver-follow-policy: false # 是否遵循nameserver-policy，默认为不遵守，仅当direct-nameserver不为空时生效
+-
+-  # 配置 fallback 使用条件
+-  # fallback-filter:
+-  #   geoip: true # 配置是否使用 geoip
+-  #   geoip-code: CN # 当 nameserver 域名的 IP 查询 geoip 库为 CN 时，不使用 fallback 中的 DNS 查询结果
+-  #   配置强制 fallback，优先于 IP 判断，具体分类自行查看 geosite 库
+-  #   geosite:
+-  #     - gfw
+-  #   如果不匹配 ipcidr 则使用 nameservers 中的结果
+-  #   ipcidr:
+-  #     - 240.0.0.0/4
+-  #   domain:
+-  #     - '+.google.com'
+-  #     - '+.facebook.com'
+-  #     - '+.youtube.com'
+-
+-  # 配置查询域名使用的 DNS 服务器
+-  nameserver-policy:
+-    #   'www.baidu.com': '114.114.114.114'
+-    #   '+.internal.crop.com': '10.0.0.1'
+-    "geosite:cn,private,apple":
+-      - https://doh.pub/dns-query
+-      - https://dns.alidns.com/dns-query
+-    "geosite:category-ads-all": rcode://success
+-    "www.baidu.com,+.google.cn": [223.5.5.5, https://dns.alidns.com/dns-query]
+-    ## global，dns 为 rule-providers 中的名为 global 和 dns 规则订阅，
+-    ## 且 behavior 必须为 domain/classical，当为 classical 时仅会生效域名类规则
+-    # "rule-set:global,dns": 8.8.8.8
+-
+-proxies: # socks5
+-  - name: "socks"
+-    type: socks5
+-    server: server
+-    port: 443
+-    # username: username
+-    # password: password
+-    # tls: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # skip-cert-verify: true
+-    # udp: true
+-    # ip-version: ipv6
+-
+-  # http
+-  - name: "http"
+-    type: http
+-    server: server
+-    port: 443
+-    # username: username
+-    # password: password
+-    # tls: true # https
+-    # skip-cert-verify: true
+-    # sni: custom.com
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # ip-version: dual
+-
+-  # Snell
+-  # Beware that there's currently no UDP support yet
+-  - name: "snell"
+-    type: snell
+-    server: server
+-    port: 44046
+-    psk: yourpsk
+-    # version: 2
+-    # obfs-opts:
+-    # mode: http # or tls
+-    # host: bing.com
+-
+-  # Shadowsocks
+-  # cipher支持:
+-  #   aes-128-gcm aes-192-gcm aes-256-gcm
+-  #   aes-128-cfb aes-192-cfb aes-256-cfb
+-  #   aes-128-ctr aes-192-ctr aes-256-ctr
+-  #   rc4-md5 chacha20-ietf xchacha20
+-  #   chacha20-ietf-poly1305 xchacha20-ietf-poly1305
+-  #   2022-blake3-aes-128-gcm 2022-blake3-aes-256-gcm 2022-blake3-chacha20-poly1305
+-  - name: "ss1"
+-    type: ss
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: "password"
+-    # udp: true
+-    # udp-over-tcp: false
+-    # ip-version: ipv4 # 设置节点使用 IP 版本，可选：dual，ipv4，ipv6，ipv4-prefer，ipv6-prefer。默认使用 dual
+-    # ipv4：仅使用 IPv4  ipv6：仅使用 IPv6
+-    # ipv4-prefer：优先使用 IPv4 对于 TCP 会进行双栈解析，并发链接但是优先使用 IPv4 链接，
+-    # UDP 则为双栈解析，获取结果中的第一个 IPv4
+-    # ipv6-prefer 同 ipv4-prefer
+-    # 现有协议都支持此参数，TCP 效果仅在开启 tcp-concurrent 生效
+-    smux:
+-      enabled: false
+-      protocol: smux # smux/yamux/h2mux
+-      # max-connections: 4 # Maximum connections. Conflict with max-streams.
+-      # min-streams: 4 # Minimum multiplexed streams in a connection before opening a new connection. Conflict with max-streams.
+-      # max-streams: 0 # Maximum multiplexed streams in a connection before opening a new connection. Conflict with max-connections and min-streams.
+-      # padding: false # Enable padding. Requires sing-box server version 1.3-beta9 or later.
+-      # statistic: false # 控制是否将底层连接显示在面板中，方便打断底层连接
+-      # only-tcp: false # 如果设置为 true, smux 的设置将不会对 udp 生效，udp 连接会直接走底层协议
+-
+-  - name: "ss2"
+-    type: ss
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: "password"
+-    plugin: obfs
+-    plugin-opts:
+-      mode: tls # or http
+-      # host: bing.com
+-
+-  - name: "ss3"
+-    type: ss
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: "password"
+-    plugin: v2ray-plugin
+-    plugin-opts:
+-      mode: websocket # no QUIC now
+-      # tls: true # wss
+-      # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-      # 下面两项如果填写则开启 mTLS（需要同时填写）
+-      # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-      # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-      # ech-opts:
+-      #   enable: true # 必须手动开启
+-      #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-      #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-      # skip-cert-verify: true
+-      # host: bing.com
+-      # path: "/"
+-      # mux: true
+-      # headers:
+-      #   custom: value
+-      # v2ray-http-upgrade: false
+-      # v2ray-http-upgrade-fast-open: false
+-
+-  - name: "ss4-shadow-tls"
+-    type: ss
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: "password"
+-    plugin: shadow-tls
+-    client-fingerprint: chrome
+-    plugin-opts:
+-      host: "cloud.tencent.com"
+-      password: "shadow_tls_password"
+-      version: 2 # support 1/2/3
+-      # alpn: ["h2","http/1.1"]
+-
+-  - name: "ss5"
+-    type: ss
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: "password"
+-    plugin: gost-plugin
+-    plugin-opts:
+-      mode: websocket
+-      # tls: true # wss
+-      # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-      # 下面两项如果填写则开启 mTLS（需要同时填写）
+-      # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-      # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-      # skip-cert-verify: true
+-      # host: bing.com
+-      # path: "/"
+-      # mux: true
+-      # headers:
+-      #   custom: value
+-
+-  - name: "ss-restls-tls13"
+-    type: ss
+-    server: [YOUR_SERVER_IP]
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: [YOUR_SS_PASSWORD]
+-    client-fingerprint:
+-      chrome # One of: chrome, ios, firefox or safari
+-      # 可以是 chrome, ios, firefox, safari 中的一个
+-    plugin: restls
+-    plugin-opts:
+-      host:
+-        "www.microsoft.com" # Must be a TLS 1.3 server
+-        # 应当是一个 TLS 1.3 服务器
+-      password: [YOUR_RESTLS_PASSWORD]
+-      version-hint: "tls13"
+-      # Control your post-handshake traffic through restls-script
+-      # Hide proxy behaviors like "tls in tls".
+-      # see https://github.com/3andne/restls/blob/main/Restls-Script:%20Hide%20Your%20Proxy%20Traffic%20Behavior.md
+-      # 用 restls 剧本来控制握手后的行为，隐藏"tls in tls"等特征
+-      # 详情：https://github.com/3andne/restls/blob/main/Restls-Script:%20%E9%9A%90%E8%97%8F%E4%BD%A0%E7%9A%84%E4%BB%A3%E7%90%86%E8%A1%8C%E4%B8%BA.md
+-      restls-script: "300?100<1,400~100,350~100,600~100,300~200,300~100"
+-
+-  - name: "ss-restls-tls12"
+-    type: ss
+-    server: [YOUR_SERVER_IP]
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: [YOUR_SS_PASSWORD]
+-    client-fingerprint:
+-      chrome # One of: chrome, ios, firefox or safari
+-      # 可以是 chrome, ios, firefox, safari 中的一个
+-    plugin: restls
+-    plugin-opts:
+-      host:
+-        "vscode.dev" # Must be a TLS 1.2 server
+-        # 应当是一个 TLS 1.2 服务器
+-      password: [YOUR_RESTLS_PASSWORD]
+-      version-hint: "tls12"
+-      restls-script: "1000?100<1,500~100,350~100,600~100,400~200"
+-
+-  - name: "ss-kcptun"
+-    type: ss
+-    server: [YOUR_SERVER_IP]
+-    port: 443
+-    cipher: chacha20-ietf-poly1305
+-    password: [YOUR_SS_PASSWORD]
+-    plugin: kcptun
+-    plugin-opts:
+-      key: it's a secrect # pre-shared secret between client and server
+-      crypt: aes # aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, none, null
+-      mode: fast # profiles: fast3, fast2, fast, normal, manual
+-      conn: 1 # set num of UDP connections to server
+-      autoexpire: 0 # set auto expiration time(in seconds) for a single UDP connection, 0 to disable
+-      scavengettl: 600 # set how long an expired connection can live (in seconds)
+-      mtu: 1350 # set maximum transmission unit for UDP packets
+-      ratelimit: 0 # set maximum outgoing speed (in bytes per second) for a single KCP connection, 0 to disable. Also known as packet pacing
+-      sndwnd: 128 # set send window size(num of packets)
+-      rcvwnd: 512 # set receive window size(num of packets)
+-      datashard: 10 # set reed-solomon erasure coding - datashard
+-      parityshard: 3 # set reed-solomon erasure coding - parityshard
+-      dscp: 0 # set DSCP(6bit)
+-      nocomp: false # disable compression
+-      acknodelay: false # flush ack immediately when a packet is received
+-      nodelay: 0
+-      interval: 50
+-      resend: 0
+-      sockbuf: 4194304 # per-socket buffer in bytes
+-      smuxver: 1 # specify smux version, available 1,2
+-      smuxbuf: 4194304 # the overall de-mux buffer in bytes
+-      framesize: 8192 # smux max frame size
+-      streambuf: 2097152 # per stream receive buffer in bytes, smux v2+
+-      keepalive: 10 # seconds between heartbeats
+-
+-  # vmess
+-  # cipher 支持 auto/aes-128-gcm/chacha20-poly1305/none
+-  - name: "vmess"
+-    type: vmess
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    alterId: 32
+-    cipher: auto
+-    # udp: true
+-    # tls: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # client-fingerprint: chrome    # Available: "chrome","firefox","safari","ios","random", currently only support TLS transport in TCP/GRPC/WS/HTTP for VLESS/Vmess and trojan.
+-    # skip-cert-verify: true
+-    # servername: example.com # priority over wss host
+-    # network: ws
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-    # ws-opts:
+-      # path: /path
+-      # headers:
+-      #   Host: v2ray.com
+-      # max-early-data: 2048
+-      # early-data-header-name: Sec-WebSocket-Protocol
+-      # v2ray-http-upgrade: false
+-      # v2ray-http-upgrade-fast-open: false
+-
+-  - name: "vmess-h2"
+-    type: vmess
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    alterId: 32
+-    cipher: auto
+-    network: h2
+-    tls: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    h2-opts:
+-      host:
+-        - http.example.com
+-        - http-alt.example.com
+-      path: /
+-
+-  - name: "vmess-http"
+-    type: vmess
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    alterId: 32
+-    cipher: auto
+-    # udp: true
+-    # network: http
+-    # http-opts:
+-    #   method: "GET"
+-    #   path:
+-    #     - '/'
+-    #     - '/video'
+-    #   headers:
+-    #     Connection:
+-    #       - keep-alive
+-    # ip-version: ipv4 # 设置使用 IP 类型偏好，可选：ipv4，ipv6，dual，默认值：dual
+-
+-  - name: vmess-grpc
+-    server: server
+-    port: 443
+-    type: vmess
+-    uuid: uuid
+-    alterId: 32
+-    cipher: auto
+-    network: grpc
+-    tls: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    servername: example.com
+-    # skip-cert-verify: true
+-    grpc-opts:
+-      grpc-service-name: "example"
+-      # grpc-user-agent: "grpc-go/1.36.0"
+-    # ip-version: ipv4
+-
+-  # vless
+-  - name: "vless-tcp"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    network: tcp
+-    servername: example.com # AKA SNI
+-    # skip-cert-verify: true
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # client-fingerprint: random # Available: "chrome","firefox","safari","random","none"
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-
+-  - name: "vless-vision"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    network: tcp
+-    tls: true
+-    udp: true
+-    flow: xtls-rprx-vision
+-    client-fingerprint: chrome
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # skip-cert-verify: true
+-
+-  - name: "vless-encryption"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    network: tcp
+-    # -------------------------
+-    # vless encryption客户端配置：
+-    # （native/xorpub 的 XTLS Vision 可以 Splice。只使用 1-RTT 模式 / 若服务端发的 ticket 中秒数不为零则 0-RTT 复用）
+-    # / 是只能选一个，后面 base64 至少一个，无限串联，使用  mihomo generate vless-x25519 和 mihomo generate vless-mlkem768 生成，替换值时需去掉括号
+-    #
+-    # Padding 是可选的参数，仅作用于 1-RTT 以消除握手的长度特征，双端默认值均为 "100-111-1111.75-0-111.50-0-3333"：
+-    # 在 1-RTT client/server hello 后以 100% 的概率粘上随机 111 到 1111 字节的 padding
+-    # 以 75% 的概率等待随机 0 到 111 毫秒（"probability-from-to"）
+-    # 再次以 50% 的概率发送随机 0 到 3333 字节的 padding（若为 0 则不 Write()）
+-    # 服务端、客户端可以设置不同的 padding 参数，按 len、gap 的顺序无限串联，第一个 padding 需概率 100%、至少 35 字节
+-    # -------------------------
+-    encryption: "mlkem768x25519plus.native/xorpub/random.1rtt/0rtt.(padding len).(padding gap).(X25519 Password).(ML-KEM-768 Client)..."
+-    tls: false #可以不开启tls
+-    udp: true
+-
+-  - name: "vless-reality-vision"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    network: tcp
+-    tls: true
+-    udp: true
+-    flow: xtls-rprx-vision
+-    servername: www.microsoft.com # REALITY servername
+-    reality-opts:
+-      public-key: xxx
+-      short-id: xxx # optional
+-      support-x25519mlkem768: false # 如果服务端支持可手动设置为true
+-    client-fingerprint: chrome # cannot be empty
+-
+-  - name: "vless-reality-grpc"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    network: grpc
+-    tls: true
+-    udp: true
+-    flow:
+-    # skip-cert-verify: true
+-    client-fingerprint: chrome
+-    servername: testingcf.jsdelivr.net
+-    grpc-opts:
+-      grpc-service-name: "grpc"
+-      # grpc-user-agent: "grpc-go/1.36.0"
+-      
+-    reality-opts:
+-      public-key: CrrQSjAG_YkHLwvM2M-7XkKJilgL5upBKCp0od0tLhE
+-      short-id: 10f897e26c4b9478
+-      support-x25519mlkem768: false # 如果服务端支持可手动设置为true
+-
+-  - name: "vless-ws"
+-    type: vless
+-    server: server
+-    port: 443
+-    uuid: uuid
+-    udp: true
+-    tls: true
+-    network: ws
+-    # client-fingerprint: random # Available: "chrome","firefox","safari","random","none"
+-    servername: example.com # priority over wss host
+-    # skip-cert-verify: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    ws-opts:
+-      path: "/"
+-      headers:
+-        Host: example.com
+-      # v2ray-http-upgrade: false
+-      # v2ray-http-upgrade-fast-open: false
+-
+-  # Trojan
+-  - name: "trojan"
+-    type: trojan
+-    server: server
+-    port: 443
+-    password: yourpsk
+-    # client-fingerprint: random # Available: "chrome","firefox","safari","random","none"
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # udp: true
+-    # sni: example.com # aka server name
+-    # alpn:
+-    #   - h2
+-    #   - http/1.1
+-    # skip-cert-verify: true
+-    # ss-opts: # like trojan-go's `shadowsocks` config
+-    #   enabled: false
+-    #   method: aes-128-gcm # aes-128-gcm/aes-256-gcm/chacha20-ietf-poly1305
+-    #   password: "example"
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-
+-  - name: trojan-grpc
+-    server: server
+-    port: 443
+-    type: trojan
+-    password: "example"
+-    network: grpc
+-    sni: example.com
+-    # skip-cert-verify: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    udp: true
+-    grpc-opts:
+-      grpc-service-name: "example"
+-      # grpc-user-agent: "grpc-go/1.36.0"
+-
+-  - name: trojan-ws
+-    server: server
+-    port: 443
+-    type: trojan
+-    password: "example"
+-    network: ws
+-    sni: example.com
+-    # skip-cert-verify: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    udp: true
+-    # ws-opts:
+-    #   path: /path
+-    #   headers:
+-    #     Host: example.com
+-    #   v2ray-http-upgrade: false
+-    #   v2ray-http-upgrade-fast-open: false
+-
+-  - name: "trojan-xtls"
+-    type: trojan
+-    server: server
+-    port: 443
+-    password: yourpsk
+-    flow: "xtls-rprx-direct" # xtls-rprx-origin xtls-rprx-direct
+-    flow-show: true
+-    # udp: true
+-    # sni: example.com # aka server name
+-    # skip-cert-verify: true
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-
+-  #hysteria
+-  - name: "hysteria"
+-    type: hysteria
+-    server: server.com
+-    port: 443
+-    # ports: 1000,2000-3000,5000 # port 不可省略
+-    auth-str: yourpassword
+-    # obfs: obfs_str
+-    # alpn:
+-    #   - h3
+-    protocol: udp # 支持 udp/wechat-video/faketcp
+-    up: "30 Mbps" # 若不写单位，默认为 Mbps
+-    down: "200 Mbps" # 若不写单位，默认为 Mbps
+-    # sni: server.com
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-    # skip-cert-verify: false
+-    # recv-window-conn: 12582912
+-    # recv-window: 52428800
+-    # disable-mtu-discovery: false
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # fast-open: true # 支持 TCP 快速打开，默认为 false
+-
+-  #hysteria2
+-  - name: "hysteria2"
+-    type: hysteria2
+-    server: server.com
+-    port: 443
+-    # ports: 1000,2000-3000,5000 # port 不可省略
+-    # hop-interval: 15
+-    #  up 和 down 均不写或为 0 则使用 BBR 流控
+-    # up: "30 Mbps" # 若不写单位，默认为 Mbps
+-    # down: "200 Mbps" # 若不写单位，默认为 Mbps
+-    password: yourpassword
+-    # obfs: salamander # 默认为空，如果填写则开启 obfs，目前仅支持 salamander
+-    # obfs-password: yourpassword
+-    # sni: server.com
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-    # skip-cert-verify: false
+-    # fingerprint: xxxx # 配置指纹将实现 SSL Pining 效果, 可使用 openssl x509 -noout -fingerprint -sha256 -inform pem -in yourcert.pem 获取
+-    # 下面两项如果填写则开启 mTLS（需要同时填写）
+-    # certificate: ./client.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./client.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # alpn:
+-    #   - h3
+-    ###quic-go特殊配置项，不要随意修改除非你知道你在干什么###
+-    # initial-stream-receive-window： 8388608
+-    # max-stream-receive-window： 8388608
+-    # initial-connection-receive-window： 20971520
+-    # max-connection-receive-window： 20971520
+-
+-  # wireguard
+-  - name: "wg"
+-    type: wireguard
+-    server: 162.159.192.1
+-    port: 2480
+-    ip: 172.16.0.2
+-    ipv6: fd01:5ca1:ab1e:80fa:ab85:6eea:213f:f4a5
+-    public-key: Cr8hWlKvtDt7nrvf+f0brNQQzabAqrjfBvas9pmowjo=
+-    #    pre-shared-key: 31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=
+-    private-key: eCtXsJZ27+4PbhDkHnB923tkUn2Gj59wZw5wFA75MnU=
+-    udp: true
+-    reserved: "U4An"
+-    # 数组格式也是合法的
+-    # reserved: [209,98,59]
+-    # 一个出站代理的标识。当值不为空时，将使用指定的 proxy 发出连接
+-    # dialer-proxy: "ss1"
+-    # remote-dns-resolve: true # 强制 dns 远程解析，默认值为 false
+-    # dns: [ 1.1.1.1, 8.8.8.8 ] # 仅在 remote-dns-resolve 为 true 时生效
+-    # refresh-server-ip-interval: 60 # 重新解析server ip的间隔，单位为秒，默认值为0即仅第一次链接时解析server域名，仅应在server域名对应的IP会发生变化时启用该选项（如家宽ddns）
+-    # 如果 peers 不为空，该段落中的 allowed-ips 不可为空；前面段落的 server,port,public-key,pre-shared-key 均会被忽略，但 private-key 会被保留且只能在顶层指定
+-    # peers:
+-    #   - server: 162.159.192.1
+-    #     port: 2480
+-    #     public-key: Cr8hWlKvtDt7nrvf+f0brNQQzabAqrjfBvas9pmowjo=
+-    #     # pre-shared-key: 31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=
+-    #     allowed-ips: ['0.0.0.0/0']
+-    #     reserved: [209,98,59]
+-    # 如果存在则开启AmneziaWG功能
+-    # amnezia-wg-option:
+-    #   jc: 5
+-    #   jmin: 500
+-    #   jmax: 501
+-    #   s1: 30
+-    #   s2: 40
+-    #   s3: 50                                            # AmneziaWG v1.5 and v2
+-    #   s4: 5                                             # AmneziaWG v1.5 and v2
+-    #   h1: 123456                                        # AmneziaWG v1.0 and v1.5
+-    #   h2: 67543                                         # AmneziaWG v1.0 and v1.5
+-    #   h3: 123123                                        # AmneziaWG v1.0 and v1.5
+-    #   h4: 32345                                         # AmneziaWG v1.0 and v1.5
+-    #   h1: 123456-123500                                 # AmneziaWG v2.0 only
+-    #   h2: 67543-67550                                   # AmneziaWG v2.0 only
+-    #   h3: 123123-123200                                 # AmneziaWG v2.0 only
+-    #   h4: 32345-32350                                   # AmneziaWG v2.0 only
+-    #   i1: <b 0xf6ab3267fa><c><b 0xf6ab><t><r 10><wt 10> # AmneziaWG v1.5 and v2
+-    #   i2: <b 0xf6ab3267fa><r 100>                       # AmneziaWG v1.5 and v2
+-    #   i3: ""                                            # AmneziaWG v1.5 and v2
+-    #   i4: ""                                            # AmneziaWG v1.5 and v2
+-    #   i5: ""                                            # AmneziaWG v1.5 and v2
+-    #   j1: <b 0xffffffff><c><b 0xf6ab><t><r 10>          # AmneziaWG v1.5 only (removed in v2)
+-    #   j2: <c><b 0xf6ab><t><wt 1000>                     # AmneziaWG v1.5 only (removed in v2)
+-    #   j3: <t><b 0xf6ab><c><r 10>                        # AmneziaWG v1.5 only (removed in v2)
+-    #   itime: 60                                         # AmneziaWG v1.5 only (removed in v2)
+-
+-  # tuic
+-  - name: tuic
+-    server: www.example.com
+-    port: 10443
+-    type: tuic
+-    # tuicV4 必须填写 token（不可同时填写 uuid 和 password）
+-    token: TOKEN
+-    # tuicV5 必须填写 uuid 和 password（不可同时填写 token）
+-    uuid: 00000000-0000-0000-0000-000000000001
+-    password: PASSWORD_1
+-    # ip: 127.0.0.1 # for overwriting the DNS lookup result of the server address set in option 'server'
+-    # heartbeat-interval: 10000
+-    # alpn: [h3]
+-    disable-sni: true
+-    reduce-rtt: true
+-    request-timeout: 8000
+-    udp-relay-mode: native # Available: "native", "quic". Default: "native"
+-    # congestion-controller: bbr # Available: "cubic", "new_reno", "bbr". Default: "cubic"
+-    # cwnd: 10 # default: 32
+-    # max-udp-relay-packet-size: 1500
+-    # fast-open: true
+-    # skip-cert-verify: true
+-    # max-open-streams: 20 # default 100, too many open streams may hurt performance
+-    # sni: example.com
+-    # ech-opts:
+-    #   enable: true # 必须手动开启
+-    #   # 如果config为空则通过dns解析，不为空则通过该值指定，格式为经过base64编码的ech参数（dig +short TYPE65 tls-ech.dev）
+-    #   config: AEn+DQBFKwAgACABWIHUGj4u+PIggYXcR5JF0gYk3dCRioBW8uJq9H4mKAAIAAEAAQABAANAEnB1YmxpYy50bHMtZWNoLmRldgAA
+-    #
+-    # meta 和 sing-box 私有扩展，将 ss-uot 用于 udp 中继，开启此选项后 udp-relay-mode 将失效
+-    # 警告，与原版 tuic 不兼容！！！
+-    # udp-over-stream: false
+-    # udp-over-stream-version: 1
+-
+-  # ShadowsocksR
+-  # The supported ciphers (encryption methods): all stream ciphers in ss
+-  # The supported obfses:
+-  #   plain http_simple http_post
+-  #   random_head tls1.2_ticket_auth tls1.2_ticket_fastauth
+-  # The supported protocols:
+-  #   origin auth_sha1_v4 auth_aes128_md5
+-  #   auth_aes128_sha1 auth_chain_a auth_chain_b
+-  - name: "ssr"
+-    type: ssr
+-    server: server
+-    port: 443
+-    cipher: chacha20-ietf
+-    password: "password"
+-    obfs: tls1.2_ticket_auth
+-    protocol: auth_sha1_v4
+-    # obfs-param: domain.tld
+-    # protocol-param: "#"
+-    # udp: true
+-
+-  - name: "ssh-out"
+-    type: ssh
+-
+-    server: 127.0.0.1
+-    port: 22
+-    username: root
+-    password: password
+-    privateKey: path
+-
+-  # mieru
+-  - name: mieru
+-    type: mieru
+-    server: 1.2.3.4
+-    port: 2999
+-    # port-range: 2090-2099 #（不可同时填写 port 和 port-range）
+-    transport: TCP # 支持 TCP 或者 UDP
+-    udp: true # 支持 UDP over TCP
+-    username: user
+-    password: password
+-    # 可以使用的值包括 MULTIPLEXING_OFF, MULTIPLEXING_LOW, MULTIPLEXING_MIDDLE, MULTIPLEXING_HIGH。其中 MULTIPLEXING_OFF 会关闭多路复用功能。默认值为 MULTIPLEXING_LOW。
+-    # multiplexing: MULTIPLEXING_LOW
+-    # 如果想开启 0-RTT 握手，请设置为 HANDSHAKE_NO_WAIT，否则请设置为 HANDSHAKE_STANDARD。默认值为 HANDSHAKE_STANDARD
+-    # handshake-mode: HANDSHAKE_STANDARD
+-
+-  # sudoku
+-  - name: sudoku
+-    type: sudoku
+-    server: server_ip/domain # 1.2.3.4 or domain
+-    port: 443 
+-    key: "<client_key>" # 如果你使用sudoku生成的ED25519密钥对，请填写密钥对中的私钥，否则填入和服务端相同的uuid
+-    aead-method: chacha20-poly1305 # 可选值：chacha20-poly1305、aes-128-gcm、none 我们保证在none的情况下sudoku混淆层仍然确保安全
+-    padding-min: 2 # 最小填充字节数
+-    padding-max: 7 # 最大填充字节数
+-    table-type: prefer_ascii    # 可选值：prefer_ascii、prefer_entropy 前者全ascii映射，后者保证熵值（汉明1）低于3
+-    # custom-table: xpxvvpvv    # 可选，自定义字节布局，必须包含2个x、2个p、4个v，可随意组合。启用此处则需配置`table-type`为`prefer_entropy`
+-    # custom-tables: ["xpxvvpvv", "vxpvxvvp"] # 可选，自定义字节布局列表（x/v/p），用于 xvp 模式轮换；非空时覆盖 custom-table
+-    http-mask: true # 是否启用http掩码
+-    # http-mask-mode: legacy # 可选：legacy（默认）、stream、poll、auto；stream/poll/auto 支持走 CDN/反代
+-    # http-mask-tls: true # 可选：仅在 http-mask-mode 为 stream/poll/auto 时生效；true 强制 https；false 强制 http（不会根据端口自动推断）
+-    # http-mask-host: "" # 可选：覆盖 Host/SNI（支持 example.com 或 example.com:443）；仅在 http-mask-mode 为 stream/poll/auto 时生效
+-    # path-root: "" # 可选：HTTP 隧道端点一级路径前缀（双方需一致），例如 "aabbcc" => /aabbcc/session、/aabbcc/stream、/aabbcc/api/v1/upload
+-    # http-mask-multiplex: off # 可选：off（默认）、auto（复用 h1.1 keep-alive / h2 连接，减少每次建链 RTT）、on（单条隧道内多路复用多个目标连接；仅在 http-mask-mode=stream/poll/auto 生效）
+-    enable-pure-downlink: false # 是否启用混淆下行，false的情况下能在保证数据安全的前提下极大提升下行速度，与服务端端保持相同(如果此处为false，则要求aead不可为none)
+-
+-  # anytls
+-  - name: anytls
+-    type: anytls
+-    server: 1.2.3.4
+-    port: 443
+-    password: "<your password>"
+-    # client-fingerprint: chrome
+-    udp: true
+-    # idle-session-check-interval: 30 # seconds
+-    # idle-session-timeout: 30 # seconds
+-    # min-idle-session: 0
+-    # sni: "example.com"
+-    # alpn:
+-    #   - h2
+-    #   - http/1.1
+-    # skip-cert-verify: true
+-
+-# dns 出站会将请求劫持到内部 dns 模块，所有请求均在内部处理
+-  - name: "dns-out"
+-    type: dns
+-
+-  # 配置指定 interface-name 和 fwmark 的 DIRECT
+-  - name: en1-direct
+-    type: direct
+-    interface-name: en1
+-    routing-mark: 6667
+-proxy-groups:
+-  # 代理链，目前 relay 可以支持 udp 的只有 vmess/vless/trojan/ss/ssr/tuic
+-  # wireguard 目前不支持在 relay 中使用，请使用 proxy 中的 dialer-proxy 配置项
+-  # Traffic: mihomo <-> http <-> vmess <-> ss1 <-> ss2 <-> Internet
+-  - name: "relay"
+-    type: relay
+-    proxies:
+-      - http
+-      - vmess
+-      - ss1
+-      - ss2
+-
+-  # url-test 将按照 url 测试结果使用延迟最低节点
+-  - name: "auto"
+-    type: url-test
+-    proxies:
+-      - ss1
+-      - ss2
+-      - vmess1
+-    # tolerance: 150
+-    # lazy: true
+-    # expected-status: 204 # 当健康检查返回状态码与期望值不符时，认为节点不可用
+-    url: "https://cp.cloudflare.com/generate_204"
+-    interval: 300
+-
+-  # fallback 将按照 url 测试结果按照节点顺序选择
+-  - name: "fallback-auto"
+-    type: fallback
+-    proxies:
+-      - ss1
+-      - ss2
+-      - vmess1
+-    url: "https://cp.cloudflare.com/generate_204"
+-    interval: 300
+-
+-  # load-balance 将按照算法随机选择节点
+-  - name: "load-balance"
+-    type: load-balance
+-    proxies:
+-      - ss1
+-      - ss2
+-      - vmess1
+-    url: "https://cp.cloudflare.com/generate_204"
+-    interval: 300
+-  # strategy: consistent-hashing # 可选 round-robin 和 sticky-sessions
+-
+-  # select 用户自行选择节点
+-  - name: Proxy
+-    type: select
+-    # disable-udp: true
+-    proxies:
+-      - ss1
+-      - ss2
+-      - vmess1
+-      - auto
+-
+-  - name: UseProvider
+-    type: select
+-    filter: "HK|TW" # 正则表达式，过滤 provider1 中节点名包含 HK 或 TW
+-    use:
+-      - provider1
+-    proxies:
+-      - Proxy
+-      - DIRECT
+-
+-# Mihomo 格式的节点或支持 *ray 的分享格式
+-proxy-providers:
+-  provider1:
+-    type: http # http 的 path 可空置，默认储存路径为 homedir 的 proxies 文件夹，文件名为 url 的 md5
+-    url: "url"
+-    interval: 3600
+-    path: ./provider1.yaml # 默认只允许存储在 mihomo 的 Home Dir，如果想存储到其他位置，请通过设置 SAFE_PATHS 环境变量指定额外的安全路径。该环境变量的语法同本操作系统的PATH环境变量解析规则（即Windows下以分号分割，其他系统下以冒号分割）
+-    proxy: DIRECT
+-    # size-limit: 10240 # 限制下载文件最大为10kb，默认为0即不限制文件大小
+-    header:
+-      User-Agent:
+-      - "Clash/v1.18.0"
+-      - "mihomo/1.18.3"
+-      # Accept:
+-      # - 'application/vnd.github.v3.raw'
+-      # Authorization:
+-      # - 'token 1231231'
+-    health-check:
+-      enable: true
+-      interval: 600
+-      # lazy: true
+-      url: https://cp.cloudflare.com/generate_204
+-      # expected-status: 204 # 当健康检查返回状态码与期望值不符时，认为节点不可用
+-    override: # 覆写节点加载时的一些配置项
+-      skip-cert-verify: true
+-      udp: true
+-      # down: "50 Mbps"
+-      # up: "10 Mbps"
+-      # dialer-proxy: proxy
+-      # interface-name: tailscale0
+-      # routing-mark: 233
+-      # ip-version: ipv4-prefer
+-      # additional-prefix: "[provider1]"
+-      # additional-suffix: "test"
+-      # # 名字替换，支持正则表达式
+-      # proxy-name:
+-      #   - pattern: "test"
+-      #     target: "TEST"
+-      #   - pattern: "IPLC-(.*?)倍"
+-      #     target: "iplc x $1"
+-
+-  provider2:
+-    type: inline
+-    dialer-proxy: proxy
+-    payload:
+-      - name: "ss1"
+-        type: ss
+-        server: server
+-        port: 443
+-        cipher: chacha20-ietf-poly1305
+-        password: "password"
+-
+-  test:
+-    type: file
+-    path: /test.yaml
+-    health-check:
+-      enable: true
+-      interval: 36000
+-      url: https://cp.cloudflare.com/generate_204
+-rule-providers:
+-  rule1:
+-    behavior: classical # domain ipcidr
+-    interval: 259200
+-    path: /path/to/save/file.yaml # 默认只允许存储在 mihomo 的 Home Dir，如果想存储到其他位置，请通过设置 SAFE_PATHS 环境变量指定额外的安全路径。该环境变量的语法同本操作系统的PATH环境变量解析规则（即Windows下以分号分割，其他系统下以冒号分割）
+-    type: http # http 的 path 可空置，默认储存路径为 homedir 的 rules 文件夹，文件名为 url 的 md5
+-    url: "url"
+-    proxy: DIRECT
+-    # size-limit: 10240 # 限制下载文件最大为10kb，默认为0即不限制文件大小
+-  rule2:
+-    behavior: classical
+-    interval: 259200
+-    path: /path/to/save/file.yaml
+-    type: file
+-  rule3:
+-    # mrs类型ruleset，目前仅支持domain和ipcidr(即不支持classical），
+-    #
+-    # 对于behavior=domain:
+-    #  - format=yaml 可以通过“mihomo convert-ruleset domain yaml XXX.yaml XXX.mrs”转换到mrs格式
+-    #  - format=text 可以通过“mihomo convert-ruleset domain text XXX.text XXX.mrs”转换到mrs格式
+-    #  - XXX.mrs 可以通过"mihomo convert-ruleset domain mrs XXX.mrs XXX.text"转换回text格式（暂不支持转换回yaml格式）
+-    #
+-    # 对于behavior=ipcidr:
+-    #  - format=yaml 可以通过“mihomo convert-ruleset ipcidr yaml XXX.yaml XXX.mrs”转换到mrs格式
+-    #  - format=text 可以通过“mihomo convert-ruleset ipcidr text XXX.text XXX.mrs”转换到mrs格式
+-    #  - XXX.mrs 可以通过"mihomo convert-ruleset ipcidr mrs XXX.mrs XXX.text"转换回text格式（暂不支持转换回yaml格式）
+-    #
+-    type: http
+-    url: "url"
+-    format: mrs
+-    behavior: domain
+-    path: /path/to/save/file.mrs
+-  rule4:
+-    type: inline
+-    behavior: domain # classical / ipcidr
+-    payload:
+-      - '.blogger.com'
+-      - '*.*.microsoft.com'
+-      - 'books.itunes.apple.com'
+-
+-rules:
+-  - RULE-SET,rule1,REJECT
+-  - IP-ASN,1,PROXY
+-  - DOMAIN-REGEX,^abc,DIRECT
+-  - DOMAIN-SUFFIX,baidu.com,DIRECT
+-  - DOMAIN-KEYWORD,google,ss1
+-  - DOMAIN-WILDCARD,test.*.mihomo.com,ss1
+-  - IP-CIDR,1.1.1.1/32,ss1
+-  - IP-CIDR6,2409::/64,DIRECT
+-  # 当满足条件是 TCP 或 UDP 流量时，使用名为 sub-rule-name1 的规则集
+-  - SUB-RULE,(OR,((NETWORK,TCP),(NETWORK,UDP))),sub-rule-name1
+-  - SUB-RULE,(AND,((NETWORK,UDP))),sub-rule-name2
+-# 定义多个子规则集，规则将以分叉匹配，使用 SUB-RULE 使用
+-#                                               google.com(not match)--> baidu.com(match)
+-#                                                /                                ｜
+-#                                               /                                 ｜
+-#  https://baidu.com  --> rule1 --> rule2 --> sub-rule-name1(match tcp)          使用 DIRECT
+-#
+-#
+-#                                              google.com(not match)--> baidu.com(not match)
+-#                                                /                            ｜
+-#                                               /                             ｜
+-#  dns 1.1.1.1  --> rule1 --> rule2 --> sub-rule-name1(match udp)         sub-rule-name2(match udp)
+-#                                                                             ｜
+-#                                                                             ｜
+-#                                                                 使用 REJECT <-- 1.1.1.1/32(match)
+-#
+-
+-sub-rules:
+-  sub-rule-name1:
+-    - DOMAIN,google.com,ss1
+-    - DOMAIN,baidu.com,DIRECT
+-  sub-rule-name2:
+-    - IP-CIDR,1.1.1.1/32,REJECT
+-    - IP-CIDR,8.8.8.8/32,ss1
+-    - DOMAIN,dns.alidns.com,REJECT
+-
+-# 流量入站
+-listeners:
+-  - name: socks5-in-1
+-    type: socks
+-    port: 10808 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    #listen: 0.0.0.0 # 默认监听 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理
+-    # udp: false # 默认 true
+-    # users: # 如果不填写users项，则遵从全局authentication设置，如果填写会忽略全局设置, 如想跳过该入站的验证可填写 users: []
+-    #   - username: aaa
+-    #     password: aaa
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    # certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-
+-  - name: http-in-1
+-    type: http
+-    port: 10809 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    # users: # 如果不填写users项，则遵从全局authentication设置，如果填写会忽略全局设置, 如想跳过该入站的验证可填写 users: []
+-    #   - username: aaa
+-    #     password: aaa
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    # certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-
+-  - name: mixed-in-1
+-    type: mixed #  HTTP(S) 和 SOCKS 代理混合
+-    port: 10810 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    # udp: false # 默认 true
+-    # users: # 如果不填写users项，则遵从全局authentication设置，如果填写会忽略全局设置, 如想跳过该入站的验证可填写 users: []
+-    #   - username: aaa
+-    #     password: aaa
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    # certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-
+-  - name: redir-in-1
+-    type: redir
+-    port: 10811 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-
+-  - name: tproxy-in-1
+-    type: tproxy
+-    port: 10812 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    # udp: false # 默认 true
+-
+-  - name: shadowsocks-in-1
+-    type: shadowsocks
+-    port: 10813 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    password: vlmpIPSyHH6f4S8WVPdRIHIlzmB+GIRfoH3aNJ/t9Gg=
+-    cipher: 2022-blake3-aes-256-gcm
+-    # shadow-tls:
+-    #   enable: false # 设置为true时开启
+-    #   version: 3 # 支持v1/v2/v3
+-    #   password: password # v2设置项
+-    #   users: # v3设置项
+-    #     - name: 1
+-    #       password: password
+-    #   handshake:
+-    #     dest: test.com:443
+-    # kcp-tun:
+-    #   enable: false
+-    #   key: it's a secrect # pre-shared secret between client and server
+-    #   crypt: aes # aes, aes-128, aes-128-gcm, aes-192, salsa20, blowfish, twofish, cast5, 3des, tea, xtea, xor, none, null
+-    #   mode: fast # profiles: fast3, fast2, fast, normal, manual
+-    #   conn: 1 # set num of UDP connections to server
+-    #   autoexpire: 0 # set auto expiration time(in seconds) for a single UDP connection, 0 to disable
+-    #   scavengettl: 600 # set how long an expired connection can live (in seconds)
+-    #   ratelimit: 0 # set maximum outgoing speed (in bytes per second) for a single KCP connection, 0 to disable. Also known as packet pacing
+-    #   mtu: 1350 # set maximum transmission unit for UDP packets
+-    #   sndwnd: 128 # set send window size(num of packets)
+-    #   rcvwnd: 512 # set receive window size(num of packets)
+-    #   datashard: 10 # set reed-solomon erasure coding - datashard
+-    #   parityshard: 3 # set reed-solomon erasure coding - parityshard
+-    #   dscp: 0 # set DSCP(6bit)
+-    #   nocomp: false # disable compression
+-    #   acknodelay: false # flush ack immediately when a packet is received
+-    #   nodelay: 0
+-    #   interval: 50
+-    #   resend: 0
+-    #   sockbuf: 4194304 # per-socket buffer in bytes
+-    #   smuxver: 1 # specify smux version, available 1,2
+-    #   smuxbuf: 4194304 # the overall de-mux buffer in bytes
+-    #   framesize: 8192 # smux max frame size
+-    #   streambuf: 2097152 # per stream receive buffer in bytes, smux v2+
+-    #   keepalive: 10 # seconds between heartbeats
+-
+-  - name: vmess-in-1
+-    type: vmess
+-    port: 10814 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    users:
+-      - username: 1
+-        uuid: 9d0cb9d0-964f-4ef6-897d-6c6b3ccf9e68
+-        alterId: 1
+-    # ws-path: "/" # 如果不为空则开启 websocket 传输层
+-    # grpc-service-name: "GunService" # 如果不为空则开启 grpc 传输层
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    # certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-    # 如果填写reality-config则开启reality（注意不可与certificate和private-key同时填写）
+-    # reality-config:
+-    #   dest: test.com:443
+-    #   private-key: jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0 # 可由 mihomo generate reality-keypair 命令生成
+-    #   short-id:
+-    #     - 0123456789abcdef
+-    #   server-names:
+-    #     - test.com
+-    #   #下列两个 limit 为选填，可对未通过验证的回落连接限速，bytesPerSec 默认为 0 即不启用
+-    #   #回落限速是一种特征，不建议启用，如果您是面板/一键脚本开发者，务必让这些参数随机化
+-    #   limit-fallback-upload:
+-    #     after-bytes: 0 # 传输指定字节后开始限速
+-    #     bytes-per-sec: 0 # 基准速率（字节/秒）
+-    #     burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-    #   limit-fallback-download:
+-    #     after-bytes: 0 # 传输指定字节后开始限速
+-    #     bytes-per-sec: 0 # 基准速率（字节/秒）
+-    #     burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-
+-  - name: tuic-in-1
+-    type: tuic
+-    port: 10815 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    # token:    # tuicV4 填写（可以同时填写 users）
+-    #   - TOKEN
+-    # users:    # tuicV5 填写（可以同时填写 token）
+-    #   00000000-0000-0000-0000-000000000000: PASSWORD_0
+-    #   00000000-0000-0000-0000-000000000001: PASSWORD_1
+-    #  certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    #  private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    #  下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    #  client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    #  client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    #  如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    #  ech-key: |
+-    #    -----BEGIN ECH KEYS-----
+-    #    ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #    madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #    dC5jb20AAA==
+-    #    -----END ECH KEYS-----
+-    #  congestion-controller: bbr
+-    #  max-idle-time: 15000
+-    #  authentication-timeout: 1000
+-    #  alpn:
+-    #    - h3
+-    #  max-udp-relay-packet-size: 1500
+-
+-  - name: tunnel-in-1
+-    type: tunnel
+-    port: 10816 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    network: [tcp, udp]
+-    target: target.com
+-
+-  - name: vless-in-1
+-    type: vless
+-    port: 10817 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    users:
+-      - username: 1
+-        uuid: 9d0cb9d0-964f-4ef6-897d-6c6b3ccf9e68
+-        flow: xtls-rprx-vision
+-    # ws-path: "/" # 如果不为空则开启 websocket 传输层
+-    # grpc-service-name: "GunService" # 如果不为空则开启 grpc 传输层
+-    # -------------------------
+-    # vless encryption服务端配置：
+-    # （原生外观 / 只 XOR 公钥 / 全随机数。1-RTT 每次下发随机 300 到 600 秒的 ticket 以便 0-RTT 复用 / 只允许 1-RTT）
+-    # 填写 "600s" 会每次随机取 50% 到 100%，即相当于填写 "300-600s"
+-    # / 是只能选一个，后面 base64 至少一个，无限串联，使用 mihomo generate vless-x25519 和 mihomo generate vless-mlkem768 生成，替换值时需去掉括号
+-    #
+-    # Padding 是可选的参数，仅作用于 1-RTT 以消除握手的长度特征，双端默认值均为 "100-111-1111.75-0-111.50-0-3333"：
+-    # 在 1-RTT client/server hello 后以 100% 的概率粘上随机 111 到 1111 字节的 padding
+-    # 以 75% 的概率等待随机 0 到 111 毫秒（"probability-from-to"）
+-    # 再次以 50% 的概率发送随机 0 到 3333 字节的 padding（若为 0 则不 Write()）
+-    # 服务端、客户端可以设置不同的 padding 参数，按 len、gap 的顺序无限串联，第一个 padding 需概率 100%、至少 35 字节
+-    # -------------------------
+-    # decryption: "mlkem768x25519plus.native/xorpub/random.600s(300-600s)/0s.(padding len).(padding gap).(X25519 PrivateKey).(ML-KEM-768 Seed)..."
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    # certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    # private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-    # 如果填写reality-config则开启reality（注意不可与certificate和private-key同时填写）
+-    reality-config:
+-      dest: test.com:443
+-      private-key: jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0 # 可由 mihomo generate reality-keypair 命令生成
+-      short-id:
+-        - 0123456789abcdef
+-      server-names:
+-        - test.com
+-      #下列两个 limit 为选填，可对未通过验证的回落连接限速，bytesPerSec 默认为 0 即不启用
+-      #回落限速是一种特征，不建议启用，如果您是面板/一键脚本开发者，务必让这些参数随机化
+-      limit-fallback-upload:
+-        after-bytes: 0 # 传输指定字节后开始限速
+-        bytes-per-sec: 0 # 基准速率（字节/秒）
+-        burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-      limit-fallback-download:
+-        after-bytes: 0 # 传输指定字节后开始限速
+-        bytes-per-sec: 0 # 基准速率（字节/秒）
+-        burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-    ### 注意，对于vless listener, 至少需要填写 “certificate和private-key” 或 “reality-config” 或 “decryption” 的其中一项 ###
+-
+-  - name: anytls-in-1
+-    type: anytls
+-    port: 10818 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    users:
+-      username1: password1
+-      username2: password2
+-    # "certificate" and "private-key" are required
+-    certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    private-key: ./server.key
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-    # padding-scheme: "" # https://github.com/anytls/anytls-go/blob/main/docs/protocol.md#cmdupdatepaddingscheme
+-
+-  - name: mieru-in-1
+-    type: mieru
+-    port: 10818 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    transport: TCP # 支持 TCP 或者 UDP
+-    users:
+-      username1: password1
+-      username2: password2
+-
+-  - name: sudoku-in-1
+-    type: sudoku
+-    port: 8443 # 仅支持单端口
+-    listen: 0.0.0.0
+-    key: "<server_key>" # 如果你使用sudoku生成的ED25519密钥对，此处是密钥对中的公钥，当然，你也可以仅仅使用任意uuid充当key
+-    aead-method: chacha20-poly1305 # 支持chacha20-poly1305或者aes-128-gcm以及none，sudoku的混淆层可以确保none情况下数据安全
+-    padding-min: 1 # 填充最小长度
+-    padding-max: 15 # 填充最大长度，均不建议过大
+-    table-type: prefer_ascii # 可选值：prefer_ascii、prefer_entropy 前者全ascii映射，后者保证熵值（汉明1）低于3
+-    # custom-table: xpxvvpvv # 可选，自定义字节布局，必须包含2个x、2个p、4个v，可随意组合。启用此处则需配置`table-type`为`prefer_entropy`
+-    # custom-tables: ["xpxvvpvv", "vxpvxvvp"] # 可选，自定义字节布局列表（x/v/p），用于 xvp 模式轮换；非空时覆盖 custom-table
+-    handshake-timeout: 5   # optional
+-    enable-pure-downlink: false # 是否启用混淆下行，false的情况下能在保证数据安全的前提下极大提升下行速度，与客户端保持相同(如果此处为false，则要求aead不可为none)
+-    disable-http-mask: false # 可选：禁用 http 掩码/隧道（默认为 false）
+-    # http-mask-mode: legacy # 可选：legacy（默认）、stream、poll、auto；stream/poll/auto 支持走 CDN/反代
+-    # path-root: "" # 可选：HTTP 隧道端点一级路径前缀（双方需一致），例如 "aabbcc" => /aabbcc/session、/aabbcc/stream、/aabbcc/api/v1/upload
+-
+-
+-
+-  - name: trojan-in-1
+-    type: trojan
+-    port: 10819 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    users:
+-      - username: 1
+-        password: 9d0cb9d0-964f-4ef6-897d-6c6b3ccf9e68
+-    # ws-path: "/" # 如果不为空则开启 websocket 传输层
+-    # grpc-service-name: "GunService" # 如果不为空则开启 grpc 传输层
+-    # 下面两项如果填写则开启 tls（需要同时填写）
+-    certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    # 下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    # client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    # client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    # 如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    # ech-key: |
+-    #   -----BEGIN ECH KEYS-----
+-    #   ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #   madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #   dC5jb20AAA==
+-    #   -----END ECH KEYS-----
+-    # 如果填写reality-config则开启reality（注意不可与certificate和private-key同时填写）
+-    # reality-config:
+-    #   dest: test.com:443
+-    #   private-key: jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0 # 可由 mihomo generate reality-keypair 命令生成
+-    #   short-id:
+-    #     - 0123456789abcdef
+-    #   server-names:
+-    #     - test.com
+-    #   #下列两个 limit 为选填，可对未通过验证的回落连接限速，bytesPerSec 默认为 0 即不启用
+-    #   #回落限速是一种特征，不建议启用，如果您是面板/一键脚本开发者，务必让这些参数随机化
+-    #   limit-fallback-upload:
+-    #     after-bytes: 0 # 传输指定字节后开始限速
+-    #     bytes-per-sec: 0 # 基准速率（字节/秒）
+-    #     burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-    #   limit-fallback-download:
+-    #     after-bytes: 0 # 传输指定字节后开始限速
+-    #     bytes-per-sec: 0 # 基准速率（字节/秒）
+-    #     burst-bytes-per-sec: 0 # 突发速率（字节/秒），大于 bytesPerSec 时生效
+-    # ss-option: # like trojan-go's `shadowsocks` config
+-    #   enabled: false
+-    #   method: aes-128-gcm # aes-128-gcm/aes-256-gcm/chacha20-ietf-poly1305
+-    #   password: "example"
+-    ### 注意，对于trojan listener, 至少需要填写 “certificate和private-key” 或 “reality-config” 或 “ss-option” 的其中一项 ###
+-
+-  - name: hysteria2-in-1
+-    type: hysteria2
+-    port: 10820 # 支持使用ports格式，例如200,302 or 200,204,401-429,501-503
+-    listen: 0.0.0.0
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    users:
+-      00000000-0000-0000-0000-000000000000: PASSWORD_0
+-      00000000-0000-0000-0000-000000000001: PASSWORD_1
+-    #  certificate: ./server.crt # 证书 PEM 格式，或者 证书的路径
+-    #  private-key: ./server.key # 证书对应的私钥 PEM 格式，或者私钥路径
+-    #  下面两项为mTLS配置项，如果client-auth-type设置为 "verify-if-given" 或 "require-and-verify" 则client-auth-cert必须不为空
+-    #  client-auth-type: "" # 可选值：""、"request"、"require-any"、"verify-if-given"、"require-and-verify"
+-    #  client-auth-cert: string # 证书 PEM 格式，或者 证书的路径
+-    #  如果填写则开启ech（可由 mihomo generate ech-keypair <明文域名> 生成）
+-    #  ech-key: |
+-    #    -----BEGIN ECH KEYS-----
+-    #    ACATwY30o/RKgD6hgeQxwrSiApLaCgU+HKh7B6SUrAHaDwBD/g0APwAAIAAgHjzK
+-    #    madSJjYQIf9o1N5GXjkW4DEEeb17qMxHdwMdNnwADAABAAEAAQACAAEAAwAIdGVz
+-    #    dC5jb20AAA==
+-    #    -----END ECH KEYS-----
+-    ##  up 和 down 均不写或为 0 则使用 BBR 流控
+-    #  up: "30 Mbps" # 若不写单位，默认为 Mbps
+-    #  down: "200 Mbps" # 若不写单位，默认为 Mbps
+-    #  obfs: salamander # 默认为空，如果填写则开启 obfs，目前仅支持 salamander
+-    #  obfs-password: yourpassword
+-    #  max-idle-time: 15000
+-    #  alpn:
+-    #    - h3
+-    #  ignore-client-bandwidth: false
+-    # HTTP3 服务器认证失败时的行为 （URL 字符串配置）,如果 masquerade 未配置，则返回 404 页
+-    #  masquerade: file:///var/www # 作为文件服务器
+-    #  masquerade: http://127.0.0.1:8080	#作为反向代理
+-    #  masquerade: https://127.0.0.1:8080	#作为反向代理
+-
+-  # 注意，listeners中的tun仅提供给高级用户使用，普通用户应使用顶层配置中的tun
+-  - name: tun-in-1
+-    type: tun
+-    # rule: sub-rule-name1 # 默认使用 rules，如果未找到 sub-rule 则直接使用 rules
+-    # proxy: proxy # 如果不为空则直接将该入站流量交由指定 proxy 处理 (当 proxy 不为空时，这里的 proxy 名称必须合法，否则会出错)
+-    stack: system # gvisor / mixed
+-    dns-hijack:
+-    - 0.0.0.0:53 # 需要劫持的 DNS
+-    # auto-detect-interface: false # 自动识别出口网卡
+-    # auto-route: false # 配置路由表
+-    # mtu: 9000 # 最大传输单元
+-    inet4-address: # 必须手动设置 ipv4 地址段
+-    - 198.19.0.1/30
+-    inet6-address: # 必须手动设置 ipv6 地址段
+-    - "fdfe:dcba:9877::1/126"
+-    # strict-route: true # 将所有连接路由到 tun 来防止泄漏，但你的设备将无法其他设备被访问
+-    # inet4-route-address: # 启用 auto-route 时使用自定义路由而不是默认路由
+-    # - 0.0.0.0/1
+-    # - 128.0.0.0/1
+-    # inet6-route-address: # 启用 auto-route 时使用自定义路由而不是默认路由
+-    # - "::/1"
+-    # - "8000::/1"
+-    # endpoint-independent-nat: false # 启用独立于端点的 NAT
+-    # include-uid: # UID 规则仅在 Linux 下被支持，并且需要 auto-route
+-    # - 0
+-    # include-uid-range: # 限制被路由的的用户范围
+-    # - 1000:99999
+-    # exclude-uid: # 排除路由的的用户
+-    # - 1000
+-    # exclude-uid-range: # 排除路由的的用户范围
+-    # - 1000:99999
+-
+-    # Android 用户和应用规则仅在 Android 下被支持
+-    # 并且需要 auto-route
+-
+-    # include-android-user: # 限制被路由的 Android 用户
+-    # - 0
+-    # - 10
+-    # include-package: # 限制被路由的 Android 应用包名
+-    # - com.android.chrome
+-    # exclude-package: # 排除被路由的 Android 应用包名
+-    # - com.android.captiveportallogin
+-    # disable-icmp-forwarding: true # 禁用 ICMP 转发，防止某些情况下的 ICMP 环回问题，ping 将不会显示真实的延迟
+-# 入口配置与 Listener 等价，传入流量将和 socks,mixed 等入口一样按照 mode 所指定的方式进行匹配处理
+-# shadowsocks,vmess 入口配置（传入流量将和 socks,mixed 等入口一样按照 mode 所指定的方式进行匹配处理）
+-# ss-config: ss://2022-blake3-aes-256-gcm:vlmpIPSyHH6f4S8WVPdRIHIlzmB+GIRfoH3aNJ/t9Gg=@:23456
+-# vmess-config: vmess://1:9d0cb9d0-964f-4ef6-897d-6c6b3ccf9e68@:12345
+-
+-# tuic 服务器入口（传入流量将和 socks,mixed 等入口一样按照 mode 所指定的方式进行匹配处理）
+-# tuic-server:
+-#  enable: true
+-#  listen: 127.0.0.1:10443
+-#  token:    # tuicV4 填写（可以同时填写 users）
+-#    - TOKEN
+-#  users:    # tuicV5 填写（可以同时填写 token）
+-#    00000000-0000-0000-0000-000000000000: PASSWORD_0
+-#    00000000-0000-0000-0000-000000000001: PASSWORD_1
+-#  certificate: ./server.crt
+-#  private-key: ./server.key
+-#  congestion-controller: bbr
+-#  max-idle-time: 15000
+-#  authentication-timeout: 1000
+-#  alpn:
+-#    - h3
+-#  max-udp-relay-packet-size: 1500
+diff --git a/docs/clash/logo.png b/docs/clash/logo.png
+deleted file mode 100755
+index c624b94..0000000
+Binary files a/docs/clash/logo.png and /dev/null differ
+diff --git a/docs/conventions.md b/docs/conventions.md
+index 9e1f4b5..ed63efc 100644
+--- a/docs/conventions.md
++++ b/docs/conventions.md
+@@ -50,6 +50,14 @@ File edits use ONLY native file-editing tools (`edit` for replacements, file-wri
+ 2. **No scripted edits:** python, shell, heredoc, and `sed -i` are banned for creating or modifying files. Shell stays read-only for file content (e.g. `grep`, `cat`, `diff`, `ls`, `git status`).
+ 3. **Verify always:** `grep`/`diff` after every edit.
+ 
++## Task-Number Reference Discipline
++
++Task numbers are provenance for humans, not reasoning material for the model. A bare task number in visible prompt prose invites hallucination: the model treats it as load-bearing context it cannot resolve.
++
++1. **Allowed Homes (only):** code comments (`#`, `//`), `CHANGELOG.md` entries, task files, history archives, and HTML-comment markers (`<!-- -->`).
++2. **Forbidden Homes:** visible prose in prompt fragments, agent instruction files, skill instructions, registry lines, section headings, and any Markdown the Brain or Hands reads as operating instructions.
++3. **Authoring Rule:** when writing or editing prompt-facing Markdown, strip task-number parentheticals. Record provenance in the task file and CHANGELOG instead — never in the prompt text itself.
++
+ ## Living Folder Docs Standard
+ 
+ All component and script directories in this repository MUST maintain colocated documentation and decision records:
+@@ -61,10 +69,4 @@ All component and script directories in this repository MUST maintain colocated
+    - Python/Shell: `# Sibling Docs: <relative-path>/README.md | Decisions: <relative-path>/DECISIONS.md`
+ 3. **Synchronization Invariant** — whenever source code inside a component directory changes behavior or data contract, the sibling `README.md` and `DECISIONS.md` MUST be inspected and updated within the same task. Silent overrides of existing architectural decisions are forbidden.
+ 
+-## Task-Number Reference Discipline
+-
+-Task numbers are provenance for humans, not reasoning material for the model. A bare task number in visible prompt prose invites hallucination: the model treats it as load-bearing context it cannot resolve.
+-
+-1. **Allowed Homes (only):** code comments (`#`, `//`), `CHANGELOG.md` entries, task files, history archives, and HTML-comment markers (`<!-- -->`).
+-2. **Forbidden Homes:** visible prose in prompt fragments, agent instruction files, skill instructions, registry lines, section headings, and any Markdown the Brain or Hands reads as operating instructions.
+-3. **Authoring Rule:** when writing or editing prompt-facing Markdown, strip task-number parentheticals. Record provenance in the task file and CHANGELOG instead — never in the prompt text itself.
++> Current repository state: the root holds a single converter file (`proxy_converter.py`) and no component subdirectories, so no slice README/DECISIONS pairs apply. This standard binds if a component directory is introduced.
+diff --git a/docs/fresh-install.md b/docs/fresh-install.md
+deleted file mode 100644
+index 04a2e4b..0000000
+--- a/docs/fresh-install.md
++++ /dev/null
+@@ -1,106 +0,0 @@
+-# Fresh-host install runbook
+-
+-How to bring up the live proxy stack on a new host from this repo.
+-Runtime state lives outside git (`~/.config/mihomo-subs/`, `~/.config/systemd/user/`);
+-the repo holds only the generator, scripts, and unit definitions.
+-
+-## 0. Prerequisites
+-
+-- Python 3.8+ with `pip install -r requirements.txt` (or `.venv/bin/python`)
+-- A `mihomo` binary reachable as `mihomo` on `PATH` or at `~/mihomo/mihomo`
+-  (`refresh.sh` resolves both; it fails closed if neither exists)
+-- `systemd --user` with linger enabled (`loginctl show-user $USER -p Linger`)
+-
+-## 1. Controller secret
+-
+-```bash
+-mkdir -p ~/.config/mihomo-subs
+-openssl rand -hex 32 > ~/.config/mihomo-subs/.controller_secret
+-chmod 600 ~/.config/mihomo-subs/.controller_secret
+-```
+-
+-The balancer reads the same file, so API auth works on both sides.
+-
+-## 2. Install the units
+-
+-```bash
+-mkdir -p ~/.config/systemd/user
+-ln -sf ~/v2ray-to-subs/systemd/v2ray-to-subs.timer \
+-       ~/v2ray-to-subs/systemd/v2ray-to-subs-maintain.service \
+-       ~/.config/systemd/user/
+-```
+-
+-Create `~/.config/systemd/user/mihomo-subs.service`:
+-
+-```ini
+-[Unit]
+-Description=mihomo subscription proxy (generated config)
+-After=network-online.target
+-Wants=network-online.target
+-
+-[Service]
+-Type=simple
+-WorkingDirectory=/home/mohammad/.config/mihomo-subs
+-ExecStart=/home/mohammad/mihomo/mihomo -f /home/mohammad/.config/mihomo-subs/config.yaml
+-Restart=on-failure
+-RestartSec=5
+-
+-[Install]
+-WantedBy=default.target
+-```
+-
+-Then reload and enable:
+-
+-```bash
+-systemctl --user daemon-reload
+-systemctl --user enable --now v2ray-to-subs.timer mihomo-subs.service
+-```
+-
+-What you get: `mihomo-subs.service` serves the live config (mixed port
+-7890, allow-lan, dashboard on `127.0.0.1:9090`), and
+-`v2ray-to-subs.timer` fires `maintain.sh` every 30 minutes
+-(retest 500 → country batch 20 → refresh only when the live config is
+-older than 6h).
+-
+-## 3. Seed the first live config
+-
+-```bash
+-touch ~/.config/mihomo-subs/config.yaml
+-chmod 600 ~/.config/mihomo-subs/config.yaml
+-./refresh.sh "https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt"
+-```
+-
+-This generates, validates with `mihomo -t`, backs up, installs, and
+-(starts the service). To change provider later, run the same command
+-with a new URL and update `SUB_URLS` in `scripts/maintain.sh` so
+-scheduled refreshes follow it.
+-
+-## 4. Verify
+-
+-```bash
+-systemctl --user is-active mihomo-subs.service v2ray-to-subs.timer
+-curl -s -o /dev/null -w "dashboard HTTP %{http_code}\n" http://127.0.0.1:9090/ui/
+-https_proxy=http://127.0.0.1:7890 curl -s https://www.cloudflare.com/cdn-cgi/trace | grep ^loc=
+-https_proxy=http://127.0.0.1:7890 curl -s -D - -o /dev/null https://www.google.com/search?q=test | grep -iE "^HTTP/2|location"
+-```
+-
+-Expect: both units active, dashboard 200, `loc=US`, Google 200 with no
+-`/sorry` redirect. If the exit is not US-clean, rotate explicitly:
+-
+-```bash
+-.venv/bin/python scripts/rr_balancer.py retest --batch 500
+-.venv/bin/python scripts/rr_balancer.py country --batch 20
+-.venv/bin/python scripts/rr_balancer.py rotate --require-country US
+-```
+-
+-## 5. Notes
+-
+-- Feeds are pinned in `scripts/maintain.sh` (`SUB_URLS`); the converter
+-  default is only a fallback.
+-- Rollback: live backups in `~/.config/mihomo-subs/config.yaml.refresh-*.bak`
+-  (last 5 kept); `git checkout` the generator; `systemctl --user disable --now`
+-  the timer to stop scheduled refreshes.
+-- Generated outputs (`clash_config.yaml`, `singbox_config.json`) are
+-  git-ignored build artifacts — never hand-edit, regenerate instead.
+-- Only the mixed port (7890) binds all interfaces; controller, DNS, and
+-  sing-box inbound stay on loopback. Keep the perimeter closed except SSH.
+diff --git a/docs/neko-box-proxy-link-analysis.md b/docs/neko-box-proxy-link-analysis.md
+deleted file mode 100644
+index 46af9ef..0000000
+--- a/docs/neko-box-proxy-link-analysis.md
++++ /dev/null
+@@ -1,511 +0,0 @@
+-# NekoBoxForAndroid Proxy Link Analysis
+-
+-## Overview
+-
+-This document provides a comprehensive analysis of how NekoBoxForAndroid handles various proxy link formats including VMess, VLESS, Trojan, and Shadowsocks. The analysis is based on the source code from the NekoBoxForAndroid repository.
+-
+-## Architecture Overview
+-
+-### Main Parser Entry Point
+-
+-The primary parsing logic is located in `Formats.kt` which contains the `parseProxies()` function. This function serves as the central dispatcher for different proxy link formats.
+-
+-**File**: `app/src/main/java/io/nekohasekai/sagernet/ktx/Formats.kt`
+-
+-```kotlin
+-suspend fun parseProxies(text: String): List<AbstractBean>
+-```
+-
+-The function:
+-1. Splits input text by lines and spaces
+-2. Iterates through each link and calls `parseLink()` extension function
+-3. Dispatches to appropriate parser based on URL scheme
+-4. Returns list of `AbstractBean` objects
+-
+-### Supported Protocols
+-
+-The parser supports the following URL schemes:
+-- `vmess://` - VMess protocol
+-- `vless://` - VLESS protocol  
+-- `trojan://` - Trojan protocol
+-- `trojan-go://` - Trojan-Go protocol
+-- `ss://` - Shadowsocks protocol
+-- `socks://`, `socks4://`, `socks4a://`, `socks5://` - SOCKS proxy
+-- `http://`, `https://` - HTTP proxy
+-- `hysteria://`, `hysteria2://`, `hy2://` - Hysteria protocol
+-- `tuic://` - TUIC protocol
+-- `naive+` - NaiveProxy
+-- `anytls://` - AnyTLS
+-- `sn://` - Universal/SN format
+-- `clash://install-config?` - Clash subscription links
+-
+-## Protocol-Specific Analysis
+-
+-### VMess Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/v2ray/V2RayFmt.kt`
+-
+-#### Supported VMess Formats
+-
+-1. **Standard Format (DuckSoft)**
+-   - URL format: `vmess://[uuid]@[server]:[port]?[parameters]`
+-   - Parameters include: type, security, sni, host, path, etc.
+-
+-2. **V2RayN Format**
+-   - Base64 encoded JSON format
+-   - Contains fields: v, ps, add, port, id, aid, scy, net, type, host, path, tls, sni, alpn, fp
+-
+-3. **Kitsunebi Format**
+-   - Legacy format with query parameters
+-   - Parameters: remarks, alterId, path, tls, allowInsecure, obfs, obfsParam
+-
+-#### VMess Bean Structure
+-
+-```java
+-// VMessBean extends StandardV2RayBean
+-public class VMessBean extends StandardV2RayBean {
+-    public Integer alterId; // -1 indicates VLESS
+-}
+-```
+-
+-#### Key VMess Fields
+-
+-- `uuid`: User ID
+-- `alterId`: Alteration ID (0 for standard VMess, -1 for VLESS)
+-- `encryption`: Encryption method (default: "auto")
+-- `type`: Transport type (tcp, ws, http, grpc, httpupgrade)
+-- `security`: Security layer (none, tls, reality)
+-- `serverAddress`: Server address
+-- `serverPort`: Server port
+-- `host`: Host header for HTTP/WebSocket
+-- `path`: Path for HTTP/WebSocket
+-- `sni`: Server Name Indication
+-- `alpn`: Application-Layer Protocol Negotiation
+-- `allowInsecure`: Skip TLS certificate verification
+-- `utlsFingerprint`: uTLS fingerprint
+-- `realityPubKey`: Reality public key
+-- `realityShortId`: Reality short ID
+-
+-### VLESS Protocol
+-
+-VLESS is handled within the same VMess parser but with `alterId = -1`.
+-
+-#### VLESS-Specific Features
+-
+-- `encryption`: Flow control (e.g., "xtls-rprx-vision")
+-- `packetEncoding`: Packet encoding (0=none, 1=packetaddr, 2=xudp)
+-- No alterId concept (uses -1 to distinguish from VMess)
+-
+-### Trojan Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/trojan/TrojanFmt.kt`
+-
+-#### Trojan Bean Structure
+-
+-```java
+-public class TrojanBean extends StandardV2RayBean {
+-    public String password;
+-}
+-```
+-
+-#### Trojan URL Format
+-
+-```
+-trojan://[password]@[server]:[port]?[parameters]
+-```
+-
+-#### Key Features
+-
+-- Uses password instead of UUID
+-- Always uses TLS by default
+-- Supports same transport layers as VMess/VLESS
+-- Additional parameters: allowInsecure, peer (sni)
+-
+-### Shadowsocks Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/shadowsocks/ShadowsocksFmt.kt`
+-
+-#### Supported SS Formats
+-
+-1. **SS-Android Style**
+-   - URL format: `ss://[method]:[password]@[server]:[port]?plugin=[plugin]#[name]`
+-   - Method and password can be base64 encoded
+-
+-2. **V2RayN Style**
+-   - Base64 encoded full configuration
+-   - Format: `ss://[base64-encoded-config]#[name]`
+-
+-#### Shadowsocks Bean Structure
+-
+-```java
+-public class ShadowsocksBean extends AbstractBean {
+-    public String method;
+-    public String password;
+-    public String plugin;
+-    public Boolean sUoT; // UDP over TCP
+-}
+-```
+-
+-#### Key Fields
+-
+-- `method`: Encryption method (aes-256-gcm, chacha20-ietf-poly1305, etc.)
+-- `password`: Password
+-- `plugin`: Plugin configuration (obfs-local, v2ray-plugin, etc.)
+-- `sUoT`: UDP over TCP support
+-
+-### Hysteria Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/hysteria/HysteriaFmt.kt`
+-
+-#### Supported Hysteria Formats
+-
+-1. **Hysteria v1**
+-   - URL format: `hysteria://[server]:[port]?[parameters]`
+-   - Parameters: auth, peer, insecure, upmbps, downmbps, alpn, obfsParam, protocol
+-
+-2. **Hysteria v2 (hy2)**
+-   - URL format: `hysteria2://[auth@][server]:[port]?[parameters]` or `hy2://[auth@][server]:[port]?[parameters]`
+-   - Parameters: sni, insecure, obfs-password
+-
+-#### Key Features
+-
+-- **Protocol Versions**: Supports both Hysteria v1 and v2
+-- **Authentication**: String-based or base64-based auth
+-- **Obfuscation**: xplus (v1) and salamander (v2) obfuscation
+-- **Multi-port**: Support for port ranges and hopping
+-- **Performance**: Configurable upload/download speeds
+-
+-### TUIC Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/tuic/TuicFmt.kt`
+-
+-#### TUIC URL Format
+-
+-```
+-tuic://[uuid]:[token]@[server]:[port]?[parameters]
+-```
+-
+-#### Parameters
+-
+-- `sni`: Server Name Indication
+-- `congestion_control`: Congestion control algorithm
+-- `udp_relay_mode`: UDP relay mode (quic)
+-- `alpn`: Application-Layer Protocol Negotiation
+-- `allow_insecure`: Skip TLS certificate verification
+-- `disable_sni`: Disable SNI
+-
+-#### Key Features
+-
+-- **Protocol Version**: TUIC v5 (v4 deprecated)
+-- **Authentication**: UUID + token
+-- **Congestion Control**: Configurable algorithms
+-- **UDP Relay**: QUIC-based UDP forwarding
+-
+-### NaiveProxy Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/naive/NaiveFmt.kt`
+-
+-#### NaiveProxy URL Format
+-
+-```
+-naive+[protocol]://[username]:[password]@[server]:[port]?[parameters]
+-```
+-
+-#### Parameters
+-
+-- `sni`: Server Name Indication
+-- `cert`: Custom certificates
+-- `extra-headers`: Additional HTTP headers
+-- `insecure-concurrency`: Insecure concurrency limit
+-
+-#### Key Features
+-
+-- **Protocol Support**: HTTPS, QUIC
+-- **HTTP Headers**: Custom header injection
+-- **TLS Configuration**: SNI and certificate management
+-- **Concurrency**: Configurable connection limits
+-
+-### SOCKS Protocol
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/socks/SOCKSFmt.kt`
+-
+-#### Supported SOCKS Versions
+-
+-- `socks://` - SOCKS5
+-- `socks4://` - SOCKS4
+-- `socks4a://` - SOCKS4A (with hostname resolution)
+-
+-#### URL Format
+-
+-```
+-socks[version]://[username]:[password]@[server]:[port]#[name]
+-```
+-
+-#### Key Features
+-
+-- **Version Support**: SOCKS4, SOCKS4A, SOCKS5
+-- **Authentication**: Username/password support
+-- **V2RayN Format**: Base64 encoded credentials
+-
+-### AnyTLS Protocol
+-
+-**Parser File**: `app/src/main/java/moe/matsuri/nb4a/proxy/anytls/AnyTLSFmt.kt`
+-
+-#### AnyTLS URL Format
+-
+-```
+-anytls://[server]:[port]?[parameters]
+-```
+-
+-#### Key Features
+-
+-- **TLS-based**: Uses TLS for transport
+-- **Custom Implementation**: Specific to NekoBox
+-- **Parameter Support**: Various TLS configuration options
+-
+-## Universal Format (SN://)
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/fmt/UniversalFmt.kt`
+-
+-The universal format uses zlib-compressed, base64-encoded serialized bean objects.
+-
+-#### Format Structure
+-
+-```
+-sn://[type]?[base64-zlib-data]
+-```
+-
+-or
+-
+-```
+-sn://[type]:[base64-data]
+-```
+-
+-#### Purpose
+-
+-- Allows sharing of complete proxy configurations
+-- Preserves all bean properties and metadata
+-- Used for subscription links and configuration sharing
+-
+-## Transport Layer Analysis
+-
+-### Supported Transport Types
+-
+-1. **TCP** - Direct TCP connection
+-2. **WebSocket (ws)** - WebSocket transport
+-3. **HTTP** - HTTP伪装传输
+-4. **gRPC** - gRPC transport
+-5. **HTTPUpgrade** - HTTP upgrade transport
+-6. **QUIC** - QUIC protocol
+-
+-### Transport-Specific Parameters
+-
+-#### WebSocket (ws)
+-- `host`: WebSocket host header
+-- `path`: WebSocket path
+-- `ed`: Max early data
+-- `eh`: Early data header name
+-
+-#### HTTP
+-- `host`: HTTP host header
+-- `path`: HTTP path
+-
+-#### gRPC
+-- `serviceName`: gRPC service name
+-
+-#### HTTPUpgrade
+-- `host`: Host header
+-- `path`: Upgrade path
+-
+-## Security Layer Analysis
+-
+-### TLS Configuration
+-
+-- **Standard TLS**: Basic TLS encryption
+-- **Reality**: TLS with Reality fingerprinting
+-- **ECH**: Encrypted Client Hello
+-
+-### TLS Parameters
+-
+-- `sni`: Server Name Indication
+-- `alpn`: Application-Layer Protocol Negotiation
+-- `certificates`: Custom certificates
+-- `allowInsecure`: Skip certificate verification
+-- `utlsFingerprint`: uTLS fingerprint for anti-detection
+-- `realityPubKey`: Reality public key
+-- `realityShortId`: Reality short ID
+-- `echConfig`: ECH configuration
+-
+-## Subscription Handling
+-
+-**Parser File**: `app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt`
+-
+-### Subscription Process
+-
+-1. Fetch subscription content from URL
+-2. Parse raw content using `parseProxies()`
+-3. Handle different content formats (plain text, YAML, JSON, INI)
+-4. Update proxy groups and configurations
+-
+-### Subscription Formats
+-
+-- Plain text with proxy links
+-- YAML configuration
+-- JSON configuration
+-- INI format
+-
+-## Data Model Hierarchy
+-
+-### Bean Inheritance
+-
+-```
+-AbstractBean
+-├── StandardV2RayBean
+-│   ├── VMessBean
+-│   └── TrojanBean
+-├── ShadowsocksBean
+-├── HttpBean
+-├── SOCKSBean
+-├── HysteriaBean
+-├── TuicBean
+-├── NaiveBean
+-├── SSHBean
+-├── WireGuardBean
+-├── MieruBean
+-├── TrojanGoBean
+-├── AnyTLSBean
+-└── ... (other protocol beans)
+-```
+-
+-### Common Fields (AbstractBean)
+-
+-- `serverAddress`: Server address
+-- `serverPort`: Server port
+-- `name`: Display name
+-- `customOutboundJson`: Custom outbound configuration
+-- `customConfigJson`: Custom configuration
+-
+-### V2Ray Standard Fields (StandardV2RayBean)
+-
+-- `uuid`: User ID (VMess/VLESS)
+-- `encryption`: Encryption method or VLESS flow
+-- `type`: Transport type
+-- `host`: Host header
+-- `path`: Path
+-- `security`: Security layer
+-- `sni`: Server Name Indication
+-- `alpn`: ALPN protocols
+-- `utlsFingerprint`: uTLS fingerprint
+-- `allowInsecure`: Skip TLS verification
+-- `realityPubKey`: Reality public key
+-- `realityShortId`: Reality short ID
+-- `wsMaxEarlyData`: WebSocket max early data
+-- `earlyDataHeaderName`: Early data header name
+-- `certificates`: Custom certificates
+-- `enableECH`: Enable ECH
+-- `echConfig`: ECH configuration
+-- `enableMux`: Enable multiplexing
+-- `muxPadding`: Mux padding
+-- `muxType`: Mux type
+-- `muxConcurrency`: Mux concurrency
+-- `packetEncoding`: Packet encoding
+-
+-## Link Generation
+-
+-### VMess Link Generation
+-
+-```kotlin
+-fun VMessBean.toV2rayN(): String
+-```
+-
+-Generates V2RayN format VMess links with base64-encoded JSON.
+-
+-### VLESS/Trojan Link Generation
+-
+-```kotlin
+-fun StandardV2RayBean.toUriVMessVLESSTrojan(isTrojan: Boolean): String
+-```
+-
+-Generates DuckSoft format VLESS/Trojan links.
+-
+-### Shadowsocks Link Generation
+-
+-```kotlin
+-fun ShadowsocksBean.toUri(): String
+-```
+-
+-Generates SS-Android format Shadowsocks links.
+-
+-### Universal Link Generation
+-
+-```kotlin
+-fun AbstractBean.toUniversalLink(): String
+-```
+-
+-Generates universal SN:// links with compressed data.
+-
+-## SingBox Integration
+-
+-The parser includes functions to convert beans to SingBox configuration format:
+-
+-- `buildSingBoxOutboundStandardV2RayBean()`
+-- `buildSingBoxOutboundShadowsocksBean()`
+-- `buildSingBoxOutboundStreamSettings()`
+-- `buildSingBoxOutboundTLS()`
+-
+-These functions generate the appropriate SingBox JSON configuration for each protocol.
+-
+-## Error Handling
+-
+-The parser uses `runCatching` blocks to handle parsing errors gracefully:
+-
+-```kotlin
+-runCatching {
+-    entities.add(parseV2Ray(this))
+-}.onFailure {
+-    Logs.w(it)
+-}
+-```
+-
+-Failed parsing attempts are logged but don't stop the overall parsing process.
+-
+-## Conclusion
+-
+-NekoBoxForAndroid implements a comprehensive proxy link parsing system that supports **all major proxy protocols and formats**. The architecture is modular with separate parsers for each protocol, unified through a common data model. The system handles both legacy and modern formats, provides extensive configuration options, and integrates with SingBox for runtime configuration.
+-
+-### **Complete Protocol Coverage**
+-
+-✅ **VMess/VLESS** - Multiple formats (Standard, V2RayN, Kitsunebi)  
+-✅ **Trojan/Trojan-Go** - Password-based with TLS  
+-✅ **Shadowsocks** - SS-Android and V2RayN formats  
+-✅ **Hysteria** - Both v1 and v2 (hy2) with full feature support  
+-✅ **TUIC** - v5 protocol with congestion control  
+-✅ **NaiveProxy** - HTTPS/QUIC with header injection  
+-✅ **SOCKS** - v4, v4a, v5 support  
+-✅ **HTTP/HTTPS** - Standard HTTP proxy  
+-✅ **AnyTLS** - Custom TLS implementation  
+-✅ **Universal (SN://)** - Compressed serialization format  
+-✅ **Clash Subscriptions** - External subscription support  
+-
+-### **Key Strengths**
+-
+-- **Universal Protocol Support**: Covers virtually all proxy protocols used in modern proxy tools
+-- **Multiple Format Compatibility**: Supports various link formats for each protocol
+-- **Extensive Configuration Options**: Advanced features like Reality, ECH, uTLS
+-- **Robust Error Handling**: Graceful parsing with detailed logging
+-- **Modern Security Features**: Latest anti-detection and encryption technologies
+-- **Efficient Data Serialization**: Fast Kryo-based bean serialization
+-- **SingBox Integration**: Direct conversion to SingBox configuration
+-- **Subscription Management**: Complete subscription handling system
+-
+-### **Format Completeness**
+-
+-The documentation covers **100% of supported NekoBox subscription link formats**, including:
+-- All URL schemes mentioned in the main parser
+-- All protocol-specific parameters and options
+-- All transport layer configurations
+-- All security layer implementations
+-- All bean data structures and inheritance
+-- Complete link generation and parsing functions
+-
+-This analysis provides a **complete reference** for understanding and implementing NekoBox-compatible proxy link parsing and generation.
+diff --git a/manager.sh b/manager.sh
+deleted file mode 100755
+index 35aff23..0000000
+--- a/manager.sh
++++ /dev/null
+@@ -1,220 +0,0 @@
+-#!/usr/bin/env bash
+-# v2ray-to-subs manager - generate/validate/deploy Clash + sing-box configs
+-# Default source: Patterniha Free-Configs (fragment #Patterniha-F = title)
+-# Usage: ./manager.sh {generate|clash|singbox|tun|check|deploy|help} [url] [extra args]
+-set -euo pipefail
+-
+-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+-CONVERTER="$DIR/proxy_converter.py"
+-CLASH_OUT="$DIR/clash_config.yaml"
+-SB_OUT="$DIR/singbox_config.json"
+-DEFAULT_URL="https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
+-DESKTOP_DIR="/home/mohammad/Desktop/mihomo"
+-
+-RED='\033[0;31m'
+-GREEN='\033[0;32m'
+-YELLOW='\033[0;33m'
+-BLUE='\033[0;34m'
+-NC='\033[0m'
+-ok() { echo -e "${GREEN}[OK]${NC} $*"; }
+-warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+-err() { echo -e "${RED}[ERR]${NC} $*" >&2; }
+-info() { echo -e "${BLUE}[INFO]${NC} $*"; }
+-
+-pick_python() {
+-	if [[ -x "$DIR/.venv/bin/python" ]]; then
+-		echo "$DIR/.venv/bin/python"
+-	elif command -v python3 >/dev/null 2>&1; then
+-		echo "python3"
+-	else
+-		err "no python found (tried .venv/bin/python, python3)"
+-		exit 1
+-	fi
+-}
+-
+-find_mihomo() {
+-	if command -v mihomo >/dev/null 2>&1; then
+-		command -v mihomo
+-	elif [[ -x "$DESKTOP_DIR/mihomo" ]]; then
+-		echo "$DESKTOP_DIR/mihomo"
+-	else echo ""; fi
+-}
+-
+-find_singbox() {
+-	if command -v sing-box >/dev/null 2>&1; then command -v sing-box; else echo ""; fi
+-}
+-
+-# generate [url...] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
+-do_generate() {
+-	local only="both" tun="" lan="" verbose=""
+-	local -a urls=()
+-	while [[ $# -gt 0 ]]; do
+-		case "$1" in
+-		--tun)
+-			tun="--tun"
+-			shift
+-			;;
+-		--allow-lan)
+-			lan="--allow-lan"
+-			shift
+-			;;
+-		--only)
+-			only="$2"
+-			shift 2
+-			;;
+-		--only=*)
+-			only="${1#--only=}"
+-			shift
+-			;;
+-		-v | --verbose)
+-			verbose="-v"
+-			shift
+-			;;
+-		-h | --help)
+-			show_help
+-			exit 0
+-			;;
+-		-*)
+-			warn "unknown flag ignored: $1"
+-			shift
+-			;;
+-		*)
+-			urls+=("$1")
+-			shift
+-			;;
+-		esac
+-	done
+-	if [[ ${#urls[@]} -eq 0 ]]; then
+-		urls=("$DEFAULT_URL")
+-	fi
+-	case "$only" in
+-	clash | singbox | both) ;;
+-	*)
+-		err "bad --only value: $only (want clash|singbox|both)"
+-		exit 1
+-		;;
+-	esac
+-
+-	info "sources: ${urls[*]}"
+-	info "outputs: $only | tun: ${tun:-off} | lan: ${lan:-off}"
+-	# shellcheck disable=SC2086
+-	"$(pick_python)" "$CONVERTER" "${urls[@]}" \
+-		--clash-out "$CLASH_OUT" --singbox-out "$SB_OUT" \
+-		--only "$only" $tun $lan $verbose
+-	ok "generated: $CLASH_OUT + $SB_OUT (as selected)"
+-}
+-
+-do_check() {
+-	local fail=0
+-	local mihomo singbox
+-	mihomo="$(find_mihomo)"
+-	singbox="$(find_singbox)"
+-	if [[ -z "$mihomo" ]]; then
+-		warn "mihomo binary not found, skipping clash check"
+-	else
+-		info "mihomo -t $CLASH_OUT"
+-		if "$mihomo" -t -f "$CLASH_OUT" 2>&1 | tail -n2; then ok "clash config valid"; else
+-			err "clash check FAILED"
+-			fail=1
+-		fi
+-	fi
+-	if [[ -z "$singbox" ]]; then
+-		warn "sing-box binary not found, skipping sing-box check"
+-	else
+-		info "sing-box check $SB_OUT"
+-		if "$singbox" check -c "$SB_OUT"; then ok "sing-box config valid"; else
+-			err "sing-box check FAILED"
+-			fail=1
+-		fi
+-	fi
+-	[[ $fail -eq 0 ]] || exit 1
+-}
+-
+-# deploy [--tun] [--allow-lan] [url] — regenerate then install to Desktop mihomo
+-do_deploy() {
+-	do_generate --allow-lan "$@"
+-	do_check
+-	if [[ ! -d "$DESKTOP_DIR" ]]; then
+-		err "desktop dir not found: $DESKTOP_DIR"
+-		exit 1
+-	fi
+-	local bak="$DESKTOP_DIR/config.yaml.deploy-$(date +%Y%m%d-%H%M%S).bak"
+-	cp "$DESKTOP_DIR/config.yaml" "$bak"
+-	info "backup: $bak"
+-	cp "$CLASH_OUT" "$DESKTOP_DIR/config.yaml"
+-	ok "installed $CLASH_OUT -> $DESKTOP_DIR/config.yaml"
+-	if [[ -x "$DESKTOP_DIR/manager.sh" ]]; then
+-		info "validating with Desktop manager..."
+-		(cd "$DESKTOP_DIR" && ./manager.sh check)
+-	fi
+-	warn "activation needs root: cd $DESKTOP_DIR && sudo ./manager.sh restart"
+-	warn "dashboard lands at http://127.0.0.1:9090/ui after restart (auto-downloaded)"
+-}
+-
+-show_help() {
+-	cat <<EOF
+-v2ray-to-subs manager - $DIR
+-Default subscription: $DEFAULT_URL
+-
+-Usage: $(basename "$0") <command> [url] [flags]
+-
+-Commands:
+-  generate [url...] [--tun] [--allow-lan] [--only clash|singbox|both] [-v]
+-      Regenerate configs (defaults: Patterniha URL, TUN off, loopback-only)
+-  clash [url] [flags]     Same as generate --only clash
+-  singbox [url] [flags]   Same as generate --only singbox
+-  tun [url]               Same as generate --tun (TUN on, loopback-only)
+-  check                   Validate outputs (mihomo -t + sing-box check)
+-  deploy [url] [flags]    generate + check + install to $DESKTOP_DIR
+-  help                    Show this help
+-
+-Examples:
+-  ./manager.sh generate
+-  ./manager.sh generate --tun
+-  ./manager.sh tun "https://example.com/sub#MyProfile"
+-  ./manager.sh generate "https://a.example/sub" "https://b.example/sub"  # merge feeds
+-  ./manager.sh clash --only clash
+-  ./manager.sh check
+-  ./manager.sh deploy --tun
+-
+-Outputs:
+-  Clash (mihomo): $CLASH_OUT
+-  sing-box:       $SB_OUT
+-
+-Notes:
+-  - TUN needs root/CAP_NET_ADMIN: use --tun only if you run mihomo/sing-box
+-    with sudo or setcap; otherwise keep the loopback-only default.
+-  - --allow-lan binds mixed-port to all interfaces (LAN open by default).
+-  - Dashboard: http://127.0.0.1:9090/ui (auto-downloaded metacubexd).
+-EOF
+-}
+-
+-case "${1:-help}" in
+-generate)
+-	shift
+-	do_generate "$@"
+-	;;
+-clash)
+-	shift
+-	do_generate --only clash "$@"
+-	;;
+-singbox)
+-	shift
+-	do_generate --only singbox "$@"
+-	;;
+-tun)
+-	shift
+-	do_generate --tun "$@"
+-	;;
+-check) do_check ;;
+-deploy)
+-	shift
+-	do_deploy "$@"
+-	;;
+-help | --help | -h) show_help ;;
+-*)
+-	err "unknown command: $1"
+-	show_help
+-	exit 1
+-	;;
+-esac
+diff --git a/opencode.json b/opencode.json
+deleted file mode 100644
+index 2986ed6..0000000
+--- a/opencode.json
++++ /dev/null
+@@ -1 +0,0 @@
+-{"$schema":"https://opencode.ai/config.json","default_agent":"cognitive-executor","formatter":{"black":{"command":["black"],"extensions":[".py"]}},"instructions":["AGENTS.md","docs/conventions.md","README.md"],"lsp":false,"permission":{"shell":{"git add":"deny","git add *":"deny","git checkout":"deny","git checkout *":"deny","git commit":"deny","git commit *":"deny","git push":"deny","git push *":"deny"}}}
+\ No newline at end of file
+diff --git a/proxy_converter.py b/proxy_converter.py
+index 8719ce2..221ff9f 100644
+--- a/proxy_converter.py
++++ b/proxy_converter.py
+@@ -31,12 +31,9 @@ logger = logging.getLogger(__name__)
+ # Stable proxy identity naming.
+ #
+ # Provider remarks reshuffle on every feed refresh (positional indexes like
+-# "US-1" or colliding labels needing feed-order suffixes), which orphans the
+-# balancer's per-name history (delay, fails, uses, quarantine). These helpers
+-# derive a deterministic identity from protocol + normalized host + port so
+-# the same server always maps to the same node name across refreshes. The
+-# balancer (scripts/rr_balancer.py) keys its SQLite rows by these names and
+-# needs no change: stable names automatically persist its history.
++# "US-1" or colliding labels needing feed-order suffixes), so these helpers
++# derive a deterministic identity from protocol + normalized host + port.
++# The same server always maps to the same node name across refreshes.
+ # ---------------------------------------------------------------------------
+ 
+ 
+@@ -1387,8 +1384,8 @@ class ConfigGenerator:
+         clash_proxies: List[Dict[str, Any]] = []
+         proxy_names: List[str] = []
+         # Stable identity names: same proto/host/port always yields the same
+-        # node name across refreshes, so balancer history persists. Sorted
+-        # emission makes output independent of feed order.
++        # node name across refreshes. Sorted emission makes output independent
++        # of feed order.
+         entries = []
+         for proxy in _usable_proxies(proxies):
+             try:
+@@ -1530,25 +1527,21 @@ class ConfigGenerator:
+                 "fake-ip-filter-mode": "blacklist",
+                 "fake-ip-filter": list(REALIP_SUFFIXES),
+                 # Plain IPs only: used to resolve DoH/DoT hostnames themselves.
+-                # Cloudflare/Google: the host is outside Iran and China, so the
+-                # former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
+-                "default-nameserver": ["1.1.1.1", "1.0.0.1", "8.8.8.8"],
++                # Cloudflare resolvers: the host is outside Iran and China, so
++                # the former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
++                "default-nameserver": ["1.1.1.1", "1.0.0.1"],
+                 "nameserver": [
+                     "https://cloudflare-dns.com/dns-query",
+-                    "https://dns.google/dns-query",
+                     "tls://1.1.1.1",
+-                    "tls://8.8.8.8",
+                 ],
+                 "proxy-server-nameserver": ["https://cloudflare-dns.com/dns-query"],
+-                "fallback": ["tls://1.1.1.1", "tls://8.8.4.4"],
++                "fallback": ["tls://1.1.1.1", "tls://1.0.0.1"],
+                 "fallback-filter": {
+                     # No geoip country filter: the exit is outside Iran/China,
+                     # so a CN-result heuristic is meaningless here.
+                     "ipcidr": ["240.0.0.0/4"],
+                     "domain": [
+-                        "+.google.com",
+                         "+.facebook.com",
+-                        "+.youtube.com",
+                         "+.twitter.com",
+                     ],
+                 },
+@@ -1981,7 +1974,7 @@ class ConfigGenerator:
+                     },
+                     {
+                         "type": "tls",
+-                        "server": "8.8.8.8",
++                        "server": "1.1.1.1",
+                         "tag": "dns-remote",
+                     },
+                     {
+diff --git a/refresh.sh b/refresh.sh
+deleted file mode 100755
+index eba1589..0000000
+--- a/refresh.sh
++++ /dev/null
+@@ -1,64 +0,0 @@
+-#!/usr/bin/env bash
+-# Regenerate mihomo-subs clash config from v2ray-to-subs, validate, install, restart.
+-# Called by v2ray-to-subs-refresh.service (timer). Safe to run manually too.
+-set -euo pipefail
+-
+-REPO="$HOME/v2ray-to-subs"
+-PY="$REPO/.venv/bin/python"
+-CONVERTER="$REPO/proxy_converter.py"
+-CONF_DIR="$HOME/.config/mihomo-subs"
+-LIVE="$CONF_DIR/config.yaml"
+-TMP="$(mktemp /tmp/mihomo-subs-XXXXXX.yaml)"
+-
+-cleanup() { rm -f "$TMP"; }
+-trap cleanup EXIT
+-
+-# Controller secret lives in a chmod-600 file, never in git.
+-export MIHOMO_CONTROLLER_SECRET="$(cat "$CONF_DIR/.controller_secret")"
+-
+-# Subscription sources: all positional args win, else $SUB_URL, else converter default.
+-# Lets the systemd unit pin one or several subs without editing code.
+-URLS=()
+-if [[ $# -gt 0 ]]; then
+-	URLS=("$@")
+-elif [ -n "${SUB_URL:-}" ]; then
+-	URLS=("$SUB_URL")
+-fi
+-if [[ ${#URLS[@]} -gt 0 ]]; then
+-	echo "[refresh] sources: ${URLS[*]}"
+-else
+-	echo "[refresh] source: converter default"
+-fi
+-
+-echo "[refresh] generating to $TMP ..."
+-"$PY" "$CONVERTER" "${URLS[@]}" --only clash --clash-out "$TMP" --unique-host --allow-lan
+-
+-echo "[refresh] validating with mihomo -t ..."
+-MIHOMO_BIN="$(command -v mihomo || true)"
+-if [[ -z "$MIHOMO_BIN" && -x "$HOME/mihomo/mihomo" ]]; then MIHOMO_BIN="$HOME/mihomo/mihomo"; fi
+-if [[ -z "$MIHOMO_BIN" ]]; then
+-	echo "[refresh] ERROR: mihomo binary not found" >&2
+-	exit 1
+-fi
+-"$MIHOMO_BIN" -t -f "$TMP"
+-
+-BAK="$CONF_DIR/config.yaml.refresh-$(date +%Y%m%d-%H%M%S).bak"
+-cp "$LIVE" "$BAK"
+-echo "[refresh] backup: $BAK"
+-
+-cat "$TMP" >"$LIVE"
+-chmod 600 "$LIVE"
+-echo "[refresh] installed fresh config -> $LIVE"
+-
+-if systemctl --user is-active --quiet mihomo-subs.service; then
+-	echo "[refresh] restarting mihomo-subs.service ..."
+-	systemctl --user restart mihomo-subs.service
+-else
+-	echo "[refresh] starting mihomo-subs.service ..."
+-	systemctl --user start mihomo-subs.service
+-fi
+-
+-# keep only last 5 backups
+-ls -t "$CONF_DIR"/config.yaml.refresh-*.bak 2>/dev/null | tail -n +6 | xargs -r rm -f
+-
+-echo "[refresh] done. mihomo-subs: $(systemctl --user is-active mihomo-subs.service)"
+diff --git a/scripts/DECISIONS.md b/scripts/DECISIONS.md
+deleted file mode 100644
+index 4ebfe54..0000000
+--- a/scripts/DECISIONS.md
++++ /dev/null
+@@ -1,266 +0,0 @@
+-# scripts/ — Architecture Decision Records
+-
+-Chronological. Each entry: Context, Decision, Consequences, Rollback.
+-
+-## 2026-11-11 — One maintenance unit, foreign-server rules, US-clean default
+-
+-**Context.** The project ran three timers (refresh, retest, country) plus a
+-disabled rotate timer, five oneshot jobs and the proxy service, all for one
+-pipeline. The generated configs still carried desktop-era rules from an Iranian
+-client: nine `PROCESS-*` bypasses for a local xray/PattN sidecar, Iran and China
+-domain/IP bypasses, CN DNS resolvers (`223.5.5.5`, `doh.pub`, alidns), a
+-`+.ir` nameserver policy and a `geoip-code: CN` fallback filter. The host is a
+-foreign server with no sidecar, so those rules only stole traffic from the
+-proxy.
+-
+-**Decision.** One timer drives one dispatcher: `v2ray-to-subs.timer` →
+-`v2ray-to-subs-maintain.service` → `scripts/maintain.sh`, which retests, fills a
+-country batch, and refreshes only when the live config is older than six hours.
+-The five replaced units and the refresh drop-in are deleted; the feed list that
+-drop-in carried now lives in the dispatcher. `mihomo-subs.service` stays a
+-separate unit on purpose: a maintenance run must never be able to stop the
+-proxy, and a proxy restart must not cancel maintenance. Rules become private/LAN
+-`DIRECT`, ads `REJECT`, `MATCH,PROXY`; `find-process-mode` is `off`; DNS uses
+-Cloudflare/Google instead of CN resolvers. The `rr` launcher defaults to
+-`rotate --require-country US` so a bare `rr` asks for a Google-clean US exit,
+-with `RR_COUNTRY` as the override and `RR_COUNTRY=` to disable it.
+-
+-**Consequences.** Two project units instead of eight, and one log to read
+-(`journalctl --user -u v2ray-to-subs-maintain`). Traffic that used to bypass the
+-proxy through Iran/China rules now goes through an exit — intended, because the
+-host is not in either country. Ads stay blocked. A US lock with no measured US
+-candidate keeps the current node instead of going dark.
+-
+-**Rollback.** The old unit files are in git history; re-enable the timers and
+-delete the dispatcher pair. Converter changes are a single-file revert; the
+-previous live config is in `~/.config/mihomo-subs/config.yaml.refresh-*.bak`
+-(only the last five are kept). `RR_COUNTRY=` removes the launcher's default
+-lock without touching the balancer.
+-
+-## 2026-11-11 — Observed exit country, and removal of the plugin-era causes
+-
+-**Context.** A country lock cannot be built from provider remarks: in the live
+-feed 547 of 629 remarks are hash-style names with no country, and only 14 are
+-labelled US. The balancer also carried `quota`, `transport`, and `region`
+-failure causes plus their counters, which existed to serve the retired
+-`opencode-rate-limit-rescue` plugin and now measure nothing that the Google
+-gate or a country lock acts on.
+-
+-**Decision.** `country` and `country_checked` columns store the country that
+-Cloudflare reports for a node's connection (`cdn-cgi/trace`, `loc=XX`), read
+-through the live mixed-port because mihomo's `/delay` endpoint discards the
+-response body. `rr country --batch N` fills the columns oldest-first, restores
+-the previous selection in a `finally` block, and records an unreadable trace as
+-unknown without quarantining. `rr report` prints coverage and per-country
+-counts. `rotate`/`skip`/`next` accept `--require-country CC`: candidates with
+-no measurement never match, and when nothing matches the current node is kept
+-so the client never lands in the wrong country. The three plugin-era causes and
+-their columns are removed (guarded `DROP COLUMN`; a failure leaves them
+-dormant), and selection is `uses` → `delay_ms` with no per-cause weighting.
+-
+-**Consequences.** A sweep briefly carries traffic through each probed node
+-(`TRACE_SETTLE_SECONDS` each, bounded batch), so it is a background job, not a
+-per-rotation cost. The country lock stays off until coverage is high; enabling
+-it early would freeze rotation on an empty column. Dropping the legacy counters
+-is destructive by design and intentional — they were never read by anything
+-after this change.
+-
+-**Rollback.** The country columns are additive and ignored by older code;
+-`--require-country` is opt-in. Reverting the script restores the previous
+-behavior, and the additive migration re-creates the legacy columns empty if an
+-older build is run against an upgraded database (their values are not restorable,
+-which is accepted because nothing consumes them).
+-
+-## 2026-11-11 — Google Search status is the anti-abuse discriminator
+-
+-**Context.** Exit nodes used by crawl and media traffic get flagged by
+-Google; flagged IPs answer `https://www.google.com/search?q=test` with a 302
+-to `/sorry`, and clients see "not available in your country" on some
+-services. Lightweight Google endpoints (`generate_204`, suggest) answer
+-identically on flagged and clean IPs, so they cannot discriminate.
+-mihomo's own `/delay?expected=200` follows the redirect and reports the final
+-200, so it also cannot see the block.
+-
+-**Decision.** The balancer gates rotation on a real HTTP status read of
+-`/search` taken through the live mixed-port (`127.0.0.1:7890`) with
+-redirects disabled. A 302 quarantines the candidate with cause `google`
+-(24 h) and increments `google_fails`; rotation then tries the next candidate
+-up to `--google-attempts`, and fails open to the best remaining node when
+-every attempt is blocked. The gate is skipped when a direct host probe of the
+-same URL fails, so a Google-side outage cannot quarantine the pool.
+-`--no-google-check` disables the gate per run.
+-
+-**Consequences.** One ~94 KB request per rotation on a pass and ~0.4 KB on a
+-block. The `google_fails` column is additive and migrated idempotently, so old
+-databases self-upgrade. `retest` stays un-gated: gating it would cost a
+-per-node search request every interval.
+-
+-**Rollback.** Pass `--no-google-check`, or revert the script; the extra
+-column is ignored by older code.
+-
+-## 2026-11-09 — Node identity is a hash, not the provider remark
+-
+-**Context.** Provider remarks reshuffle or collide between refreshes, which
+-wiped learned delay/failure history and made quarantine inconsistent.
+-
+-**Decision.** Names are `{proto}-{12hex}` from protocol + normalized host +
+-port (SHA-256), sorted deterministically with a suffix on collision. The
+-provider remark is kept in Clash's `remark` field for humans; sing-box omits
+-it because the schema rejects unknown fields.
+-
+-**Consequences.** History survives every feed refresh. Humans read remarks
+-in Clash, not in the node name.
+-
+-**Rollback.** Revert naming in the converter; balancer history resets once.
+-
+-## 2026-11-08 — Separate `region` failure cause (SUPERSEDED by the 2026-11-11 cause-cleanup entry above)
+-
+-**Context.** Provider country checks (geo-blocks) are a distinct failure from
+-rate limits and transport faults, and treating them as generic failures
+-diluted the quota signal used for crawl traffic.
+-
+-**Decision.** `skip` / `next` accept `--reason region`, count it in a
+-dedicated `region_fails` column, and quarantine like other causes.
+-
+-**Consequences.** Exit selection correctly demotes geo-blocked IPs without
+-deleting them; the column migrated idempotently.
+-
+-**Rollback.** Revert the enum and column; unknown reasons fall back to
+-`manual`.
+-
+-## 2026-11-15 — Proxy-everything routing, no ads, allow-lan by default
+-
+-**Context.** The generated configs still carried an ads REJECT block, a ~90-domain foreign-service pin list, a `geosite:category-ads-all` DNS policy, and `allow-lan false` defaults, while the checked-in samples were stale artifacts contradicting the generator.
+-
+-**Decision.** Both generators collapse to LAN/private DIRECT plus `MATCH,PROXY` (Clash) and sniff/hijack-dns/ip_is_private plus final auto (sing-box); the ads list, its DNS policy, and the pin list are deleted. `allow-lan` defaults to true with mixed-port 7890 so scheduled refreshes serve LAN clients; TUN stays opt-in. Checked-in samples are regenerated by the converter, never hand-edited.
+-
+-**Consequences.** All non-LAN traffic goes through a Google-clean US exit held by the balancer (retest 500, country 20, 6h refresh gate). LAN exposure of the mixed port is the accepted trade-off for serving LAN clients.
+-
+-**Rollback.** `git checkout` the generator, regenerate, reinstall the last `.bak` live config; disable the timer pair to stop scheduled refreshes.
+-
+-## 2026-11-15 — Multi-service clean gate (YouTube, Spotify, Gemini)
+-
+-**Context.** Google-clean exits still failed the YouTube Music and Spotify apps: Search answers 200 while the YouTube oEmbed backend answers 403, the Spotify API edge answers HTML 403, and Gemini answers 403. Landing pages (`youtube.com/`, `music.youtube.com/`, `open.spotify.com/`) stay 200 on flagged exits, so they cannot discriminate. Live battery on a US exit confirmed the shapes (research searches timed out; experiments substituted).
+-
+-**Decision.** Rotation probes all-must-pass Google → YouTube → Spotify → Gemini(spare) via `multi_gate_cause()`, reusing the redirect-disabled mixed-port pattern. First-flagged service quarantines 24h with its own cause and counter (`youtube_fails`, `spotify_fails`, `gemini_fails` via idempotent migration); inconclusive new-probe measurements never quarantine. One shared attempt budget (max of the four `--*-attempts`, default 5); per-service `--no-*-check` flags; all-dirty still fail-opens.
+-
+-**Consequences.** Selection rejects exits that pass Google but fail reputation-sensitive apps; a fully-flagged pool serves the least-bad candidate instead of going dark. First live run quarantined two US nodes (`youtube`, `gemini`) and fail-opened to the best remaining.
+-
+-**Rollback.** Per-service `--no-*-check` flags; `git checkout` the balancer to restore the Google-only gate.
+-
+-## 2026-11-16 — Guarded auto-rotate with NL lock (`--keep-if-clean`)
+-
+-**Context.** US exits kept flapping (repeated manual `rr` runs in one day) while the NL bench measured deeper and cleaner. Manual-only rotation also meant a dirty exit stayed until an operator noticed. But naive auto-rotate re-picks least-used every tick and would flap healthy exits.
+-
+-**Decision.** `rotate` gains `--keep-if-clean`: the current exit is gate-tested first and kept (uses+1, `keep-clean` log) when clean or inconclusive; rotation proceeds only on a dirty verdict, with the dirty current quarantined under its cause. `maintain.sh` runs `rotate --require-country NL --keep-if-clean` every tick after the country batch. The `rr` launcher default flips US to NL (`RR_COUNTRY` still overrides, empty still disables).
+-
+-**Consequences.** The pool holds the best gate-tested NL exit on its own and moves only on real dirt — no churn, no manual watching. Manual `rr` and the timer now agree on NL.
+-
+-**Rollback.** Remove the rotate line from `maintain.sh`; flip the launcher default back to US; `--keep-if-clean` stays inert unless passed.
+-
+-## 2026-11-16 — Hold country flipped NL to DE
+-
+-**Context.** The NL exit stayed clean but the operator asked for a German hold: the DE bench is deep and the current DE exit tests clean on all four probes.
+-
+-**Decision.** Default lock flipped NL to DE in `maintain.sh` and the `rr` launcher (`RR_COUNTRY` still overrides, empty still disables). Nothing else changes: same keep-if-clean guard, same battery, same fail-open.
+-
+-**Consequences.** Every tick holds the best gate-tested DE exit; manual `rr` agrees.
+-
+-**Rollback.** Flip both lines back to NL.
+-
+-## 2026-11-16 — On-demand speed pick (`fastest`)
+-
+-**Context.** Delay (HTTP 204 round-trip) says nothing about throughput: 28ms exits delivered 48–196 KB/s. Full speedtest-cli per node is over-engineering (60s+, ~100MB per candidate, abusive to free nodes, and it 502s through exits).
+-
+-**Decision.** New manual-only `fastest` subcommand: gate the ordered pool (flagged quarantine with cause, same battery), speed-test the first `--top` (default 3) clean finalists with a bounded exact-byte download (default 3MB, 30s cap each), select the fastest. Slow losers are never quarantined; nobody clean loses standing. Not wired to the timer.
+-
+-**Consequences.** Operator can escape a clean-but-slow exit in about a minute without disturbing the pool's learned state.
+-
+-**Rollback.** Remove the subcommand; `rotate` behavior unchanged.
+-
+-## 2026-11-16 — Tailscale peers via interface-only mihomo TUN
+-
+-**Context.** The server is a Tailscale exit node, but peer traffic left via the host default route (server IP), never touching the clean proxy exits. mihomo docs confirm `auto-route: false` still creates the TUN device without injecting any routes; `stack: mips` (upstream default) keeps all processing in userspace.
+-
+-**Decision.** Generator emits TUN interface-only (`enable: true`, `auto-route: false`, `stack: mips`, `mtu: 1500`, `dns-hijack` kept); `refresh.sh` passes `--tun` again. New `scripts/tailnet-mihomo-setup.sh` (root, idempotent) marks peer internet traffic (`iifname tailscale0`, `!100.64.0.0/10` → fwmark `0x55`), policy-routes it through table 100 (`default dev mihomo`), and skips tailscaled MASQUERADE for the TUN oif; `scripts/tailnet-mihomo-teardown.sh` rolls back steering only. New `systemd/tailnet-mihomo-route.service` (system oneshot, install to `/etc/systemd/system`) reapplies at boot. Hold country flipped DE→US in timer and launcher. Tailscale exit-node peers now exit with the selected US node IP; host OUTPUT stays unmarked and direct.
+-
+-**Consequences.** Peers inherit the clean-exit gates and US geolocation; host traffic never enters the tunnel. If mihomo is down, the route still points at a dead device and peers lose connectivity until it restarts (no automatic fail-open by design).
+-
+-**Rollback.** `teardown.sh`, disable the unit, `git checkout` the generator, regenerate, restore `.bak`.
+-
+-## 2026-11-16 — Hold country to NL (via FR detour)
+-
+-**Context.** The operator first asked for a French hold, then corrected to the Netherlands before commit: the NL bench is the deepest measured and the selected exit tests clean on Google/YouTube/Spotify (Gemini inconclusive-kept).
+-
+-**Decision.** Hold country set to NL in timer and launcher (`RR_COUNTRY` still overrides, empty still disables). Nothing else changes.
+-
+-**Consequences.** Every tick holds the best gate-tested NL exit; manual `rr` agrees.
+-
+-**Rollback.** Flip both lines back to US.
+-
+-## 2026-11-16 — Back to simple: no gates, no lock, direct tailnet, manual rr
+-
+-**Context.** The operator wants zero automation beyond pool upkeep: steering, gates, and locks removed after the US/NL/DE hold tour. What stays automatic: periodic feed refresh and interval delay retests.
+-
+-**Decision.** `maintain.sh` tick is retest 1000 + country 40 + refresh-if-due (rotate line removed — manual-only again). Bare `rr` rotates gate-free with no lock (all four `--no-*-check` flags); explicit flags still work. Tailscale steering torn down (user runs teardown + disables the unit); peers exit direct again. TUN returns to fully off (refresh.sh loses `--tun`).
+-
+-**Consequences.** `rr` picks least-used/fastest-delay alive node, any country; dead nodes still quarantine via retest. No auto-switching of any kind.
+-
+-**Rollback.** Re-add the rotate line with a lock; re-enable the tailnet unit; re-add `--tun`.
+-
+-## 2026-11-18 — Restore the quota failure cause for the active rescue plugin
+-
+-**Context.** An earlier cleanup removed the `quota`, `transport` and `region`
+-causes together with the retired rate-limit-rescue plugin. The plugin is active
+-again and now reports a free-tier 429 as `rr --reason quota`. In the observed
+-burst, ten distinct nodes were rotated in 41 seconds and every one returned
+-429, so plain rotation could not escape a spent allowance.
+-
+-**Decision.** Re-add `quota` to the `--reason` choices for `skip` and `next`,
+-and add `--reason` to `rotate`. `rotate --reason quota` marks the current exit
+-with `last_fail_cause=quota` and the existing 24h `quarantined_until`, removes
+-it from this run's candidates, then continues normal selection. With no other
+-candidate it keeps the current node and logs `quota-failopen` rather than going
+-dark. No per-cause counter or selection weighting is restored: the quarantine
+-alone keeps a spent exit out of rotation for a day.
+-
+-**Consequences.** A quota burst can quarantine many exits for 24h, but fail-open
+-keeps the proxy usable when the alive pool is exhausted. Transport and region
+-causes stay retired; the plugin only sends a reason for quota.
+-
+-**Rollback.** Remove `quota` from the argparse choices and the quarantine branch
+-in `cmd_rotate`; existing rows keep their cause strings.
+-
+-## 2026-11-19 — Simple quota rescue: configurable quarantine, real HTTPS probe, REALITY sanitizer
+-
+-**Context.** The Manager asked to make quota rescue simpler and ensure the next
+-exit actually works. Three concrete problems: the quarantine was hardcoded 24h;
+-mihomo `/delay` reported a low latency for a node that carried no traffic (task
+-24 measured 35ms with no data); and a single odd-length REALITY short-id from a
+-feed aborted the whole generated config at `mihomo -t` (the failing maintain
+-service on 2026-11-19). The Manager chose 12h via both a systemd drop-in and a
+-`maintain.sh` export, the probe on by default with a small batch, and confirmed
+-bare `rr` stays IP-only because the bridge already clears its session in its own
+-quota path.
+-
+-**Decision.**
+-- Quarantine length is resolved CLI > `RR_QUARANTINE_SECONDS` > 24h code default
+-  in `resolve_quarantine_seconds`, threaded through `_mark_failed` and `retest`;
+-  this host sets 12h in two places so every caller agrees.
+-- New `opencode-probe` subcommand opens `https://opencode.ai` through the mixed
+-  port for a bounded batch, persists `opencode_ok`/`opencode_checked`/
+-  `opencode_delay_ms`, and restores the prior selector in `finally`. It is a
+-  measurement only, never a quarantine. `maintain.sh` runs it each tick, on by
+-  default.
+-- `_sanitize_reality_short_id` emits only even-length hex (or empty) so one bad
+-  feed entry cannot break every proxy. The 24h cause string and fail-open
+-  behavior from the 2026-11-18 ADR are unchanged.
+-
+-**Consequences.** Quarantine is now operator-tunable without a code edit. The
+-probe adds a bounded 20-request HTTPS check per 30-minute tick and slightly
+-longer maintain runs. Invalid short-ids are dropped with a warning instead of
+-failing config validation. No gate/country/keep-if-clean behavior was removed.
+-
+-**Rollback.** Remove the `opencode-probe` dispatch and its DB columns, revert
+-`_mark_failed`/`retest` to the constant, and delete the sanitizer; existing DB
+-rows keep their extra columns harmlessly.
+diff --git a/scripts/README.md b/scripts/README.md
+deleted file mode 100644
+index d78cbd6..0000000
+--- a/scripts/README.md
++++ /dev/null
+@@ -1,114 +0,0 @@
+-# scripts/ — external mihomo balancer
+-
+-Automation that runs beside mihomo and owns things mihomo cannot decide on
+-its own: which subscription node carries traffic right now, and when a node
+-should sit out.
+-
+-## Layout
+-
+-| File              | Duty                                                                 |
+-| ----------------- | -------------------------------------------------------------------- |
+-| `rr_balancer.py`  | Clash-API + SQLite balancer (`rotate`, `retest`, `country`, `report`, `skip`, `next`) |
+-| `maintain.sh`     | Single maintenance dispatcher run by `v2ray-to-subs.timer` every 30 minutes |
+-
+-State lives in `data/balancer_state.db` (schema in
+-`data/balancer_state.schema.sql`, git-ignored). Run `python3 scripts/rr_balancer.py --help`
+-for the full CLI.
+-
+-## Maintenance dispatcher
+-
+-`maintain.sh` is the only scheduled entry point. Each tick it runs
+-`retest --batch 500`, then `country --batch 20`, then `refresh.sh` **only** if
+-`~/.config/mihomo-subs/config.yaml` is older than six hours. A failing job logs
+-a warning and the tick continues, so one bad batch never blocks the refresh.
+-The feed list the old refresh drop-in used is embedded in the script.
+-
+-## Duties
+-
+-- **Liveness + delay**: probes every pool node through mihomo's
+-  `/proxies/{name}/delay` endpoint and stores delay or failure.
+-- **Country**: `country --batch N` selects each node briefly, reads
+-  `https://www.cloudflare.com/cdn-cgi/trace` through the live mixed-port, and
+-  stores the observed two-letter code with a freshness stamp
+-  (`country`, `country_checked`). Unreadable traces are stored as unknown, never
+-  as a country and never as a failure. The previous selection is restored at the
+-  end of the batch.
+-- **Report**: `report` prints country coverage (checked/total) and per-country
+-  counts, so the decision to enable a country lock is data-driven.
+-- **Selection**: `rotate` picks the lowest `(uses, delay_ms)` row among alive,
+-  fresh, non-quarantined nodes and selects it in the `PROXY` group.
+-  With `--keep-if-clean` the current exit is gate-tested first and kept
+-  when clean, so healthy exits never flap; rotation moves only on a
+-  dirty verdict. Rotation is manual-only (`rr`); the timer never rotates.
+-- **Tailscale exit (direct again)**: peer steering removed — exit traffic
+-  leaves with the server IP. The setup/teardown scripts and boot unit
+-  stay in the tree, disabled, as the documented rollback path. Host
+-  OUTPUT was never marked and stays direct.
+-- **Speed pick**: `fastest` speed-tests the top `--top` gate-clean
+-  finalists (default 3) with a bounded exact-byte download each
+-  (default 3MB, 30s cap) and selects the fastest. Slow losers keep
+-  their standing — throughput is a signal, never a quarantine verdict.
+-  Manual only, never on the timer.
+-- **Failure causes**: `skip` / `next --reason google|youtube|spotify|gemini|country|manual|quota`
+-  quarantines the node for 24 h. Each probe cause increments its own
+-  counter (`google_fails`, `youtube_fails`, `spotify_fails`, `gemini_fails`).
+-  `quota` has no counter: `rotate --reason quota` parks the current exit for
+-  24 h before picking the next one, and fails open to it when no other
+-  candidate is alive. The rescue plugin sends this reason on a free-tier 429.
+-- **Multi-service clean gate**: `rotate` probes each candidate through the
+-  live mixed-port with redirects disabled, all-must-pass in order Google
+-  (`search?q=test`: 200 clean, 302 `/sorry` flagged) → YouTube backend
+-  (`oembed`: 200 clean, 403 flagged; landing pages are 200-weak and unused)
+-  → Spotify API (401 JSON clean = edge reached auth, 403 HTML flagged =
+-  edge IP block) → Gemini spare (200 clean, 403 flagged). The first
+-  flagged service quarantines with its cause and the next candidate is
+-  tried; an inconclusive new-probe measurement keeps the candidate
+-  without quarantine. Per-service `--no-*-check` flags restore fewer
+-  gates; the battery is skipped when Google is unreachable directly
+-  (infrastructure guard). One shared attempt budget (max of the four
+-  `--*-attempts`, default 5) bounds the run; an all-dirty pool fails
+-  open to the best candidate.
+-- **Country lock**: `--require-country CC` (on `rotate`, `skip`, `next`) keeps
+-  rotation inside one observed country. Candidates with no measurement never
+-  match, and when nothing matches the current node is kept instead of falling
+-  back to another country. The lock is opt-in until `report` shows coverage.
+-- **Retest**: rechecks the oldest batch so dead nodes rejoin on recovery.
+-
+-## Invariants
+-
+-1. Node names are identity hashes (`{proto}-{12hex}` from server + port), so
+-   learned rows survive every subscription refresh.
+-2. Never delete learned rows on a refresh — only never-tested rows are pruned.
+-3. Selection order is deterministic: `uses` → `delay_ms`, with no per-cause
+-   weighting.
+-4. Rotation always leaves the group pointing at a node. An all-blocked pool
+-   fails open to the best candidate, and with a country lock that failure stays
+-   inside the locked country.
+-5. An unreadable country trace is a measurement gap, never a node verdict.
+-6. A spent exit is quarantined for a configurable window (code default 24h,
+-   this host sets 12h via `RR_QUARANTINE_SECONDS`); rotation picks the
+-   least-used, then fastest, non-quarantined node and never goes dark.
+-7. A node's REALITY short-id is sanitized at generation: only even-length hex
+-   is emitted, so one bad feed entry cannot abort the whole mihomo config.
+-
+-## Background opencode.ai probe
+-
+-`rr_balancer.py opencode-probe --batch 20` opens `https://opencode.ai`
+-through the mixed port for a small batch, records `opencode_ok`,
+-`opencode_checked` (epoch seconds) and `opencode_delay_ms` on each node, and
+-restores the previous PROXY selection in a `finally` block. A low mihomo
+-`/delay` is not proof the exit carries traffic, so this is the real-HTTPS
+-verdict that a quota rotation can trust. `maintain.sh` runs it every tick,
+-on by default (`RR_OPENCODE_PROBE_ENABLED=0` disables, `RR_OPENCODE_URL`
+-overrides the URL). A probe failure is a measurement, never a quarantine.
+-
+-## Risks
+-
+-- The probe gates select a candidate in order to probe it, so a rejected
+-  node carries traffic for roughly `GOOGLE_SETTLE_SECONDS` per probe
+-  before the next candidate is tried. Bounded by the shared attempt
+-  budget (max of the four `--*-attempts`, default 5).
+-- A stricter battery can reject the whole pool where every exit is
+-  flagged for at least one service; fail-open then serves the least-bad
+-  candidate instead of going dark.
+-- `data/balancer_state.db` is runtime state. Losing it only loses history.
+diff --git a/scripts/maintain.sh b/scripts/maintain.sh
+deleted file mode 100755
+index 7342806..0000000
+--- a/scripts/maintain.sh
++++ /dev/null
+@@ -1,71 +0,0 @@
+-#!/usr/bin/env bash
+-# Sibling Docs: scripts/README.md | Decisions: scripts/DECISIONS.md
+-# Single maintenance dispatcher for this project.
+-#
+-# One timer drives one oneshot unit: retest the pool, fill observed exit
+-# countries, and regenerate the live config only when it is stale. This
+-# replaces the three separate timers (refresh, retest, country) so the
+-# project owns two units in total: mihomo-subs.service and this pair.
+-#
+-# The proxy service is never restarted here unless refresh.sh does it after
+-# installing a fresh config; a maintenance run must never leave the client
+-# without a proxy.
+-set -euo pipefail
+-
+-# A spent free-tier exit is quarantined for 12h in this deployment (code
+-# default remains 24h). Exported so every subscript in this tick, including
+-# both rr invocations below, inherits the same window.
+-export RR_QUARANTINE_SECONDS=43200
+-
+-REPO="$HOME/v2ray-to-subs"
+-PY="$REPO/.venv/bin/python"
+-BALANCER="$REPO/scripts/rr_balancer.py"
+-REFRESH="$REPO/refresh.sh"
+-LIVE="$HOME/.config/mihomo-subs/config.yaml"
+-REFRESH_AFTER_SEC=21600
+-
+-# Feed list previously supplied by the v2ray-to-subs-refresh.service drop-in
+-# that this dispatcher replaces. Without these the converter falls back to its
+-# built-in default feed, which would silently swap the pool.
+-SUB_URLS=(
+-	"https://raw.githubusercontent.com/barry-far/V2ray-Config/main/All_Configs_Sub.txt"
+-	"https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/all/configs.txt"
+-	"https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/base64/all_sub.txt"
+-)
+-
+-echo "maintain: tick start"
+-
+-# A failing job must not abort the tick: retest and country both touch the
+-# live selector, so one bad batch should never block the refresh check.
+-if ! "$PY" "$BALANCER" retest --batch 1000; then
+-	echo "maintain: retest warned (continuing)"
+-fi
+-# Real-HTTPS verdict: verify a small batch actually reaches opencode.ai through
+-# the mixed-port (a low mihomo delay alone does not prove the exit carries
+-# traffic). On by default with a small batch; the command restores the previous
+-# selector in its finally block, so one bad probe never strands the group.
+-if ! "$PY" "$BALANCER" opencode-probe --batch 20; then
+-	echo "maintain: opencode-probe warned (continuing)"
+-fi
+-if ! "$PY" "$BALANCER" country --batch 40; then
+-	echo "maintain: country warned (continuing)"
+-fi
+-
+-NEED_REFRESH=0
+-if [[ ! -f "$LIVE" ]]; then
+-	NEED_REFRESH=1
+-else
+-	AGE=$(($(date +%s) - $(stat -c %Y "$LIVE")))
+-	if [[ "$AGE" -gt "$REFRESH_AFTER_SEC" ]]; then
+-		NEED_REFRESH=1
+-	fi
+-fi
+-
+-if [[ "$NEED_REFRESH" -eq 1 ]]; then
+-	echo "maintain: refresh due, running refresh.sh"
+-	bash "$REFRESH" "${SUB_URLS[@]}"
+-else
+-	echo "maintain: refresh skipped (live config fresh)"
+-fi
+-
+-echo "maintain: tick done"
+diff --git a/scripts/rr b/scripts/rr
+deleted file mode 100755
+index 007f69b..0000000
+--- a/scripts/rr
++++ /dev/null
+@@ -1,24 +0,0 @@
+-#!/usr/bin/env bash
+-# rr launcher — short alias for scripts/rr_balancer.py.
+-# Bare `rr` rotates to a clean exit in the default country (US);
+-# RR_COUNTRY=DE overrides it, RR_COUNTRY= (empty) disables the lock.
+-# Any explicit arguments pass straight through to rr_balancer.py.
+-set -euo pipefail
+-
+-DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+-
+-if [[ $# -eq 0 ]]; then
+-  exec "$DIR/rr_balancer.py" rotate \
+-    --no-google-check --no-youtube-check --no-spotify-check --no-gemini-check
+-fi
+-
+-# The rescue plugin calls the bare launcher with flags (`rr --reason quota`).
+-# argparse needs the subcommand before its flags, so forward flag-only calls
+-# to `rotate`. Explicit subcommands (`rr skip NAME`, `rr next`, ...) pass
+-# through unchanged.
+-if [[ "${1:-}" == -* ]]; then
+-  exec "$DIR/rr_balancer.py" rotate \
+-    --no-google-check --no-youtube-check --no-spotify-check --no-gemini-check "$@"
+-fi
+-
+-exec "$DIR/rr_balancer.py" "$@"
+diff --git a/scripts/rr_balancer.py b/scripts/rr_balancer.py
+deleted file mode 100755
+index e7e8a84..0000000
+--- a/scripts/rr_balancer.py
++++ /dev/null
+@@ -1,1702 +0,0 @@
+-#!/usr/bin/env python3
+-# Sibling Docs: scripts/README.md | Decisions: scripts/DECISIONS.md
+-"""External round-robin balancer for mihomo (Clash API + SQLite state).
+-
+-Owns the PROXY group's selection from outside mihomo: tests each node
+-through Clash itself, keeps liveness/delay/usage in SQLite, rotates the
+-selected node among alive ones, and retests dead nodes until they revive.
+-
+-Subcommands:
+-  rotate   pick next node (least-used, fastest first) and select it
+-  retest   check a batch of nodes (oldest-checked first) and update state
+-  country  record the observed exit country for a batch of nodes
+-  report   print country coverage and per-country counts
+-  skip     mark one node failed and rotate now
+-  next     mark the current node failed and rotate now
+-
+-Selection policy (fastest + fresh + fair):
+-  - pool = status 'alive' AND checked within STALE_AFTER seconds
+-  - pick lowest (uses, delay_ms): equal load first, fastest wins ties
+-  - optional --require-country CC keeps rotation inside one observed country
+-  - empty pool = logged no-op, never touches the group (no Auto fallback)
+-"""
+-
+-from __future__ import annotations
+-
+-import argparse
+-import json
+-import os
+-import sqlite3
+-import sys
+-import time
+-import urllib.parse
+-import urllib.request
+-from concurrent.futures import ThreadPoolExecutor
+-from typing import Any, Collection, Dict, List, Optional, Tuple
+-
+-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+-SCHEMA_PATH = os.path.join(REPO_ROOT, "data", "balancer_state.schema.sql")
+-DEFAULT_DB = os.path.join(REPO_ROOT, "data", "balancer_state.db")
+-DEFAULT_SECRET_FILE = os.path.expanduser("~/.config/mihomo-subs/.controller_secret")
+-
+-# Google Search is the discriminator: flagged exits answer 302 -> /sorry,
+-# clean exits answer 200. Lightweight Google endpoints (generate_204,
+-# suggest) answer identically on blocked IPs, so they cannot be used.
+-DEFAULT_GOOGLE_URL = "https://www.google.com/search?q=test"
+-DEFAULT_PROXY_URL = "http://127.0.0.1:7890"
+-GOOGLE_SETTLE_SECONDS = 0.3
+-
+-# YouTube backend is the app-relevant discriminator: flagged exits answer
+-# 403 on oEmbed metadata while youtube.com/ and music.youtube.com/ still
+-# answer 200, so landing pages cannot be used. Clean exits answer 200 JSON.
+-DEFAULT_YOUTUBE_URL = (
+-    "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+-)
+-
+-# Spotify API edge block is an HTML 403 before auth evaluation; a clean
+-# exit reaches auth evaluation and answers 401 JSON ("no token"). So the
+-# probe classifies by status AND body shape, not status alone.
+-DEFAULT_SPOTIFY_URL = "https://api.spotify.com/v1/search?q=test&type=track"
+-
+-# Gemini is the strict spare: Google's datacenter-IP detection 403s exits
+-# that pass Search, so a Gemini-clean exit is clean everywhere measured.
+-DEFAULT_GEMINI_URL = "https://gemini.google.com/"
+-
+-# Throughput probe: Cloudflare serves an exact byte count, so the test is
+-# bounded by construction. Big enough to separate throttled exits from
+-# healthy ones, small enough to stay polite to free nodes.
+-DEFAULT_SPEED_URL = "https://speed.cloudflare.com/__down?bytes=3000000"
+-DEFAULT_SPEED_BYTES = 3000000
+-
+-# Cloudflare's trace endpoint reports the country Cloudflare sees for the
+-# connection ("loc=XX"). Read through a candidate exit it is the observed
+-# country of that exit, which is what a geo-locked client actually gets --
+-# provider remarks are unreliable (most feeds carry hash-style names).
+-DEFAULT_TRACE_URL = "https://www.cloudflare.com/cdn-cgi/trace"
+-TRACE_SETTLE_SECONDS = 0.3
+-
+-# Group members that are selectors themselves, plus mihomo builtins:
+-# never enter the rotation pool.
+-META_NAMES = {"Auto", "Load Balance", "Fallback", "DIRECT", "REJECT", "PASS"}
+-
+-# Failed nodes stay out of rotation and retest for this long, so a
+-# rate-limited exit cannot come back minutes later. This is the *code default*;
+-# the effective value for a process is resolved from CLI > env > this default.
+-QUARANTINE_SECONDS = 24 * 3600
+-
+-# Effective quarantine window for this process. ``main()`` resolves it once
+-# from --quarantine-seconds / RR_QUARANTINE_SECONDS; direct function callers and
+-# unit tests that never enter main() keep the 24h default.
+-_quarantine_seconds: int = QUARANTINE_SECONDS
+-
+-
+-def resolve_quarantine_seconds(cli_value: Optional[int] = None) -> int:
+-    """Resolve the quarantine window: CLI, then env, then the 24h default.
+-
+-    Why: the operator may want a shorter window (e.g. 12h) without editing code,
+-    while unit tests must stay deterministic with no environment configured.
+-
+-    Args:
+-        cli_value: value of ``--quarantine-seconds`` when supplied, else None.
+-
+-    Returns:
+-        Positive integer number of seconds to quarantine a failed node.
+-
+-    Edge cases: an empty env string counts as unset; a non-integer or
+-    non-positive value raises ValueError so callers fail loudly rather than
+-    parking nodes for a nonsensical interval.
+-    """
+-    if cli_value is not None:
+-        seconds = int(cli_value)
+-        if seconds <= 0:
+-            raise ValueError("quarantine seconds must be positive, got %r" % (cli_value,))
+-        return seconds
+-    env_value = os.environ.get("RR_QUARANTINE_SECONDS")
+-    if env_value is not None and env_value.strip() != "":
+-        seconds = int(env_value)
+-        if seconds <= 0:
+-            raise ValueError(
+-                "RR_QUARANTINE_SECONDS must be positive, got %r" % (env_value,)
+-            )
+-        return seconds
+-    return QUARANTINE_SECONDS
+-
+-
+-def utc_now_epoch() -> int:
+-    """Current UTC time as epoch seconds. Single clock seam for tests.
+-
+-    Rotation staleness math and retest scheduling both flow through here
+-    so unit tests can pin time without touching module state. Callers
+-    must use this instead of calling time.time() directly.
+-    """
+-    return int(time.time())
+-
+-
+-class ClashAPI:
+-    """Thin wrapper over the mihomo external controller REST API."""
+-
+-    def __init__(self, base: str, secret: str, timeout: float = 10.0) -> None:
+-        self.base = base.rstrip("/")
+-        self.secret = secret
+-        self.timeout = timeout
+-
+-    def _request(
+-        self, method: str, path: str, body: Optional[Dict[str, Any]] = None
+-    ) -> Tuple[int, Any]:
+-        data = json.dumps(body).encode() if body is not None else None
+-        req = urllib.request.Request(self.base + path, data=data, method=method.upper())
+-        req.add_header("Authorization", "Bearer " + self.secret)
+-        if data:
+-            req.add_header("Content-Type", "application/json")
+-        try:
+-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+-                raw = resp.read().decode("utf-8") or "null"
+-                return resp.status, json.loads(raw)
+-        except urllib.error.HTTPError as exc:
+-            return exc.code, None
+-
+-    def group_members(self, group: str) -> Tuple[List[str], Optional[str]]:
+-        """Names selectable inside a select group (meta entries excluded)."""
+-        status, payload = self._request("GET", "/proxies")
+-        if status != 200 or not isinstance(payload, dict):
+-            raise RuntimeError("GET /proxies failed with HTTP %s" % status)
+-        group_info = (payload.get("proxies") or {}).get(group)
+-        if not group_info:
+-            raise RuntimeError("group %r not found on controller" % group)
+-        members = [
+-            p.get("name", "") if isinstance(p, dict) else p
+-            for p in group_info.get("all") or []
+-        ]
+-        current = group_info.get("now")
+-        pool = [m for m in members if m and m not in META_NAMES]
+-        return pool, current
+-
+-    def select(self, group: str, name: str) -> None:
+-        status, _ = self._request("PUT", "/proxies/" + group, {"name": name})
+-        if status != 204:
+-            raise RuntimeError("PUT selection %r failed with HTTP %s" % (name, status))
+-
+-    def delay(
+-        self,
+-        name: str,
+-        test_url: str,
+-        timeout_ms: int,
+-        expected: Optional[int] = None,
+-    ) -> Optional[int]:
+-        query = {"timeout": timeout_ms, "url": test_url}
+-        if expected is not None:
+-            query["expected"] = expected
+-        qs = urllib.parse.urlencode(query)
+-        path = "/proxies/%s/delay?%s" % (urllib.parse.quote(name), qs)
+-        try:
+-            status, payload = self._request("GET", path)
+-        except Exception:
+-            return None
+-        if status != 200 or not isinstance(payload, dict):
+-            return None
+-        delay = payload.get("delay")
+-        return delay if isinstance(delay, int) and delay >= 0 else None
+-
+-    def get_connections(self) -> List[Dict[str, Any]]:
+-        """Active connections (each carries chains metadata); [] on any error."""
+-        try:
+-            status, payload = self._request("GET", "/connections")
+-        except Exception:
+-            return []
+-        if status != 200 or not isinstance(payload, dict):
+-            return []
+-        conns = payload.get("connections")
+-        return conns if isinstance(conns, list) else []
+-
+-    def close_connection(self, cid: str) -> bool:
+-        """Close one connection by id. True on 204/200/404, False otherwise, never raises."""
+-        try:
+-            status, _ = self._request(
+-                "DELETE", "/connections/" + urllib.parse.quote(str(cid))
+-            )
+-        except Exception:
+-            return False
+-        return status in (200, 204, 404)
+-
+-
+-def close_stale_connections(api: Any, prev_name: str) -> Tuple[int, List[str]]:
+-    """Close connections chained through prev_name. Returns (closed, failed_ids).
+-
+-    Never raises: per-id errors are collected into failed_ids so rotation
+-    bookkeeping always completes.
+-    """
+-    closed = 0
+-    failed: List[str] = []
+-    try:
+-        connections = api.get_connections()
+-    except Exception:
+-        return 0, []
+-    for conn in connections:
+-        chains = conn.get("chains") if isinstance(conn, dict) else None
+-        cid = conn.get("id") if isinstance(conn, dict) else None
+-        if not cid or not chains or prev_name not in chains:
+-            continue
+-        try:
+-            ok = api.close_connection(cid)
+-        except Exception:
+-            ok = False
+-        if ok:
+-            closed += 1
+-        else:
+-            failed.append(str(cid))
+-    return closed, failed
+-
+-
+-def connect_db(db_path: str) -> sqlite3.Connection:
+-    """Open state DB with overlap protection for concurrent timers.
+-
+-    WAL mode plus a 10s busy timeout lets the 5min rotate and 30min
+-    retest oneshots share the DB without `database is locked` errors.
+-    Pragmas are best-effort (e.g. some filesystems reject WAL).
+-    """
+-    # Fresh clones lack data/ so ensure the parent before connecting.
+-    parent = os.path.dirname(os.path.abspath(db_path))
+-    if parent and not os.path.exists(parent):
+-        os.makedirs(parent, exist_ok=True)
+-    fresh = not os.path.exists(db_path)
+-    conn = sqlite3.connect(db_path, timeout=10.0)
+-    try:
+-        conn.execute("PRAGMA journal_mode=WAL;")
+-        conn.execute("PRAGMA busy_timeout=10000;")
+-        conn.execute("PRAGMA synchronous=NORMAL;")
+-    except sqlite3.OperationalError:
+-        pass
+-    if fresh:
+-        with open(SCHEMA_PATH, encoding="utf-8") as fh:
+-            conn.executescript(fh.read())
+-    else:
+-        # Idempotent migrations for DBs created before newer columns.
+-        cols = [row[1] for row in conn.execute("PRAGMA table_info(nodes)")]
+-        for coldef in (
+-            "quarantined_until INTEGER NOT NULL DEFAULT 0",
+-            "last_fail_cause TEXT NOT NULL DEFAULT ''",
+-            "google_fails INTEGER NOT NULL DEFAULT 0",
+-            "youtube_fails INTEGER NOT NULL DEFAULT 0",
+-            "spotify_fails INTEGER NOT NULL DEFAULT 0",
+-            "gemini_fails INTEGER NOT NULL DEFAULT 0",
+-            "country TEXT NOT NULL DEFAULT ''",
+-            "country_checked INTEGER NOT NULL DEFAULT 0",
+-            "opencode_ok INTEGER NOT NULL DEFAULT 0",
+-            "opencode_checked INTEGER NOT NULL DEFAULT 0",
+-            "opencode_delay_ms INTEGER",
+-        ):
+-            col = coldef.split()[0]
+-            if col not in cols:
+-                conn.execute("ALTER TABLE nodes ADD COLUMN %s" % coldef)
+-        # Legacy counters that existed only for the retired rate-limit-rescue
+-        # plugin. DROP COLUMN needs SQLite >= 3.35; the failure is swallowed
+-        # so an old database always opens even where the statement is
+-        # unsupported (the columns are simply left dormant).
+-        for legacy in ("quota_fails", "transport_fails", "region_fails"):
+-            if legacy in cols:
+-                try:
+-                    conn.execute("ALTER TABLE nodes DROP COLUMN %s" % legacy)
+-                except sqlite3.OperationalError:
+-                    pass
+-        conn.commit()
+-    return conn
+-
+-
+-def seed_names(conn: sqlite3.Connection, names: List[str]) -> Tuple[int, int]:
+-    """Insert unknown names; prune only unknowns gone from the controller.
+-
+-    Learned rows (alive/failed with delay, uses, fails) survive feed
+-    refreshes so rotation keeps working across config regenerations;
+-    recurring names resume with their stats intact. Unknown rows carry
+-    no knowledge, so dropping them is free and bounds table growth.
+-    """
+-    cur = conn.cursor()
+-    cur.execute("SELECT name FROM nodes")
+-    known = {row[0] for row in cur.fetchall()}
+-    added = 0
+-    for name in names:
+-        if name not in known:
+-            cur.execute("INSERT INTO nodes (name) VALUES (?)", (name,))
+-            added += 1
+-    pruned = 0
+-    if names:
+-        cur.execute(
+-            "DELETE FROM nodes WHERE status = 'unknown' AND name NOT IN (%s)"
+-            % ",".join("?" * len(names)),
+-            names,
+-        )
+-        pruned = cur.rowcount
+-    conn.commit()
+-    return added, pruned
+-
+-
+-def alive_pool(
+-    conn: sqlite3.Connection,
+-    now: int,
+-    stale_after: int,
+-    allowed: Optional[Collection[str]] = None,
+-) -> List[Tuple[str, int, int, str]]:
+-    """Alive AND freshly checked nodes as (name, uses, delay_ms, country).
+-
+-    When allowed is given, only names present in the controller's current
+-    member list are returned, so ghosts from older feeds are never picked.
+-    Quarantined nodes (still inside their configurable window) are always excluded.
+-    country is the last observed exit country ("" when never measured), so
+-    a country lock can filter the pool without another probe.
+-    """
+-    cur = conn.cursor()
+-    query = (
+-        "SELECT name, uses, COALESCE(delay_ms, 999999), "
+-        "COALESCE(country, '') FROM nodes "
+-        "WHERE status = 'alive' AND (? - last_check) <= ? "
+-        "AND quarantined_until <= ?"
+-    )
+-    params: List[Any] = [now, stale_after, now]
+-    if allowed is not None:
+-        allowed = list(allowed)
+-        if not allowed:
+-            return []
+-        query += " AND name IN (%s)" % ",".join("?" * len(allowed))
+-        params.extend(allowed)
+-    cur.execute(query, params)
+-    return cur.fetchall()
+-
+-
+-def order_pool(
+-    pool: List[Tuple[str, int, int, str]],
+-) -> List[Tuple[str, int, int, str]]:
+-    """Least-used first, then fastest delay; no per-cause weighting."""
+-    return sorted(pool, key=lambda row: (row[1], row[2]))
+-
+-
+-def pick_next(pool: List[Tuple[str, int, int, str]]) -> Optional[str]:
+-    """Least-used first, then fastest delay; no per-cause weighting."""
+-    if not pool:
+-        return None
+-    return order_pool(pool)[0][0]
+-
+-
+-def google_clean(
+-    api: ClashAPI,
+-    group: str,
+-    name: str,
+-    url: str,
+-    timeout_ms: int,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-) -> bool:
+-    """Select the node, then read Google Search through it without redirects.
+-
+-    mihomo's /delay endpoint follows the 302 to /sorry and reports the final
+-    200, so it cannot see the block. This probes the live selector instead:
+-    a blocked exit returns 302, a clean exit returns 200.
+-
+-    The node stays selected; rotation keeps it when it passes and moves on
+-    when it does not, so no extra switch is needed.
+-    """
+-    api.select(group, name)
+-    if GOOGLE_SETTLE_SECONDS:
+-        time.sleep(GOOGLE_SETTLE_SECONDS)
+-    return probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0) == 200
+-
+-
+-def youtube_clean(
+-    api: ClashAPI,
+-    group: str,
+-    name: str,
+-    url: str,
+-    timeout_ms: int,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-) -> Optional[bool]:
+-    """Same select-settle shape as google_clean, tri-state YouTube verdict.
+-
+-    200 is clean, 403 is flagged, anything else (transport error,
+-    rate-limit, removed video) is unknown and never a verdict.
+-    """
+-    api.select(group, name)
+-    if GOOGLE_SETTLE_SECONDS:
+-        time.sleep(GOOGLE_SETTLE_SECONDS)
+-    status = probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0)
+-    if status is None:
+-        return None
+-    if status == 200:
+-        return True
+-    if status == 403:
+-        return False
+-    return None
+-
+-
+-def gemini_clean(
+-    api: ClashAPI,
+-    group: str,
+-    name: str,
+-    url: str,
+-    timeout_ms: int,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-) -> Optional[bool]:
+-    """Same select-settle shape as google_clean, tri-state Gemini verdict.
+-
+-    200 is clean, 403 is flagged, anything else is unknown and never
+-    a verdict.
+-    """
+-    api.select(group, name)
+-    if GOOGLE_SETTLE_SECONDS:
+-        time.sleep(GOOGLE_SETTLE_SECONDS)
+-    status = probe_status_via_proxy(url, proxy_url, timeout_ms / 1000.0)
+-    if status is None:
+-        return None
+-    if status == 200:
+-        return True
+-    if status == 403:
+-        return False
+-    return None
+-
+-
+-def probe_spotify_clean(url: str, proxy_url: str, timeout_s: float) -> Optional[bool]:
+-    """Classify a Spotify API read: True clean, False flagged, None unknown.
+-
+-    The edge answers 401 JSON once the request reaches auth evaluation
+-    (documented no-token behavior) and 403 HTML when the exit IP is
+-    blocked before auth. Anything else (rate-limit, transport error) is
+-    unknown, and unknown is never a verdict.
+-    """
+-    opener = urllib.request.build_opener(
+-        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+-        _NoRedirect,
+-    )
+-    req = urllib.request.Request(
+-        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+-    )
+-    try:
+-        with opener.open(req, timeout=timeout_s) as resp:
+-            status, body = resp.status, resp.read(512)
+-    except urllib.error.HTTPError as exc:
+-        status = exc.code
+-        try:
+-            body = exc.read(512)
+-        except Exception:
+-            body = b""
+-    except Exception:
+-        return None
+-    if status == 401 and b'"error"' in body:
+-        return True
+-    if status == 403:
+-        return False
+-    return None
+-
+-
+-def spotify_clean(
+-    api: ClashAPI,
+-    group: str,
+-    name: str,
+-    url: str,
+-    timeout_ms: int,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-) -> Optional[bool]:
+-    """Select, settle, then classify the Spotify API shape (None = unknown)."""
+-    api.select(group, name)
+-    if GOOGLE_SETTLE_SECONDS:
+-        time.sleep(GOOGLE_SETTLE_SECONDS)
+-    return probe_spotify_clean(url, proxy_url, timeout_ms / 1000.0)
+-
+-
+-def multi_gate_cause(
+-    api: ClashAPI, group: str, name: str, args: argparse.Namespace
+-) -> Optional[str]:
+-    """First-flagged cause across the probe battery, or None when clean.
+-
+-    Order is Google, YouTube, Spotify, Gemini(spare): cheapest and most
+-    discriminating first. "unknown" means a new-probe measurement failed
+-    (transport or unexpected shape) and must not quarantine anyone;
+-    legacy Google keeps its strict None-is-flagged shape. No gate
+-    enabled returns None.
+-    """
+-    battery = []
+-    if not getattr(args, "no_google_check", False):
+-        battery.append(
+-            (
+-                "google",
+-                getattr(args, "google_url", DEFAULT_GOOGLE_URL),
+-                getattr(args, "google_timeout_ms", 8000),
+-            )
+-        )
+-    if not getattr(args, "no_youtube_check", False):
+-        battery.append(
+-            (
+-                "youtube",
+-                getattr(args, "youtube_url", DEFAULT_YOUTUBE_URL),
+-                getattr(args, "youtube_timeout_ms", 8000),
+-            )
+-        )
+-    if not getattr(args, "no_spotify_check", False):
+-        battery.append(
+-            (
+-                "spotify",
+-                getattr(args, "spotify_url", DEFAULT_SPOTIFY_URL),
+-                getattr(args, "spotify_timeout_ms", 8000),
+-            )
+-        )
+-    if not getattr(args, "no_gemini_check", False):
+-        battery.append(
+-            (
+-                "gemini",
+-                getattr(args, "gemini_url", DEFAULT_GEMINI_URL),
+-                getattr(args, "gemini_timeout_ms", 8000),
+-            )
+-        )
+-    if not battery:
+-        return None
+-    # All probes share the live mixed-port; google_proxy names that port.
+-    proxy_url = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
+-    for cause, url, timeout_ms in battery:
+-        if cause == "spotify":
+-            verdict = spotify_clean(api, group, name, url, timeout_ms, proxy_url)
+-            if verdict is True:
+-                continue
+-            return "unknown" if verdict is None else cause
+-        if cause == "youtube":
+-            passed = youtube_clean(api, group, name, url, timeout_ms, proxy_url)
+-        elif cause == "gemini":
+-            passed = gemini_clean(api, group, name, url, timeout_ms, proxy_url)
+-        else:
+-            passed = google_clean(api, group, name, url, timeout_ms, proxy_url)
+-        if cause == "google":
+-            if not passed:
+-                return cause
+-        elif passed is None:
+-            return "unknown"
+-        elif not passed:
+-            return cause
+-    return None
+-
+-
+-def probe_status_via_proxy(url: str, proxy_url: str, timeout_s: float) -> Optional[int]:
+-    """HTTP status for url through proxy_url, redirects NOT followed.
+-
+-    Returns None on transport errors. The body is not read, so a clean
+-    candidate costs one request and a blocked one only its 302 headers.
+-    """
+-    opener = urllib.request.build_opener(
+-        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+-        _NoRedirect,
+-    )
+-    req = urllib.request.Request(
+-        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+-    )
+-    try:
+-        with opener.open(req, timeout=timeout_s) as resp:
+-            return resp.status
+-    except urllib.error.HTTPError as exc:
+-        return exc.code
+-    except Exception:
+-        return None
+-
+-
+-class _NoRedirect(urllib.request.HTTPRedirectHandler):
+-    """Turn 3xx into an HTTPError so the status is visible to the caller."""
+-
+-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+-        return None
+-
+-
+-def parse_trace_country(body: str) -> Optional[str]:
+-    """Country code from a Cloudflare cdn-cgi/trace body.
+-
+-    The body is line-oriented ("loc=US"). Only a real two-letter code is
+-    accepted; "XX" (Cloudflare's unknown/Tor marker), a missing line, or
+-    anything else returns None so callers store "unknown" instead of
+-    inventing a country.
+-    """
+-    for line in body.splitlines():
+-        if line.startswith("loc="):
+-            code = line[4:].strip().upper()
+-            if code == "XX":
+-                return None
+-            if len(code) == 2 and code.isalpha():
+-                return code
+-            return None
+-    return None
+-
+-
+-def probe_country_via_proxy(
+-    trace_url: str,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-    timeout_s: float = 8.0,
+-) -> Optional[str]:
+-    """Observed exit country for trace_url read through proxy_url.
+-
+-    Returns a two-letter code, or None when the trace is unreachable or
+-    unparseable. None is a measurement failure, never a verdict about the
+-    node, so callers must not quarantine on it.
+-    """
+-    req = urllib.request.Request(
+-        trace_url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+-    )
+-    try:
+-        opener = urllib.request.build_opener(
+-            urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+-            _NoRedirect,
+-        )
+-        with opener.open(req, timeout=timeout_s) as resp:
+-            if resp.status != 200:
+-                return None
+-            body = resp.read().decode("utf-8", errors="replace")
+-    except Exception:
+-        return None
+-    return parse_trace_country(body)
+-
+-
+-def probe_opencode_via_proxy(
+-    url: str,
+-    proxy_url: str = DEFAULT_PROXY_URL,
+-    timeout_s: float = 8.0,
+-) -> Tuple[bool, Optional[int]]:
+-    """Real-HTTPS verdict for ``url`` read through the mihomo mixed-port.
+-
+-    Why: mihomo's /delay only proves a TCP/TLS handshake, not that the exit can
+-    actually carry a request to opencode.ai (task 24 measured a node with a
+-    35ms delay that carried no traffic). This opens the URL through
+-    ``proxy_url`` with redirects disabled and classifies the response.
+-
+-    Returns ``(ok, delay_ms)``. ``ok`` is True only for HTTP 200; 429 (quota or
+-    gate), 4xx/5xx and any transport failure are False. ``delay_ms`` is the
+-    round trip in integer milliseconds, or None when the request failed.
+-
+-    Edge cases: non-200 is a normal failure verdict, not an exception; a
+-    timeout or malformed URL yields ``(False, None)``; redirects are not
+-    followed so a gate redirect is not mistaken for success.
+-    """
+-    started = time.monotonic()
+-    req = urllib.request.Request(
+-        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+-    )
+-    try:
+-        opener = urllib.request.build_opener(
+-            urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+-            _NoRedirect,
+-        )
+-        with opener.open(req, timeout=timeout_s) as resp:
+-            status = resp.status
+-            resp.read()  # drain so the connection closes cleanly
+-        elapsed_ms = int(round((time.monotonic() - started) * 1000))
+-        return (status == 200, elapsed_ms)
+-    except urllib.error.HTTPError as exc:
+-        # A non-2xx is a real network answer but not a working exit.
+-        elapsed_ms = int(round((time.monotonic() - started) * 1000))
+-        return (False, elapsed_ms)
+-    except Exception:
+-        return (False, None)
+-
+-
+-def google_reachable_direct(url: str, timeout_s: float = 8.0) -> bool:
+-    """Guard against quarantining the whole pool during a Google outage.
+-
+-    Probes the same URL from the host without a proxy. If this fails, the
+-    per-node Google gate is skipped for this run instead of marking every
+-    node blocked (infra failure, not node failure).
+-    """
+-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+-    try:
+-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+-            return resp.status == 200
+-    except Exception:
+-        return False
+-
+-
+-def cmd_rotate(args: argparse.Namespace, api: ClashAPI) -> int:
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, current = api.group_members(args.group)
+-    seed_names(conn, pool_names)
+-    pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
+-    ordered = order_pool(pool)
+-
+-    # A quota 429 means the exit itself spent its free-tier allowance, not that
+-    # the route is slow or dirty. Park it for the configured window so the next
+-    # rotation cannot pick the same spent exit, then fall through to selection.
+-    # With no other candidate, keep the current node: going dark is worse than
+-    # retrying an already-limited exit.
+-    reason = getattr(args, "reason", None)
+-    log_reason = "rotate"
+-    if reason == "quota" and current:
+-        _mark_failed(conn, current, getattr(args, "max_fails", 3), now, "quota")
+-        ordered = [row for row in ordered if row[0] != current]
+-        log_reason = "quota"
+-        if not ordered:
+-            conn.execute(
+-                "INSERT INTO rotation_log (ts, node, reason) VALUES (?, ?, 'quota-failopen')",
+-                (now, current),
+-            )
+-            conn.commit()
+-            print(
+-                "rotate: quota node %s quarantined, no other candidate, failing open"
+-                % current
+-            )
+-            api.select(args.group, current)
+-            return 0
+-
+-    require_country = getattr(args, "require_country", None)
+-    if require_country:
+-        require_country = require_country.strip().upper()
+-        locked = [row for row in ordered if (row[3] or "").upper() == require_country]
+-        if not locked:
+-            print(
+-                "rotate: no %s candidates in the alive pool, keeping current %s"
+-                % (require_country, current or "selection")
+-            )
+-            return 0
+-        ordered = locked
+-    if getattr(args, "keep_if_clean", False) and current:
+-        alive_names = set(row[0] for row in ordered)
+-        if current in alive_names:
+-            keep_cause = multi_gate_cause(api, args.group, current, args)
+-            if keep_cause is None or keep_cause == "unknown":
+-                if keep_cause == "unknown":
+-                    print(
+-                        "rotate: current %s probe inconclusive, keeping without quarantine"
+-                        % current
+-                    )
+-                else:
+-                    print("rotate: current %s still clean, keeping" % current)
+-                cur = conn.cursor()
+-                cur.execute(
+-                    "UPDATE nodes SET uses = uses + 1 WHERE name = ?", (current,)
+-                )
+-                cur.execute(
+-                    "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
+-                    "VALUES (?, ?, ?, 'keep-clean')",
+-                    (now, current, None),
+-                )
+-                cur.execute(
+-                    "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
+-                    "VALUES (1, (SELECT COALESCE(position, 0) FROM rotation_state "
+-                    "WHERE id = 1) + 1, ?)",
+-                    (now,),
+-                )
+-                conn.commit()
+-                return 0
+-            _mark_failed(
+-                conn,
+-                current,
+-                getattr(args, "max_fails", 3),
+-                now,
+-                keep_cause,
+-            )
+-            ordered = [row for row in ordered if row[0] != current]
+-            if not ordered:
+-                print(
+-                    "rotate: current %s dirty and no other candidates, "
+-                    "failing open to current" % current
+-                )
+-                api.select(args.group, current)
+-                return 0
+-    if not ordered:
+-        conn.execute(
+-            "INSERT INTO rotation_log (ts, node, reason) VALUES (?, '', 'noop-empty-pool')",
+-            (now,),
+-        )
+-        conn.commit()
+-        print("rotate: empty alive pool, no-op (group untouched)")
+-        return 0
+-    name = None
+-    delay = None
+-    attempts = 0
+-    gates_on = [
+-        svc
+-        for svc in ("google", "youtube", "spotify", "gemini")
+-        if not getattr(args, "no_%s_check" % svc, False)
+-    ]
+-    google_url = getattr(args, "google_url", DEFAULT_GOOGLE_URL)
+-    max_attempts = max(
+-        1,
+-        max(
+-            getattr(args, "%s_attempts" % svc, 5)
+-            for svc in ("google", "youtube", "spotify", "gemini")
+-        ),
+-    )
+-    if gates_on and not google_reachable_direct(google_url):
+-        print("rotate: google unreachable directly, skipping probe gates")
+-        gates_on = []
+-    selected_by_probe = False
+-    for candidate in ordered:
+-        if gates_on and attempts < max_attempts:
+-            attempts += 1
+-            cause = multi_gate_cause(api, args.group, candidate[0], args)
+-            if cause is None or cause == "unknown":
+-                if cause == "unknown":
+-                    print(
+-                        "rotate: probe inconclusive for %s, keeping without quarantine"
+-                        % candidate[0]
+-                    )
+-                name, delay = candidate[0], candidate[2]
+-                selected_by_probe = True
+-                break
+-            _mark_failed(
+-                conn,
+-                candidate[0],
+-                getattr(args, "max_fails", 3),
+-                now,
+-                cause,
+-            )
+-            continue
+-        name, delay = candidate[0], candidate[2]
+-        break
+-    if name is None:
+-        # Every checked candidate answered 302 /sorry: fail open to the best
+-        # one so the client keeps working instead of going dark. When a
+-        # country lock is active, this stays inside the locked subset.
+-        name, delay = ordered[0][0], ordered[0][2]
+-        print("rotate: all candidates gate-blocked, failing open to %s" % name)
+-    if not selected_by_probe:
+-        api.select(args.group, name)
+-    if current and current != name:
+-        try:
+-            closed, failed = close_stale_connections(api, current)
+-        except Exception as exc:
+-            print("close stale after switch to %s failed: %s" % (name, exc))
+-        else:
+-            print(
+-                "closed %d stale connections of %s after switch to %s%s"
+-                % (
+-                    closed,
+-                    current,
+-                    name,
+-                    (" (failed ids: %s)" % ",".join(failed)) if failed else "",
+-                )
+-            )
+-    cur = conn.cursor()
+-    cur.execute("UPDATE nodes SET uses = uses + 1 WHERE name = ?", (name,))
+-    cur.execute(
+-        "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
+-        "VALUES (?, ?, ?, ?)",
+-        (now, name, None if delay >= 999999 else delay, log_reason),
+-    )
+-    cur.execute(
+-        "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
+-        "VALUES (1, COALESCE((SELECT position FROM rotation_state "
+-        "WHERE id = 1), 0) + 1, ?)",
+-        (now,),
+-    )
+-    conn.commit()
+-    print("rotate: selected %s (delay %sms)" % (name, delay))
+-    return 0
+-
+-
+-def _mark_failed(
+-    conn: sqlite3.Connection,
+-    name: str,
+-    max_fails: int,
+-    now: int,
+-    reason: str = "manual",
+-    quarantine_seconds: Optional[int] = None,
+-) -> None:
+-    """Mark one node failed and quarantine it (retest readmits after expiry).
+-
+-    The quarantine length is the process-wide effective value resolved by
+-    ``resolve_quarantine_seconds``; callers may override it explicitly. The
+-    default of ``None`` keeps direct callers and unit tests deterministic.
+-
+-    Causes are the ones this balancer actually acts on: google (Search
+-    answers /sorry), youtube (oEmbed answers 403), spotify (API edge
+-    answers HTML 403), gemini (app answers 403), country (exit does not
+-    match the required country), quota (the free-tier allowance on this
+-    exit is spent), and manual (an operator skipped it).
+-    Each probe cause increments its own counter. Quota is stored on
+-    ``last_fail_cause`` only: its quarantine is enough to keep a spent exit
+-    out of rotation, and no per-cause counter was restored.
+-    Transport and region causes remain retired with their columns.
+-    """
+-    if quarantine_seconds is None:
+-        quarantine_seconds = _quarantine_seconds
+-
+-    cur = conn.cursor()
+-    row = cur.execute("SELECT status FROM nodes WHERE name = ?", (name,)).fetchone()
+-    if row is None:
+-        print("skip: unknown node %r, rotating anyway" % name)
+-    else:
+-        cur.execute(
+-            "UPDATE nodes SET status = 'failed', fails = ?, last_check = ?, "
+-            "quarantined_until = ?, last_fail_cause = ?, "
+-            "google_fails = google_fails + ?, "
+-            "youtube_fails = youtube_fails + ?, "
+-            "spotify_fails = spotify_fails + ?, "
+-            "gemini_fails = gemini_fails + ? WHERE name = ?",
+-            (
+-                max_fails,
+-                now,
+-                now + quarantine_seconds,
+-                reason,
+-                1 if reason == "google" else 0,
+-                1 if reason == "youtube" else 0,
+-                1 if reason == "spotify" else 0,
+-                1 if reason == "gemini" else 0,
+-                name,
+-            ),
+-        )
+-        conn.commit()
+-        print(
+-            "skip: marked %s failed (%s, quarantined %sh)"
+-            % (name, reason, quarantine_seconds // 3600)
+-        )
+-
+-
+-def _relabel_latest(conn: sqlite3.Connection, reason: str) -> None:
+-    """Relabel the newest rotation row when rotate just logged 'rotate'."""
+-    conn.execute(
+-        "UPDATE rotation_log SET reason = ? "
+-        "WHERE id = (SELECT MAX(id) FROM rotation_log) AND reason = 'rotate'",
+-        (reason,),
+-    )
+-    conn.commit()
+-
+-
+-def cmd_skip(args: argparse.Namespace, api: ClashAPI) -> int:
+-    """Mark a flagged node failed, then rotate to the next alive node."""
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, _ = api.group_members(args.group)
+-    seed_names(conn, pool_names)
+-    _mark_failed(
+-        conn, args.name, args.max_fails, now, getattr(args, "reason", "manual")
+-    )
+-    conn.close()
+-    rc = cmd_rotate(args, api)
+-    if rc == 0:
+-        conn = connect_db(args.db)
+-        _relabel_latest(conn, "manual-skip")
+-        conn.close()
+-    return rc
+-
+-
+-def cmd_next(args: argparse.Namespace, api: ClashAPI) -> int:
+-    """Skip whatever node is currently selected, then rotate onward."""
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, current = api.group_members(args.group)
+-    seed_names(conn, pool_names)
+-    if not current:
+-        print("next: no current selection reported, rotating anyway")
+-    else:
+-        _mark_failed(
+-            conn, current, args.max_fails, now, getattr(args, "reason", "manual")
+-        )
+-    conn.close()
+-    rc = cmd_rotate(args, api)
+-    if rc == 0:
+-        conn = connect_db(args.db)
+-        _relabel_latest(conn, "manual-next")
+-        conn.close()
+-    return rc
+-
+-
+-def probe_throughput(
+-    url: str, proxy_url: str, max_bytes: int, timeout_s: float
+-) -> Optional[float]:
+-    """Download up to max_bytes through the live selector, return bytes/sec.
+-
+-    One bounded read: slow or failing exits cost at most timeout_s, never
+-    a stall. Returns None on any transport failure. Slowness is a signal,
+-    never a quarantine verdict — callers must not fail nodes on it.
+-    """
+-    opener = urllib.request.build_opener(
+-        urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}),
+-        _NoRedirect,
+-    )
+-    req = urllib.request.Request(
+-        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/131"}
+-    )
+-    if max_bytes < 65536:
+-        max_bytes = 65536
+-    start = time.monotonic()
+-    deadline = start + timeout_s
+-    total = 0
+-    try:
+-        with opener.open(req, timeout=timeout_s) as resp:
+-            if resp.status != 200:
+-                return None
+-            while total < max_bytes:
+-                if time.monotonic() >= deadline:
+-                    break
+-                chunk = resp.read(min(65536, max_bytes - total))
+-                if not chunk:
+-                    break
+-                total += len(chunk)
+-    except Exception:
+-        return None
+-    elapsed = time.monotonic() - start
+-    if total <= 0 or elapsed <= 0:
+-        return None
+-    return total / elapsed
+-
+-
+-def cmd_fastest(args: argparse.Namespace, api: ClashAPI) -> int:
+-    """Pick the fastest of the top gate-clean finalists, on demand only.
+-
+-    Gates the ordered pool like rotate (flagged candidates quarantine
+-    with cause), speed-tests the first --top clean finalists with a
+-    bounded download each, and selects the fastest. Slow losers are
+-    never quarantined. Never runs on the timer: speed costs traffic
+-    and time, so this stays a manual decision.
+-    """
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, current = api.group_members(args.group)
+-    seed_names(conn, pool_names)
+-    pool = alive_pool(conn, now, args.stale_after, allowed=set(pool_names))
+-    ordered = order_pool(pool)
+-    require_country = getattr(args, "require_country", None)
+-    if require_country:
+-        require_country = require_country.strip().upper()
+-        locked = [row for row in ordered if (row[3] or "").upper() == require_country]
+-        if not locked:
+-            print(
+-                "fastest: no %s candidates in the alive pool, keeping current %s"
+-                % (require_country, current or "selection")
+-            )
+-            return 0
+-        ordered = locked
+-    max_attempts = max(
+-        1,
+-        max(
+-            getattr(args, "%s_attempts" % svc, 5)
+-            for svc in ("google", "youtube", "spotify", "gemini")
+-        ),
+-    )
+-    proxy_url = getattr(args, "google_proxy", DEFAULT_PROXY_URL)
+-    speed_url = getattr(args, "speed_url", DEFAULT_SPEED_URL)
+-    speed_bytes = max(65536, getattr(args, "speed_bytes", DEFAULT_SPEED_BYTES))
+-    speed_timeout = getattr(args, "speed_timeout_ms", 30000) / 1000.0
+-    top_n = max(1, getattr(args, "top", 3))
+-    attempts = 0
+-    finalists = []
+-    for candidate in ordered:
+-        if len(finalists) >= top_n or attempts >= max_attempts:
+-            break
+-        attempts += 1
+-        cause = multi_gate_cause(api, args.group, candidate[0], args)
+-        if cause is None or cause == "unknown":
+-            finalists.append(candidate[0])
+-        elif cause != "unknown":
+-            _mark_failed(conn, candidate[0], getattr(args, "max_fails", 3), now, cause)
+-    if not finalists:
+-        print("fastest: no clean finalists, keeping current selection")
+-        return 0
+-    results = []
+-    for name in finalists:
+-        api.select(args.group, name)
+-        if GOOGLE_SETTLE_SECONDS:
+-            time.sleep(GOOGLE_SETTLE_SECONDS)
+-        rate = probe_throughput(speed_url, proxy_url, speed_bytes, speed_timeout)
+-        print("fastest: %s %.0f B/s" % (name, rate if rate is not None else -1))
+-        results.append((name, rate if rate is not None else -1))
+-    results.sort(key=lambda row: row[1], reverse=True)
+-    winner = results[0][0]
+-    api.select(args.group, winner)
+-    if current and current != winner:
+-        try:
+-            closed, failed = close_stale_connections(api, current)
+-        except Exception as exc:
+-            print("close stale after switch to %s failed: %s" % (winner, exc))
+-        else:
+-            print(
+-                "closed %d stale connections of %s after switch to %s%s"
+-                % (
+-                    closed,
+-                    current,
+-                    winner,
+-                    (" (failed ids: %s)" % ",".join(failed)) if failed else "",
+-                )
+-            )
+-    cur = conn.cursor()
+-    cur.execute("UPDATE nodes SET uses = uses + 1 WHERE name = ?", (winner,))
+-    cur.execute(
+-        "INSERT INTO rotation_log (ts, node, delay_ms, reason) "
+-        "VALUES (?, ?, ?, 'fastest')",
+-        (now, winner, None),
+-    )
+-    cur.execute(
+-        "INSERT OR REPLACE INTO rotation_state (id, position, updated_at) "
+-        "VALUES (1, (SELECT COALESCE(position, 0) FROM rotation_state "
+-        "WHERE id = 1) + 1, ?)",
+-        (now,),
+-    )
+-    conn.commit()
+-    print("fastest: selected %s" % winner)
+-    return 0
+-
+-
+-def check_one(
+-    api: ClashAPI, name: str, test_url: str, timeout_ms: int
+-) -> Tuple[str, Optional[int]]:
+-    return name, api.delay(name, test_url, timeout_ms)
+-
+-
+-def cmd_retest(args: argparse.Namespace, api: ClashAPI) -> int:
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, _ = api.group_members(args.group)
+-    added, pruned = seed_names(conn, pool_names)
+-    cur = conn.cursor()
+-    if not pool_names:
+-        batch = []
+-    else:
+-        cur.execute(
+-            "SELECT name FROM nodes WHERE name IN (%s) "
+-            "AND quarantined_until <= ? "
+-            "ORDER BY (status = 'alive') DESC, last_check ASC LIMIT ?"
+-            % ",".join("?" * len(pool_names)),
+-            (*pool_names, now, args.batch),
+-        )
+-        batch = [row[0] for row in cur.fetchall()]
+-    if not batch:
+-        print("retest: no nodes to check")
+-        return 0
+-    alive = failed = 0
+-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+-        results = list(
+-            pool.map(
+-                lambda n: check_one(api, n, args.test_url, args.timeout_ms),
+-                batch,
+-            )
+-        )
+-    # Infra guard: a full batch with zero successes means the test path
+-    # itself is down (test URL unreachable, controller wedged), not that
+-    # every node died at once. Blaming nodes here would mass-mark the
+-    # pool failed and wedge rotation into a permanent no-op. Bump the
+-    # check timestamps so the batch is not retried immediately, but
+-    # leave fails and status untouched.
+-    if len(results) >= 5 and all(delay is None for _, delay in results):
+-        cur.executemany(
+-            "UPDATE nodes SET last_check=? WHERE name=?",
+-            [(now, name) for name, _ in results],
+-        )
+-        conn.commit()
+-        print(
+-            "retest: all %d failed, likely infra outage, "
+-            "fails not incremented" % len(results)
+-        )
+-        return 0
+-    for name, delay in results:
+-        if delay is not None:
+-            cur.execute(
+-                "UPDATE nodes SET status='alive', delay_ms=?, "
+-                "last_check=?, fails=0, quarantined_until=0, "
+-                "last_fail_cause='' WHERE name=?",
+-                (delay, now, name),
+-            )
+-            alive += 1
+-        else:
+-            cur.execute(
+-                "UPDATE nodes SET fails=fails+1, last_check=?, "
+-                "status=CASE WHEN fails+1 >= ? THEN 'failed' "
+-                "ELSE status END, "
+-                "quarantined_until=CASE WHEN fails+1 >= ? THEN ? "
+-                "ELSE quarantined_until END WHERE name=?",
+-                (
+-                    now,
+-                    args.max_fails,
+-                    args.max_fails,
+-                    now + _quarantine_seconds,
+-                    name,
+-                ),
+-            )
+-            failed += 1
+-    conn.commit()
+-    print(
+-        "retest: checked %d (seed +%d prune -%d): %d alive, %d failed"
+-        % (len(batch), added, pruned, alive, failed)
+-    )
+-    return 0
+-
+-
+-def cmd_country(args: argparse.Namespace, api: ClashAPI) -> int:
+-    """Fill the observed country for a bounded batch of nodes.
+-
+-    mihomo's /delay endpoint returns only a latency, so an exit's country
+-    can be read only by selecting that node and requesting the trace
+-    through the live mixed-port. The batch is therefore bounded, oldest
+-    measurement first, and the previous selection is restored in a
+-    finally block so a sweep never leaves traffic on a probed node.
+-    A node whose trace cannot be read is stored as unknown with a fresh
+-    country_checked stamp; it is never quarantined for that reason.
+-    """
+-    now = utc_now_epoch()
+-    conn = connect_db(args.db)
+-    pool_names, prev = api.group_members(args.group)
+-    added, pruned = seed_names(conn, pool_names)
+-    cur = conn.cursor()
+-    batch = []
+-    checked = 0
+-    measured = 0
+-    try:
+-        if pool_names:
+-            cur.execute(
+-                "SELECT name FROM nodes WHERE name IN (%s) "
+-                "AND quarantined_until <= ? "
+-                "ORDER BY country_checked ASC, last_check ASC LIMIT ?"
+-                % ",".join("?" * len(pool_names)),
+-                (*pool_names, now, args.batch),
+-            )
+-            batch = [row[0] for row in cur.fetchall()]
+-        for name in batch:
+-            api.select(args.group, name)
+-            if TRACE_SETTLE_SECONDS:
+-                time.sleep(TRACE_SETTLE_SECONDS)
+-            code = probe_country_via_proxy(
+-                args.trace_url, args.trace_proxy, args.trace_timeout_ms / 1000.0
+-            )
+-            cur.execute(
+-                "UPDATE nodes SET country = ?, country_checked = ? WHERE name = ?",
+-                (code or "", now, name),
+-            )
+-            conn.commit()
+-            checked += 1
+-            if code:
+-                measured += 1
+-            print("country: %s -> %s" % (name, code or "unknown"))
+-    finally:
+-        if prev:
+-            try:
+-                api.select(args.group, prev)
+-            except Exception as exc:
+-                print("country: could not restore %s: %s" % (prev, exc))
+-    print(
+-        "country: checked %d (seed +%d prune -%d): %d measured, %d unknown"
+-        % (len(batch), added, pruned, measured, checked - measured)
+-    )
+-    return 0
+-
+-
+-def cmd_opencode_probe(args: argparse.Namespace, api: ClashAPI) -> int:
+-    """Verify through a real HTTPS request that bounded nodes reach opencode.ai.
+-
+-    A low mihomo /delay is not proof a node carries traffic (task 24). This
+-    selects each node briefly, opens ``args.opencode_url`` through the mixed
+-    port, records a 200-only verdict plus delay, and restores the previous
+-    PROXY selection in a ``finally`` block so a sweep never strands traffic on
+-    a probed node. A failed probe is a measurement, never a quarantine.
+-
+-    Gated by ``args.opencode_enabled`` (env RR_OPENCODE_PROBE_ENABLED); off
+-    means a no-op so operators can disable a noisy probe without editing units.
+-    """
+-    if not getattr(args, "opencode_enabled", True):
+-        print("opencode-probe: disabled (RR_OPENCODE_PROBE_ENABLED=0)")
+-        return 0
+-    now = utc_now_epoch()  # epoch seconds, consistent with other stamps
+-    conn = connect_db(args.db)
+-    pool_names, prev = api.group_members(args.group)
+-    added, pruned = seed_names(conn, pool_names)
+-    cur = conn.cursor()
+-    batch = []
+-    working = 0
+-    try:
+-        if pool_names:
+-            cur.execute(
+-                "SELECT name FROM nodes WHERE name IN (%s) "
+-                "AND quarantined_until <= ? "
+-                "ORDER BY opencode_checked ASC, last_check ASC LIMIT ?"
+-                % ",".join("?" * len(pool_names)),
+-                (*pool_names, now, args.batch),
+-            )
+-            batch = [row[0] for row in cur.fetchall()]
+-        for name in batch:
+-            api.select(args.group, name)
+-            if TRACE_SETTLE_SECONDS:
+-                time.sleep(TRACE_SETTLE_SECONDS)
+-            # A probe exception is a failed measurement for this node, never a
+-            # reason to abort the sweep or strand the selector on a probed exit.
+-            try:
+-                ok, delay_ms = probe_opencode_via_proxy(
+-                    args.opencode_url,
+-                    args.opencode_proxy,
+-                    args.opencode_timeout_ms / 1000.0,
+-                )
+-            except Exception as exc:
+-                print("opencode-probe: %s probe error: %s" % (name, exc))
+-                ok, delay_ms = False, None
+-            cur.execute(
+-                "UPDATE nodes SET opencode_ok = ?, opencode_checked = ?, "
+-                "opencode_delay_ms = ? WHERE name = ?",
+-                (1 if ok else 0, now, delay_ms, name),
+-            )
+-            conn.commit()
+-            if ok:
+-                working += 1
+-            print("opencode-probe: %s -> %s" % (name, "ok" if ok else "failed"))
+-    finally:
+-        # Always put the selector back, even on a probe exception.
+-        if prev:
+-            try:
+-                api.select(args.group, prev)
+-            except Exception as exc:
+-                print("opencode-probe: could not restore %s: %s" % (prev, exc))
+-    print(
+-        "opencode-probe: checked %d (seed +%d prune -%d): %d working, %d failed"
+-        % (len(batch), added, pruned, working, len(batch) - working)
+-    )
+-    return 0
+-
+-
+-def cmd_report(args: argparse.Namespace) -> int:
+-    """Print country coverage and per-country counts (no controller needed)."""
+-    conn = connect_db(args.db)
+-    cur = conn.cursor()
+-    total = cur.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
+-    checked = cur.execute(
+-        "SELECT COUNT(*) FROM nodes WHERE country_checked > 0"
+-    ).fetchone()[0]
+-    rows = cur.execute(
+-        "SELECT CASE WHEN country = '' THEN 'unknown' ELSE country END, "
+-        "COUNT(*), SUM(CASE WHEN status = 'alive' THEN 1 ELSE 0 END) "
+-        "FROM nodes GROUP BY 1 ORDER BY 2 DESC"
+-    ).fetchall()
+-    print("report: country coverage %d/%d checked" % (checked, total))
+-    for country, count, alive in rows:
+-        print("  %-8s %5d total %5d alive" % (country, count, alive or 0))
+-    return 0
+-
+-
+-def load_secret(secret_file: str) -> str:
+-    if os.path.exists(secret_file):
+-        with open(secret_file, encoding="utf-8") as fh:
+-            return fh.read().strip()
+-    return ""
+-
+-
+-def add_google_args(parser: argparse.ArgumentParser) -> None:
+-    """Google-clean gate flags shared by rotate/skip/next."""
+-    parser.add_argument(
+-        "--google-url",
+-        default=DEFAULT_GOOGLE_URL,
+-        help="URL that must answer 200; flagged exits answer 302 /sorry",
+-    )
+-    parser.add_argument("--google-timeout-ms", type=int, default=8000)
+-    parser.add_argument(
+-        "--google-proxy",
+-        default=DEFAULT_PROXY_URL,
+-        help="mihomo mixed-port used to read Google through the live selector",
+-    )
+-    parser.add_argument(
+-        "--google-attempts",
+-        type=int,
+-        default=5,
+-        help="max candidates to reject for /sorry before failing open",
+-    )
+-    parser.add_argument(
+-        "--no-google-check",
+-        action="store_true",
+-        help="disable the Google-clean gate for this run",
+-    )
+-
+-
+-def add_youtube_args(parser: argparse.ArgumentParser) -> None:
+-    """YouTube-backend gate flags shared by rotate/skip/next."""
+-    parser.add_argument(
+-        "--youtube-url",
+-        default=DEFAULT_YOUTUBE_URL,
+-        help="URL that must answer 200; flagged exits answer 403",
+-    )
+-    parser.add_argument("--youtube-timeout-ms", type=int, default=8000)
+-    parser.add_argument(
+-        "--youtube-attempts",
+-        type=int,
+-        default=5,
+-        help="max gated candidates before failing open (shared budget)",
+-    )
+-    parser.add_argument(
+-        "--no-youtube-check",
+-        action="store_true",
+-        help="disable the YouTube-clean gate for this run",
+-    )
+-
+-
+-def add_spotify_args(parser: argparse.ArgumentParser) -> None:
+-    """Spotify-API gate flags shared by rotate/skip/next."""
+-    parser.add_argument(
+-        "--spotify-url",
+-        default=DEFAULT_SPOTIFY_URL,
+-        help="URL that must answer 401 JSON; flagged exits answer HTML 403",
+-    )
+-    parser.add_argument("--spotify-timeout-ms", type=int, default=8000)
+-    parser.add_argument(
+-        "--spotify-attempts",
+-        type=int,
+-        default=5,
+-        help="max gated candidates before failing open (shared budget)",
+-    )
+-    parser.add_argument(
+-        "--no-spotify-check",
+-        action="store_true",
+-        help="disable the Spotify-clean gate for this run",
+-    )
+-
+-
+-def add_gemini_args(parser: argparse.ArgumentParser) -> None:
+-    """Gemini spare-gate flags shared by rotate/skip/next."""
+-    parser.add_argument(
+-        "--gemini-url",
+-        default=DEFAULT_GEMINI_URL,
+-        help="URL that must answer 200; flagged exits answer 403",
+-    )
+-    parser.add_argument("--gemini-timeout-ms", type=int, default=8000)
+-    parser.add_argument(
+-        "--gemini-attempts",
+-        type=int,
+-        default=5,
+-        help="max gated candidates before failing open (shared budget)",
+-    )
+-    parser.add_argument(
+-        "--no-gemini-check",
+-        action="store_true",
+-        help="disable the Gemini-clean gate for this run",
+-    )
+-
+-
+-def add_country_lock_arg(parser: argparse.ArgumentParser) -> None:
+-    """Country lock shared by rotate/skip/next.
+-
+-    Opt-in by design: the alarm is only useful once `country` coverage is
+-    high, and a lock on an empty country column would freeze rotation.
+-    """
+-    parser.add_argument(
+-        "--require-country",
+-        default=None,
+-        metavar="CC",
+-        help="only rotate to exits whose observed country is CC (e.g. US); "
+-        "keeps the current node when no candidate matches",
+-    )
+-
+-
+-def build_parser() -> argparse.ArgumentParser:
+-    ap = argparse.ArgumentParser(description=__doc__)
+-    ap.add_argument("--controller", default="http://127.0.0.1:9090")
+-    ap.add_argument("--secret-file", default=DEFAULT_SECRET_FILE)
+-    ap.add_argument("--db", default=DEFAULT_DB)
+-    ap.add_argument("--group", default="PROXY")
+-    ap.add_argument(
+-        "--quarantine-seconds",
+-        type=int,
+-        default=None,
+-        help="failed-node quarantine window in seconds (overrides RR_QUARANTINE_SECONDS; default 86400)",
+-    )
+-    sub = ap.add_subparsers(dest="cmd", required=True)
+-
+-    rot = sub.add_parser("rotate", help="select next alive node")
+-    rot.add_argument("--stale-after", type=int, default=7200)
+-    rot.add_argument(
+-        "--reason",
+-        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
+-        default="manual",
+-        help="failure cause; quota quarantines the current exit before rotating",
+-    )
+-    rot.add_argument(
+-        "--keep-if-clean",
+-        action="store_true",
+-        help="gate the current node first and keep it when clean; "
+-        "rotate only when it is dirty",
+-    )
+-    add_google_args(rot)
+-    add_youtube_args(rot)
+-    add_spotify_args(rot)
+-    add_gemini_args(rot)
+-    add_country_lock_arg(rot)
+-
+-    ret = sub.add_parser("retest", help="check oldest batch of nodes")
+-    ret.add_argument("--batch", type=int, default=500)
+-    ret.add_argument("--workers", type=int, default=20)
+-    ret.add_argument("--max-fails", type=int, default=3)
+-    ret.add_argument("--test-url", default="https://www.gstatic.com/generate_204")
+-    ret.add_argument("--timeout-ms", type=int, default=3000)
+-
+-    skp = sub.add_parser("skip", help="mark a node failed and rotate now")
+-    skp.add_argument(
+-        "name", help="proxy name to skip (e.g. a rate-limited crawl target)"
+-    )
+-    skp.add_argument("--stale-after", type=int, default=7200)
+-    skp.add_argument("--max-fails", type=int, default=3)
+-    skp.add_argument(
+-        "--reason",
+-        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
+-        default="manual",
+-        help="failure cause recorded for the node",
+-    )
+-    add_google_args(skp)
+-    add_youtube_args(skp)
+-    add_spotify_args(skp)
+-    add_gemini_args(skp)
+-    add_country_lock_arg(skp)
+-
+-    nxt = sub.add_parser("next", help="skip the current node and rotate now")
+-    nxt.add_argument("--stale-after", type=int, default=7200)
+-    nxt.add_argument("--max-fails", type=int, default=3)
+-    nxt.add_argument(
+-        "--reason",
+-        choices=("google", "youtube", "spotify", "gemini", "country", "manual", "quota"),
+-        default="manual",
+-        help="failure cause recorded for the node",
+-    )
+-    add_google_args(nxt)
+-    add_youtube_args(nxt)
+-    add_spotify_args(nxt)
+-    add_gemini_args(nxt)
+-    add_country_lock_arg(nxt)
+-
+-    fst = sub.add_parser(
+-        "fastest", help="pick the fastest of the top gate-clean finalists"
+-    )
+-    fst.add_argument("--stale-after", type=int, default=7200)
+-    fst.add_argument(
+-        "--top",
+-        type=int,
+-        default=3,
+-        help="gate-clean finalists to speed-test before picking",
+-    )
+-    fst.add_argument(
+-        "--speed-url",
+-        default=DEFAULT_SPEED_URL,
+-        help="exact-byte download read through each finalist",
+-    )
+-    fst.add_argument("--speed-bytes", type=int, default=DEFAULT_SPEED_BYTES)
+-    fst.add_argument("--speed-timeout-ms", type=int, default=30000)
+-    fst.add_argument("--max-fails", type=int, default=3)
+-    add_google_args(fst)
+-    add_youtube_args(fst)
+-    add_spotify_args(fst)
+-    add_gemini_args(fst)
+-    add_country_lock_arg(fst)
+-
+-    cty = sub.add_parser("country", help="fill observed exit countries for a batch")
+-    cty.add_argument("--batch", type=int, default=20)
+-    cty.add_argument("--trace-url", default=DEFAULT_TRACE_URL)
+-    cty.add_argument("--trace-timeout-ms", type=int, default=8000)
+-    cty.add_argument(
+-        "--trace-proxy",
+-        default=DEFAULT_PROXY_URL,
+-        help="mihomo mixed-port used to read the trace through each candidate",
+-    )
+-
+-    ocp = sub.add_parser(
+-        "opencode-probe",
+-        help="verify via real HTTPS that a batch of exits reaches opencode.ai",
+-    )
+-    ocp.add_argument("--batch", type=int, default=20)
+-    ocp.add_argument(
+-        "--url",
+-        dest="opencode_url",
+-        default=os.environ.get("RR_OPENCODE_URL", "https://opencode.ai"),
+-        help="URL opened through the proxy; override with RR_OPENCODE_URL",
+-    )
+-    # dest must match what cmd_opencode_probe reads (args.opencode_timeout_ms);
+-    # a bare --timeout-ms would expose args.timeout_ms and silently skip probes.
+-    ocp.add_argument(
+-        "--timeout-ms", dest="opencode_timeout_ms", type=int, default=8000
+-    )
+-    ocp.add_argument(
+-        "--proxy",
+-        dest="opencode_proxy",
+-        default=DEFAULT_PROXY_URL,
+-        help="mihomo mixed-port used to open the URL through each candidate",
+-    )
+-    ocp.add_argument(
+-        "--enabled",
+-        dest="opencode_enabled",
+-        default=os.environ.get("RR_OPENCODE_PROBE_ENABLED", "1") != "0",
+-        action="store_true",
+-        help="enable the probe (default on; RR_OPENCODE_PROBE_ENABLED=0 disables)",
+-    )
+-    ocp.add_argument(
+-        "--no-probe",
+-        dest="opencode_enabled",
+-        action="store_false",
+-        help="disable this probe run regardless of env",
+-    )
+-
+-    sub.add_parser("report", help="print country coverage and per-country counts")
+-    return ap
+-
+-
+-def validate_args(args: argparse.Namespace) -> Optional[str]:
+-    """Reject numeric CLI values that crash or misbehave. Returns error or None."""
+-    if args.cmd in ("retest", "skip", "next"):
+-        if args.max_fails < 1:
+-            return "--max-fails must be >= 1"
+-    if args.cmd == "retest":
+-        if args.batch < 1:
+-            return "--batch must be >= 1"
+-        if args.workers < 1:
+-            return "--workers must be >= 1"
+-        if args.timeout_ms < 500:
+-            return "--timeout-ms must be >= 500"
+-    if args.cmd == "country":
+-        if args.batch < 1:
+-            return "--batch must be >= 1"
+-        if args.trace_timeout_ms < 500:
+-            return "--trace-timeout-ms must be >= 500"
+-    if args.cmd in ("rotate", "skip", "next") and args.stale_after < 60:
+-        return "--stale-after must be >= 60"
+-    if args.cmd in ("rotate", "skip", "next", "fastest"):
+-        if args.google_timeout_ms < 500:
+-            return "--google-timeout-ms must be >= 500"
+-        if args.google_attempts < 1:
+-            return "--google-attempts must be >= 1"
+-        if args.youtube_timeout_ms < 500:
+-            return "--youtube-timeout-ms must be >= 500"
+-        if args.youtube_attempts < 1:
+-            return "--youtube-attempts must be >= 1"
+-        if args.spotify_timeout_ms < 500:
+-            return "--spotify-timeout-ms must be >= 500"
+-        if args.spotify_attempts < 1:
+-            return "--spotify-attempts must be >= 1"
+-        if args.gemini_timeout_ms < 500:
+-            return "--gemini-timeout-ms must be >= 500"
+-        if args.gemini_attempts < 1:
+-            return "--gemini-attempts must be >= 1"
+-        if args.require_country is not None:
+-            cc = args.require_country.strip()
+-            if len(cc) != 2 or not cc.isalpha():
+-                return "--require-country must be a two-letter country code"
+-    if args.cmd == "fastest":
+-        if args.top < 1:
+-            return "--top must be >= 1"
+-        if args.speed_timeout_ms < 1000:
+-            return "--speed-timeout-ms must be >= 1000"
+-    return None
+-
+-
+-def main(argv: Optional[List[str]] = None) -> int:
+-    args = build_parser().parse_args(argv)
+-    err = validate_args(args)
+-    if err:
+-        print("error: %s" % err, file=sys.stderr)
+-        return 2
+-    global _quarantine_seconds
+-    try:
+-        _quarantine_seconds = resolve_quarantine_seconds(
+-            getattr(args, "quarantine_seconds", None)
+-        )
+-    except (ValueError, TypeError) as exc:
+-        print("error: invalid quarantine configuration: %s" % exc, file=sys.stderr)
+-        return 2
+-    if args.cmd == "report":
+-        return cmd_report(args)
+-    secret = os.environ.get("MIHOMO_CONTROLLER_SECRET") or load_secret(args.secret_file)
+-    if not secret:
+-        print("error: no controller secret (env or --secret-file)", file=sys.stderr)
+-        return 2
+-    api = ClashAPI(args.controller, secret)
+-    if args.cmd == "rotate":
+-        return cmd_rotate(args, api)
+-    if args.cmd == "skip":
+-        return cmd_skip(args, api)
+-    if args.cmd == "next":
+-        return cmd_next(args, api)
+-    if args.cmd == "fastest":
+-        return cmd_fastest(args, api)
+-    if args.cmd == "country":
+-        return cmd_country(args, api)
+-    if args.cmd == "opencode-probe":
+-        return cmd_opencode_probe(args, api)
+-    return cmd_retest(args, api)
+-
+-
+-if __name__ == "__main__":
+-    sys.exit(main())
+diff --git a/systemd/v2ray-to-subs-maintain.service b/systemd/v2ray-to-subs-maintain.service
+deleted file mode 100644
+index a5ffab6..0000000
+--- a/systemd/v2ray-to-subs-maintain.service
++++ /dev/null
+@@ -1,8 +0,0 @@
+-[Unit]
+-Description=Maintain v2ray-to-subs pool (retest, country, refresh when due)
+-Wants=network-online.target
+-After=network-online.target mihomo-subs.service
+-
+-[Service]
+-Type=oneshot
+-ExecStart=%h/v2ray-to-subs/scripts/maintain.sh
+diff --git a/systemd/v2ray-to-subs-maintain.service.d/quarantine.conf b/systemd/v2ray-to-subs-maintain.service.d/quarantine.conf
+deleted file mode 100644
+index 4661762..0000000
+--- a/systemd/v2ray-to-subs-maintain.service.d/quarantine.conf
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# A spent free-tier exit is quarantined for 12h in this deployment.
+-# The rr_balancer.py code default stays 24h; this drop-in (together with the
+-# export in scripts/maintain.sh) sets the effective window for this host.
+-# Install to ~/.config/systemd/user/v2ray-to-subs-maintain.service.d/ and run
+-# `systemctl --user daemon-reload` at deploy time, never during a task.
+-[Service]
+-Environment=RR_QUARANTINE_SECONDS=43200
+diff --git a/systemd/v2ray-to-subs.timer b/systemd/v2ray-to-subs.timer
+deleted file mode 100644
+index 10aaf13..0000000
+--- a/systemd/v2ray-to-subs.timer
++++ /dev/null
+@@ -1,11 +0,0 @@
+-[Unit]
+-Description=Maintain v2ray-to-subs pool every 30 minutes
+-
+-[Timer]
+-OnBootSec=3min
+-OnUnitActiveSec=30min
+-Persistent=true
+-Unit=v2ray-to-subs-maintain.service
+-
+-[Install]
+-WantedBy=timers.target
+diff --git a/tests/test_opencode_probe.py b/tests/test_opencode_probe.py
+deleted file mode 100644
+index 343e0a8..0000000
+--- a/tests/test_opencode_probe.py
++++ /dev/null
+@@ -1,256 +0,0 @@
+-"""Tests for the background opencode.ai HTTPS probe and configurable quarantine.
+-
+-Offline: urllib and the Clash controller are patched; no live network or mihomo.
+-"""
+-import argparse
+-import os
+-import sys
+-import tempfile
+-import unittest
+-import unittest.mock
+-
+-sys.path.insert(
+-    0,
+-    os.path.join(
+-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"
+-    ),
+-)
+-import rr_balancer
+-
+-
+-class FakeAPI:
+-    """Minimal ClashAPI stand-in: remembers selection and records restores."""
+-
+-    def __init__(self, members, current):
+-        self.members = members
+-        self.current = current
+-        self.selected = []
+-
+-    def group_members(self, group):
+-        return self.members, self.current
+-
+-    def select(self, group, name):
+-        self.selected.append(name)
+-        self.current = name
+-
+-
+-class ProbeVerdictTest(unittest.TestCase):
+-    def test_probe_returns_ok_only_on_200(self):
+-        class _Resp:
+-            status = 200
+-
+-            def read(self):
+-                return b"ok"
+-
+-            def __enter__(self):
+-                return self
+-
+-            def __exit__(self, *exc):
+-                return False
+-
+-        class _Opener:
+-            def open(self, req, timeout=None):
+-                return _Resp()
+-
+-        with unittest.mock.patch.object(
+-            rr_balancer.urllib.request, "build_opener", return_value=_Opener()
+-        ):
+-            ok, delay = rr_balancer.probe_opencode_via_proxy(
+-                "https://opencode.ai", rr_balancer.DEFAULT_PROXY_URL, 5.0
+-            )
+-        self.assertTrue(ok)
+-        self.assertIsInstance(delay, int)
+-
+-    def test_probe_429_is_failure_not_success(self):
+-        class _Opener:
+-            def open(self, req, timeout=None):
+-                raise rr_balancer.urllib.error.HTTPError(
+-                    req.full_url, 429, "rate limited", None, None
+-                )
+-
+-        with unittest.mock.patch.object(
+-            rr_balancer.urllib.request, "build_opener", return_value=_Opener()
+-        ):
+-            ok, _ = rr_balancer.probe_opencode_via_proxy(
+-                "https://opencode.ai", rr_balancer.DEFAULT_PROXY_URL, 5.0
+-            )
+-        self.assertFalse(ok)
+-
+-    def test_probe_transport_error_is_failure(self):
+-        with unittest.mock.patch.object(
+-            rr_balancer.urllib.request,
+-            "build_opener",
+-            side_effect=OSError("proxy down"),
+-        ):
+-            ok, delay = rr_balancer.probe_opencode_via_proxy(
+-                "https://opencode.ai", rr_balancer.DEFAULT_PROXY_URL, 1.0
+-            )
+-        self.assertFalse(ok)
+-        self.assertIsNone(delay)
+-
+-
+-class QuarantineConfigTest(unittest.TestCase):
+-    def setUp(self):
+-        self.saved = os.environ.pop("RR_QUARANTINE_SECONDS", None)
+-
+-    def tearDown(self):
+-        if self.saved is not None:
+-            os.environ["RR_QUARANTINE_SECONDS"] = self.saved
+-
+-    def test_default_is_24h(self):
+-        self.assertEqual(rr_balancer.resolve_quarantine_seconds(), 24 * 3600)
+-
+-    def test_env_override(self):
+-        os.environ["RR_QUARANTINE_SECONDS"] = "43200"
+-        self.assertEqual(rr_balancer.resolve_quarantine_seconds(), 43200)
+-
+-    def test_cli_overrides_env(self):
+-        os.environ["RR_QUARANTINE_SECONDS"] = "43200"
+-        self.assertEqual(rr_balancer.resolve_quarantine_seconds(7200), 7200)
+-
+-    def test_empty_env_uses_default(self):
+-        os.environ["RR_QUARANTINE_SECONDS"] = ""
+-        self.assertEqual(rr_balancer.resolve_quarantine_seconds(), 24 * 3600)
+-
+-    def test_nonpositive_rejected(self):
+-        with self.assertRaises(ValueError):
+-            rr_balancer.resolve_quarantine_seconds(0)
+-        os.environ["RR_QUARANTINE_SECONDS"] = "-5"
+-        with self.assertRaises(ValueError):
+-            rr_balancer.resolve_quarantine_seconds()
+-
+-    def test_noninteger_rejected(self):
+-        os.environ["RR_QUARANTINE_SECONDS"] = "abc"
+-        with self.assertRaises(ValueError):
+-            rr_balancer.resolve_quarantine_seconds()
+-
+-
+-class ProbeParserRoundTripTest(unittest.TestCase):
+-    """Guard the CLI wiring so the probe actually runs from the real command line.
+-
+-    Manual-Namespace tests missed F1 (dest mismatch) and would have missed any
+-    regression where the parser exposes a different attribute than the command
+-    reads. Parsing the real argv here closes that gap.
+-    """
+-
+-    def setUp(self):
+-        self.saved = os.environ.pop("RR_OPENCODE_PROBE_ENABLED", None)
+-
+-    def tearDown(self):
+-        if self.saved is not None:
+-            os.environ["RR_OPENCODE_PROBE_ENABLED"] = self.saved
+-
+-    def test_parser_exposes_the_timeout_attribute_the_command_reads(self):
+-        args = rr_balancer.build_parser().parse_args(
+-            ["opencode-probe", "--batch", "20"]
+-        )
+-        # cmd_opencode_probe reads args.opencode_timeout_ms; a bare --timeout-ms
+-        # would expose args.timeout_ms instead and silently skip every probe.
+-        self.assertEqual(args.opencode_timeout_ms, 8000)
+-        self.assertEqual(args.batch, 20)
+-        self.assertTrue(hasattr(args, "opencode_proxy"))
+-
+-    def test_parser_defaults_to_enabled_with_clean_env(self):
+-        args = rr_balancer.build_parser().parse_args(["opencode-probe"])
+-        self.assertTrue(args.opencode_enabled)
+-
+-    def test_env_zero_disables_by_default(self):
+-        os.environ["RR_OPENCODE_PROBE_ENABLED"] = "0"
+-        args = rr_balancer.build_parser().parse_args(["opencode-probe"])
+-        self.assertFalse(args.opencode_enabled)
+-
+-    def test_explicit_flags_override_env_default(self):
+-        os.environ["RR_OPENCODE_PROBE_ENABLED"] = "0"
+-        args_on = rr_balancer.build_parser().parse_args(
+-            ["opencode-probe", "--enabled"]
+-        )
+-        self.assertTrue(args_on.opencode_enabled)
+-        args_off = rr_balancer.build_parser().parse_args(
+-            ["opencode-probe", "--no-probe"]
+-        )
+-        self.assertFalse(args_off.opencode_enabled)
+-
+-    def test_command_uses_parsed_timeout_without_attribute_error(self):
+-        # Parse real argv, then feed the Namespace to the command with a mocked
+-        # probe; a dest mismatch would surface here as an AttributeError.
+-        args = rr_balancer.build_parser().parse_args(
+-            ["opencode-probe", "--batch", "20", "--timeout-ms", "3000"]
+-        )
+-        conn_path = tempfile.mktemp(suffix=".db")
+-        try:
+-            args.db = conn_path
+-            conn = rr_balancer.connect_db(conn_path)
+-            conn.execute(
+-                "INSERT INTO nodes (name, status, quarantined_until) "
+-                "VALUES ('n1','alive',0)"
+-            )
+-            conn.commit()
+-            conn.close()
+-            api = FakeAPI(["n1"], "original")
+-            with unittest.mock.patch.object(
+-                rr_balancer, "probe_opencode_via_proxy", return_value=(True, 5)
+-            ) as probe:
+-                rr_balancer.cmd_opencode_probe(args, api)
+-            self.assertTrue(probe.called)
+-            self.assertEqual(probe.call_args[0][2], 3.0)
+-        finally:
+-            if os.path.exists(conn_path):
+-                os.unlink(conn_path)
+-
+-
+-class OpencodeProbeCommandTest(unittest.TestCase):
+-    def make_db(self):
+-        fd, path = tempfile.mkstemp(suffix=".db")
+-        os.close(fd)
+-        os.unlink(path)
+-        return path
+-
+-    def make_args(self, db, **overrides):
+-        defaults = dict(
+-            cmd="opencode-probe",
+-            db=db,
+-            group="PROXY",
+-            batch=20,
+-            opencode_url="https://opencode.ai",
+-            opencode_proxy=rr_balancer.DEFAULT_PROXY_URL,
+-            opencode_timeout_ms=8000,
+-            opencode_enabled=True,
+-        )
+-        defaults.update(overrides)
+-        return argparse.Namespace(**defaults)
+-
+-    def test_probe_persists_verdict_and_restores_selection_on_failure(self):
+-        db = self.make_db()
+-        conn = rr_balancer.connect_db(db)
+-        conn.execute(
+-            "INSERT INTO nodes (name, status, quarantined_until) VALUES ('n1','alive',0)"
+-        )
+-        conn.commit()
+-        conn.close()
+-        api = FakeAPI(["n1"], "original")
+-        args = self.make_args(db)
+-        args.opencode_enabled = True
+-        with unittest.mock.patch.object(
+-            rr_balancer, "probe_opencode_via_proxy", side_effect=OSError("boom")
+-        ):
+-            rr_balancer.cmd_opencode_probe(args, api)
+-        # Finally restored the original selection even though the probe raised.
+-        self.assertEqual(api.selected[-1], "original")
+-        conn = rr_balancer.connect_db(db)
+-        row = conn.execute(
+-            "SELECT opencode_ok, opencode_checked FROM nodes WHERE name='n1'"
+-        ).fetchone()
+-        conn.close()
+-        self.assertEqual(row[0], 0)
+-        self.assertGreater(row[1], 0)
+-
+-    def test_disabled_probe_is_noop(self):
+-        db = self.make_db()
+-        api = FakeAPI(["n1"], "original")
+-        args = self.make_args(db, opencode_enabled=False)
+-        rr_balancer.cmd_opencode_probe(args, api)
+-        self.assertEqual(api.selected, [])
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_proxy_converter.py b/tests/test_proxy_converter.py
+deleted file mode 100644
+index f0e5965..0000000
+--- a/tests/test_proxy_converter.py
++++ /dev/null
+@@ -1,266 +0,0 @@
+-"""Tests for multi-feed aggregation in proxy_converter.py.
+-
+-Offline only: feeds are file:// URLs, no network access.
+-"""
+-
+-import base64
+-import json
+-import os
+-import sys
+-import tempfile
+-import unittest
+-
+-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+-
+-import proxy_converter
+-from proxy_converter import _dedup_by_host, run
+-
+-FEED_A = [
+-    "vless://11111111-1111-4111-8111-111111111111@shared.example:443?encryption=none#n1",
+-    "vless://22222222-2222-4222-8222-222222222222@solo-a.example:443?encryption=none#n2",
+-]
+-
+-FEED_B = [
+-    "trojan://pass@SHARED.EXAMPLE:443?sni=x.com#n3",
+-    "vless://33333333-3333-4333-8333-333333333333@solo-b.example:443?encryption=none#n4",
+-]
+-
+-
+-def write_feed(lines):
+-    fd, path = tempfile.mkstemp(suffix=".txt")
+-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+-        fh.write("\n".join(lines) + "\n")
+-    return "file://" + path
+-
+-
+-class DedupHelperTest(unittest.TestCase):
+-    def test_first_wins_case_insensitive(self):
+-        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+-            "\n".join(FEED_A + FEED_B)
+-        )
+-        unique, dups = _dedup_by_host(parsed)
+-        self.assertEqual(len(unique), 3)
+-        self.assertEqual(dups, 1)
+-        self.assertEqual(unique[0].name, "n1")
+-
+-
+-class VlessEncryptionEmitTest(unittest.TestCase):
+-    def test_unusable_encryption_dropped(self):
+-        # mihomo only accepts "" / "none" (omitted) or mlkem768x25519plus
+-        # key strings; aes-128-gcm seen in the wild fails `mihomo -t`.
+-        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+-            "vless://11111111-1111-4111-8111-111111111111@enc.example:443"
+-            "?encryption=aes-128-gcm#enc1"
+-        )
+-        self.assertEqual(len(parsed), 1)
+-        self.assertEqual(parsed[0].encryption, "aes-128-gcm")
+-        gen = proxy_converter.ConfigGenerator()
+-        clash = gen.generate_clash_config(parsed)["proxies"]
+-        self.assertEqual(len(clash), 1)
+-        self.assertNotIn("encryption", clash[0])
+-
+-    def test_none_encryption_omitted(self):
+-        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+-            "vless://11111111-1111-4111-8111-111111111111@plain.example:443"
+-            "?encryption=none#plain1"
+-        )
+-        gen = proxy_converter.ConfigGenerator()
+-        clash = gen.generate_clash_config(parsed)["proxies"]
+-        self.assertNotIn("encryption", clash[0])
+-
+-
+-class RealityPublicKeyTest(unittest.TestCase):
+-    KEY = base64.urlsafe_b64encode(b"\x01" * 32).decode().rstrip("=")
+-
+-    def _parse(self, pbk):
+-        return proxy_converter.ProxyParser().parse_subscription_content(
+-            "vless://11111111-1111-4111-8111-111111111111@reality.example:443"
+-            "?security=reality&sni=r.example&fp=chrome&sid=ab&pbk=%s#r1" % pbk
+-        )
+-
+-    def test_stray_whitespace_is_sanitized(self):
+-        parsed = self._parse(self.KEY[:10] + " " + self.KEY[10:])
+-        clash = proxy_converter.ConfigGenerator().generate_clash_config(parsed)[
+-            "proxies"
+-        ]
+-        self.assertEqual(len(clash), 1)
+-        self.assertEqual(clash[0]["reality-opts"]["public-key"], self.KEY)
+-
+-    def test_invalid_key_drops_node(self):
+-        # mihomo aborts the whole config on "invalid REALITY public key";
+-        # a node with an unusable key can never connect anyway.
+-        parsed = self._parse("SbOEMjK0sIlbwg4a")
+-        clash = proxy_converter.ConfigGenerator().generate_clash_config(parsed)[
+-            "proxies"
+-        ]
+-        self.assertEqual(parsed[0].pbk, None)
+-        self.assertEqual(clash, [])
+-
+-
+-class Hysteria2FingerprintEmitTest(unittest.TestCase):
+-    def test_browser_fingerprint_uses_client_fingerprint_key(self):
+-        # mihomo rejects a uTLS name under `fingerprint` (that key is a TLS
+-        # certificate pin) and fails `mihomo -t`; it must go to
+-        # client-fingerprint like every other stream proxy.
+-        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+-            "hysteria2://secret@hy.example:443?sni=hy.example&fp=chrome#hy1"
+-        )
+-        self.assertEqual(len(parsed), 1)
+-        gen = proxy_converter.ConfigGenerator()
+-        clash = gen.generate_clash_config(parsed)["proxies"]
+-        self.assertEqual(len(clash), 1)
+-        self.assertNotIn("fingerprint", clash[0])
+-        self.assertEqual(clash[0]["client-fingerprint"], "chrome")
+-
+-
+-class MultiFeedRunTest(unittest.TestCase):
+-    def _run(self, **kw):
+-        tmp = tempfile.mkdtemp()
+-        clash = os.path.join(tmp, "c.yaml")
+-        singbox = os.path.join(tmp, "s.json")
+-        rc = run(
+-            clash_out=clash,
+-            singbox_out=singbox,
+-            outputs="both",
+-            **kw,
+-        )
+-        return rc, clash, singbox
+-
+-    def test_cross_feed_dedup(self):
+-        url_a = write_feed(FEED_A)
+-        url_b = write_feed(FEED_B)
+-        rc, clash, _ = self._run(urls=[url_a, url_b], unique_host=True)
+-        self.assertEqual(rc, 0)
+-        import yaml
+-
+-        proxies = yaml.safe_load(open(clash, encoding="utf-8"))["proxies"]
+-        hosts = sorted(p["server"] for p in proxies)
+-        self.assertEqual(hosts, ["shared.example", "solo-a.example", "solo-b.example"])
+-
+-    def test_per_feed_counts_logged(self):
+-        url_a = write_feed(FEED_A)
+-        url_b = write_feed(FEED_B)
+-        with self.assertLogs(proxy_converter.logger, level="INFO") as logs:
+-            rc, _, _ = self._run(urls=[url_a, url_b], unique_host=True)
+-        self.assertEqual(rc, 0)
+-        out = "\n".join(logs.output)
+-        self.assertIn("Feed", out)
+-        self.assertIn(
+-            "Unique-host dedup over merged pool: 3 unique, 1 host duplicates skipped",
+-            out,
+-        )
+-
+-    def test_single_url_identity(self):
+-        url_a = write_feed(FEED_A + FEED_B)
+-        _, clash_old, singbox_old = self._run(url=url_a)
+-        _, clash_old, singbox_old = self._run(url=url_a)
+-        _, clash_new, singbox_new = self._run(urls=[url_a])
+-        with open(clash_old, encoding="utf-8") as fh:
+-            old_yaml = fh.read()
+-        with open(clash_new, encoding="utf-8") as fh:
+-            new_yaml = fh.read()
+-        self.assertEqual(old_yaml, new_yaml)
+-        with open(singbox_old, encoding="utf-8") as fh:
+-            old_json = json.load(fh)
+-        with open(singbox_new, encoding="utf-8") as fh:
+-            new_json = json.load(fh)
+-        self.assertEqual(old_json, new_json)
+-
+-    def test_ss_cipher_alias_normalized(self):
+-        link = (
+-            "ss://"
+-            + base64.urlsafe_b64encode(b"chacha20-poly1305:x").decode().rstrip("=")
+-            + "@h.example:1#n"
+-        )
+-        proxy = proxy_converter.ProxyParser().parse_shadowsocks(link)
+-        self.assertEqual(proxy.method, "chacha20-ietf-poly1305")
+-
+-    def test_ss_sip003_trailing_slash(self):
+-        # SIP003 links often carry a trailing slash before ?plugin=
+-        proxy = proxy_converter.ProxyParser().parse_shadowsocks(
+-            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
+-            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
+-        )
+-        self.assertEqual(proxy.server, "h.com")
+-        self.assertEqual(proxy.port, 8388)
+-        self.assertEqual(proxy.plugin, "v2ray-plugin")
+-        self.assertIn("tls", proxy.plugin_opts or "")
+-
+-    def test_ss_v2ray_plugin_mode_default(self):
+-        # mihomo rejects v2ray-plugin without mode; the plugin default is websocket
+-        parsed = proxy_converter.ProxyParser().parse_subscription_content(
+-            "ss://YWVzLTI1Ni1nY206cGFzcw@h.com:8388/"
+-            "?plugin=v2ray-plugin%3Btls%3Bhost%3Dh.com#ss2"
+-        )
+-        gen = proxy_converter.ConfigGenerator()
+-        clash = gen.generate_clash_config(parsed)["proxies"]
+-        self.assertEqual(clash[0]["plugin-opts"].get("mode"), "websocket")
+-
+-
+-class RuleShapeTest(unittest.TestCase):
+-    """Foreign-server rule shape: private DIRECT, ads REJECT, rest PROXY.
+-
+-    Process bypasses and Iran/China geo bypasses were removed with the
+-    desktop-era sidecar; these assertions lock that in for both generators.
+-    """
+-
+-    def setUp(self):
+-        self.proxies = proxy_converter.ProxyParser().parse_subscription_content(
+-            "\n".join(FEED_A)
+-        )
+-        self.gen = proxy_converter.ConfigGenerator()
+-
+-    def test_clash_rules_have_no_process_or_geo_bypass(self):
+-        rules = self.gen.generate_clash_config(self.proxies)["rules"]
+-        self.assertFalse([r for r in rules if r.startswith("PROCESS-")])
+-        self.assertNotIn("GEOIP,IR,DIRECT", rules)
+-        self.assertNotIn("GEOIP,CN,DIRECT", rules)
+-        # The old generator emitted ",ir,DIRECT" after lstrip("."), so assert
+-        # both spellings plus one named domain to catch a suffix-only revival.
+-        flat = "\n".join(rules)
+-        for suffix in (",.ir,DIRECT", ",ir,DIRECT", ",.cn,DIRECT", ",cn,DIRECT"):
+-            self.assertNotIn(suffix, flat)
+-        for domain in ("digikala.com", "aliyun.com", "baidu.com"):
+-            self.assertNotIn(domain, flat)
+-
+-    def test_clash_rules_keep_private_ads_and_final_proxy(self):
+-        rules = self.gen.generate_clash_config(self.proxies)["rules"]
+-        self.assertIn("IP-CIDR,192.168.0.0/16,DIRECT,no-resolve", rules)
+-        self.assertIn("DOMAIN-SUFFIX,localhost,DIRECT", rules)
+-        # Ads REJECT rules were intentionally removed (ADR 2026-11-15): the
+-        # host is a foreign server with no local sidecar to bypass. The final
+-        # catch-all still routes everything else through PROXY.
+-        self.assertFalse([r for r in rules if r.endswith(",REJECT")])
+-        self.assertEqual(rules[-1], "MATCH,PROXY")
+-
+-    def test_clash_process_lookup_is_off(self):
+-        config = self.gen.generate_clash_config(self.proxies)
+-        self.assertEqual(config["find-process-mode"], "off")
+-
+-    def test_clash_dns_uses_no_cn_resolvers(self):
+-        dns = self.gen.generate_clash_config(self.proxies)["dns"]
+-        flat = json.dumps(dns)
+-        for legacy in ("223.5.5.5", "doh.pub", "alidns", "114.114.114.114"):
+-            self.assertNotIn(legacy, flat)
+-        self.assertIn("cloudflare-dns.com", flat)
+-        self.assertNotIn("+.ir", flat)
+-
+-    def test_singbox_rules_have_no_process_or_geo_bypass(self):
+-        route = self.gen.generate_singbox_config(self.proxies)["route"]
+-        flat = json.dumps(route)
+-        self.assertNotIn("process_name", flat)
+-        self.assertNotIn("process_path_regex", flat)
+-        for suffix in ('".ir"', '".cn"', "digikala.com", "aliyun.com"):
+-            self.assertNotIn(suffix, flat)
+-
+-    def test_singbox_rules_keep_private_and_reject(self):
+-        rules = self.gen.generate_singbox_config(self.proxies)["route"]["rules"]
+-        self.assertTrue([r for r in rules if r.get("ip_is_private")])
+-        # REJECT rules were intentionally removed (ADR 2026-11-15); sniff stays
+-        # first and private LAN traffic is routed DIRECT.
+-        self.assertFalse([r for r in rules if r.get("action") == "reject"])
+-        self.assertEqual(rules[0], {"action": "sniff"})
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_reality_short_id.py b/tests/test_reality_short_id.py
+deleted file mode 100644
+index 11ed6c3..0000000
+--- a/tests/test_reality_short_id.py
++++ /dev/null
+@@ -1,46 +0,0 @@
+-"""Tests for REALITY short-id sanitization (mihomo -t must never abort a config).
+-
+-Offline: pure helper, no network or mihomo needed.
+-"""
+-import os
+-import sys
+-import unittest
+-
+-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+-import proxy_converter
+-
+-
+-class RealityShortIdTest(unittest.TestCase):
+-    def test_none_and_empty_become_empty(self):
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id(None), "")
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id(""), "")
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("   "), "")
+-
+-    def test_valid_even_hex_is_normalized(self):
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("DEADbeef"), "deadbeef")
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("2e00"), "2e00")
+-
+-    def test_0x_prefix_is_stripped(self):
+-        self.assertEqual(
+-            proxy_converter._sanitize_reality_short_id(" 0xDEADbeef "), "deadbeef"
+-        )
+-
+-    def test_odd_length_hex_becomes_empty(self):
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("abc"), "")
+-
+-    def test_non_hex_becomes_empty(self):
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("zzzz"), "")
+-        self.assertEqual(proxy_converter._sanitize_reality_short_id("hello!"), "")
+-
+-    def test_emitted_short_id_is_even_hex_or_absent(self):
+-        # The emitter uses _QuotedStr for non-empty ids; assert the helper output
+-        # is always something mihomo accepts before it reaches the emitter.
+-        for value in ("abc", "zzzz", "0x0011", "2e00", None):
+-            result = proxy_converter._sanitize_reality_short_id(value)
+-            if result:
+-                self.assertEqual(len(result) % 2, 0)
+-                self.assertTrue(all(c in "0123456789abcdef" for c in result))
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_rr_balancer.py b/tests/test_rr_balancer.py
+deleted file mode 100644
+index 2900e4f..0000000
+--- a/tests/test_rr_balancer.py
++++ /dev/null
+@@ -1,1375 +0,0 @@
+-"""Unit tests for scripts/rr_balancer.py (stdlib unittest, no network)."""
+-
+-import contextlib
+-import io
+-import os
+-import sqlite3
+-import sys
+-import tempfile
+-import time
+-import unittest
+-import unittest.mock
+-import urllib.error
+-import urllib.request
+-
+-sys.path.insert(
+-    0,
+-    os.path.join(
+-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"
+-    ),
+-)
+-
+-import rr_balancer
+-
+-
+-class FakeAPI:
+-    """Stub ClashAPI: delays dict maps name -> delay_ms or None (dead).
+-
+-    google_blocked names answer /sorry (302) on the expected=200 probe.
+-    """
+-
+-    def __init__(self, delays, group="PROXY", google_blocked=None, current="old-node"):
+-        self.delays = delays
+-        self.google_blocked = set(google_blocked or ())
+-        self.group = group
+-        self.current = current
+-        self.selected = []
+-        self.members = list(delays) + ["Auto", "Load Balance", "Fallback"]
+-        self.connections = []
+-        self.closed = []
+-        self.close_fail = False
+-
+-    def group_members(self, group):
+-        pool = [m for m in self.members if m not in rr_balancer.META_NAMES]
+-        return pool, self.current
+-
+-    def select(self, group, name):
+-        self.selected.append((group, name))
+-
+-    def delay(self, name, test_url, timeout_ms, expected=None):
+-        if expected == 200 and name in self.google_blocked:
+-            return None
+-        return self.delays.get(name)
+-
+-    def get_connections(self):
+-        return list(self.connections)
+-
+-    def close_connection(self, cid):
+-        if self.close_fail:
+-            raise RuntimeError("close failed")
+-        self.closed.append(cid)
+-        return True
+-
+-
+-def make_db():
+-    fd, path = tempfile.mkstemp(suffix=".db")
+-    os.close(fd)
+-    os.unlink(path)
+-    conn = rr_balancer.connect_db(path)
+-    return conn, path
+-
+-
+-def mark(conn, name, status, delay=None, uses=0, last_check=None, country=""):
+-    if last_check is None:
+-        last_check = int(time.time())
+-    conn.execute(
+-        "INSERT INTO nodes (name, status, delay_ms, last_check, uses, country) "
+-        "VALUES (?, ?, ?, ?, ?, ?)",
+-        (name, status, delay, last_check, uses, country),
+-    )
+-    conn.commit()
+-
+-
+-class Args:
+-    def __init__(self, **kw):
+-        self.__dict__.update(
+-            dict(
+-                db="",
+-                group="PROXY",
+-                stale_after=3600,
+-                batch=250,
+-                workers=4,
+-                max_fails=3,
+-                test_url="https://www.gstatic.com/generate_204",
+-                timeout_ms=3000,
+-                # Keep unit tests network-free; gate tests opt in and patch
+-                # all probes. Production CLI defaults are gates-on.
+-                no_google_check=True,
+-                no_youtube_check=True,
+-                no_spotify_check=True,
+-                no_gemini_check=True,
+-                google_url=rr_balancer.DEFAULT_GOOGLE_URL,
+-                google_timeout_ms=8000,
+-                google_attempts=5,
+-                youtube_url=rr_balancer.DEFAULT_YOUTUBE_URL,
+-                youtube_timeout_ms=8000,
+-                youtube_attempts=5,
+-                spotify_url=rr_balancer.DEFAULT_SPOTIFY_URL,
+-                spotify_timeout_ms=8000,
+-                spotify_attempts=5,
+-                gemini_url=rr_balancer.DEFAULT_GEMINI_URL,
+-                gemini_timeout_ms=8000,
+-                gemini_attempts=5,
+-                keep_if_clean=False,
+-                top=3,
+-                speed_url=rr_balancer.DEFAULT_SPEED_URL,
+-                speed_bytes=rr_balancer.DEFAULT_SPEED_BYTES,
+-                speed_timeout_ms=30000,
+-                # Country fields default to the lock being off.
+-                require_country=None,
+-                trace_url=rr_balancer.DEFAULT_TRACE_URL,
+-                trace_timeout_ms=8000,
+-                trace_proxy=rr_balancer.DEFAULT_PROXY_URL,
+-            )
+-        )
+-        self.__dict__.update(kw)
+-
+-
+-class RotateTest(unittest.TestCase):
+-    def test_fastest_least_used_first(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "slow", "alive", delay=900, uses=0, last_check=now)
+-        mark(conn, "fast", "alive", delay=120, uses=0, last_check=now)
+-        mark(conn, "used", "alive", delay=50, uses=5, last_check=now)
+-        api = FakeAPI({"slow": 900, "fast": 120, "used": 50})
+-        args = Args(db=path)
+-        self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        # fast wins the 0-use tie over slow despite used being quicker
+-        self.assertEqual(api.selected, [("PROXY", "fast")])
+-        uses = conn.execute("SELECT uses FROM nodes WHERE name='fast'").fetchone()[0]
+-        self.assertEqual(uses, 1)
+-
+-    def test_rotate_skips_google_blocked(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        # "blocked" is faster and unused, so only the gate can reject it.
+-        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"blocked": 50, "clean": 200}, google_blocked={"blocked"})
+-        args = Args(db=path, no_google_check=False)
+-
+-        def fake_probe(url, proxy, timeout):
+-            return 302 if api.selected[-1][1] in api.google_blocked else 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_probe
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause, google_fails FROM nodes "
+-            "WHERE name='blocked'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "google", 1))
+-
+-    def test_rotate_fails_open_when_all_blocked(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"a": 50}, google_blocked={"a"})
+-        args = Args(db=path, no_google_check=False, google_attempts=1)
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", return_value=302
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+-
+-    def test_rotate_rejects_youtube_flagged(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        # "blocked" passes Google but answers 403 on the YouTube backend.
+-        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"blocked": 50, "clean": 200})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "youtube.com" in url and api.selected[-1][1] == "blocked":
+-                return 403
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause, youtube_fails, google_fails FROM nodes "
+-            "WHERE name='blocked'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "youtube", 1, 0))
+-
+-    def test_rotate_rejects_spotify_flagged(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"blocked": 50, "clean": 200})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_spotify(url, proxy, timeout):
+-            return api.selected[-1][1] != "blocked"
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", return_value=200
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", side_effect=fake_spotify
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause, spotify_fails FROM nodes "
+-            "WHERE name='blocked'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "spotify", 1))
+-
+-    def test_keep_if_clean_keeps_current(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "incumbent", "alive", delay=200, uses=3, last_check=now)
+-        mark(conn, "challenger", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"incumbent": 200, "challenger": 50}, current="incumbent")
+-        args = Args(
+-            db=path,
+-            keep_if_clean=True,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", return_value=200
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        # Challenger is faster and unused, but the clean incumbent stays.
+-        self.assertEqual(api.selected[-1], ("PROXY", "incumbent"))
+-        row = conn.execute(
+-            "SELECT status, uses FROM nodes WHERE name='incumbent'"
+-        ).fetchone()
+-        self.assertEqual(row, ("alive", 4))
+-        log = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()
+-        self.assertEqual(log, ("keep-clean",))
+-
+-    def test_keep_if_clean_rotates_when_dirty(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "incumbent", "alive", delay=200, uses=3, last_check=now)
+-        mark(conn, "challenger", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"incumbent": 200, "challenger": 50}, current="incumbent")
+-        args = Args(
+-            db=path,
+-            keep_if_clean=True,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "youtube.com" in url and api.selected[-1][1] == "incumbent":
+-                return 403
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "challenger"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause FROM nodes WHERE name='incumbent'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "youtube"))
+-
+-    def test_keep_if_clean_without_current_rotates_normally(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"a": 50}, current=None)
+-        args = Args(
+-            db=path,
+-            keep_if_clean=True,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", return_value=200
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+-
+-    def test_fastest_picks_quickest_clean_finalist(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "slow", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "mid", "alive", delay=60, uses=0, last_check=now)
+-        mark(conn, "fast", "alive", delay=70, uses=0, last_check=now)
+-        api = FakeAPI({"slow": 50, "mid": 60, "fast": 70})
+-        args = Args(cmd="fastest", db=path, top=3)
+-        speeds = {"slow": 100000.0, "mid": 500000.0, "fast": 2000000.0}
+-
+-        def fake_throughput(url, proxy, max_bytes, timeout):
+-            return speeds[api.selected[-1][1]]
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "multi_gate_cause", return_value=None
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_throughput", side_effect=fake_throughput
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "fast"))
+-        for name in ("slow", "mid", "fast"):
+-            row = conn.execute(
+-                "SELECT status FROM nodes WHERE name=?", (name,)
+-            ).fetchone()
+-            self.assertEqual(row, ("alive",))
+-
+-    def test_fastest_skips_gate_flagged_candidate(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "dirty", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"dirty": 50, "clean": 200})
+-        args = Args(cmd="fastest", db=path, top=3)
+-
+-        def fake_gate(api_, group, name, args_):
+-            return "youtube" if name == "dirty" else None
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "multi_gate_cause", side_effect=fake_gate
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_throughput", return_value=1000000.0
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause FROM nodes WHERE name='dirty'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "youtube"))
+-
+-    def test_fastest_all_unmeasured_keeps_first_without_quarantine(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "b", "alive", delay=60, uses=0, last_check=now)
+-        api = FakeAPI({"a": 50, "b": 60})
+-        args = Args(cmd="fastest", db=path, top=3)
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "multi_gate_cause", return_value=None
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_throughput", return_value=None
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_fastest(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+-        rows = conn.execute(
+-            "SELECT status FROM nodes WHERE name IN ('a', 'b')"
+-        ).fetchall()
+-        self.assertEqual(rows, [("alive",), ("alive",)])
+-
+-    def test_rejects_bad_fastest_numbers(self):
+-        for kw in (
+-            {"cmd": "fastest", "top": 0},
+-            {"cmd": "fastest", "speed_timeout_ms": 999},
+-        ):
+-            args = Args(**kw)
+-            args.cmd = kw["cmd"]
+-            self.assertIsNotNone(rr_balancer.validate_args(args), kw)
+-
+-    def test_rotate_youtube_unknown_keeps_without_quarantine(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "lonely", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"lonely": 50})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "youtube.com" in url:
+-                return None
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "lonely"))
+-        row = conn.execute(
+-            "SELECT status, youtube_fails FROM nodes WHERE name='lonely'"
+-        ).fetchone()
+-        self.assertEqual(row, ("alive", 0))
+-
+-    def test_rotate_rejects_gemini_flagged(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "blocked", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "clean", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"blocked": 50, "clean": 200})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "gemini.google.com" in url and api.selected[-1][1] == "blocked":
+-                return 403
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "clean"))
+-        row = conn.execute(
+-            "SELECT status, last_fail_cause, gemini_fails FROM nodes "
+-            "WHERE name='blocked'"
+-        ).fetchone()
+-        self.assertEqual(row, ("failed", "gemini", 1))
+-
+-    def test_rotate_gemini_unknown_keeps(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "lonely", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"lonely": 50})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "gemini.google.com" in url:
+-                return 429
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "lonely"))
+-        row = conn.execute(
+-            "SELECT status, gemini_fails FROM nodes WHERE name='lonely'"
+-        ).fetchone()
+-        self.assertEqual(row, ("alive", 0))
+-
+-    def test_rotate_all_dirty_fail_open_youtube(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=50, uses=0, last_check=now)
+-        mark(conn, "b", "alive", delay=60, uses=0, last_check=now)
+-        api = FakeAPI({"a": 50, "b": 60})
+-        args = Args(
+-            db=path,
+-            no_google_check=False,
+-            no_youtube_check=False,
+-            no_spotify_check=False,
+-            no_gemini_check=False,
+-        )
+-
+-        def fake_status(url, proxy, timeout):
+-            if "youtube.com" in url:
+-                return 403
+-            return 200
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", side_effect=fake_status
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=True
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        # Both quarantined with youtube, fail-open keeps the best first.
+-        self.assertEqual(api.selected[-1], ("PROXY", "a"))
+-        rows = conn.execute(
+-            "SELECT name, status, last_fail_cause FROM nodes ORDER BY name"
+-        ).fetchall()
+-        self.assertEqual(rows, [("a", "failed", "youtube"), ("b", "failed", "youtube")])
+-
+-    def test_rotate_unknown_probe_keeps_without_quarantine(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "flaky", "alive", delay=50, uses=0, last_check=now)
+-        api = FakeAPI({"flaky": 50})
+-        args = Args(db=path, no_google_check=False)
+-
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "google_reachable_direct", return_value=True
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_status_via_proxy", return_value=None
+-            ),
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_spotify_clean", return_value=None
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "GOOGLE_SETTLE_SECONDS", 0),
+-        ):
+-            self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        # Google is legacy-strict (None counts as flagged); a single-node
+-        # pool then fail-opens to it, quarantined as google like before.
+-        self.assertEqual(api.selected[-1], ("PROXY", "flaky"))
+-
+-    def test_spotify_shape_clean_flagged_unknown(self):
+-        opener_status = {}
+-
+-        class FakeResp:
+-            def __init__(self, status, body):
+-                self.status = status
+-                self._body = body
+-
+-            def read(self, n=-1):
+-                return self._body
+-
+-            def __enter__(self):
+-                return self
+-
+-            def __exit__(self, *exc):
+-                return False
+-
+-        class FakeOpener:
+-            def open(self, req, timeout=None):
+-                status, body = opener_status["next"]
+-                if status >= 400:
+-                    err = urllib.error.HTTPError(req.full_url, status, "x", {}, None)
+-                    err.read = lambda n=-1: body
+-                    raise err
+-                return FakeResp(status, body)
+-
+-        with unittest.mock.patch.object(
+-            urllib.request, "build_opener", return_value=FakeOpener()
+-        ):
+-            url = "https://api.spotify.example/v1/search?q=test&type=track"
+-            opener_status["next"] = (401, b'{"error":{"status":401}}')
+-            self.assertTrue(rr_balancer.probe_spotify_clean(url, "p", 1))
+-            opener_status["next"] = (403, b"<html>Forbidden</html>")
+-            self.assertFalse(rr_balancer.probe_spotify_clean(url, "p", 1))
+-            opener_status["next"] = (429, b"rate limited")
+-            self.assertIsNone(rr_balancer.probe_spotify_clean(url, "p", 1))
+-
+-    def test_second_rotate_moves_on(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=100, uses=0, last_check=now)
+-        mark(conn, "b", "alive", delay=200, uses=0, last_check=now)
+-        api = FakeAPI({"a": 100, "b": 200})
+-        args = Args(db=path)
+-        rr_balancer.cmd_rotate(args, api)
+-        rr_balancer.cmd_rotate(args, api)
+-        self.assertEqual(api.selected, [("PROXY", "a"), ("PROXY", "b")])
+-
+-    def test_empty_pool_noop_never_selects(self):
+-        conn, path = make_db()
+-        mark(conn, "dead", "failed")
+-        api = FakeAPI({})
+-        args = Args(db=path)
+-        self.assertEqual(rr_balancer.cmd_rotate(args, api), 0)
+-        self.assertEqual(api.selected, [])
+-        reason = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()[0]
+-        self.assertEqual(reason, "noop-empty-pool")
+-
+-    def test_stale_nodes_excluded(self):
+-        conn, path = make_db()
+-        mark(conn, "stale", "alive", delay=10, uses=0, last_check=1)
+-        mark(conn, "fresh", "alive", delay=500, uses=0, last_check=1_700_000_000)
+-        api = FakeAPI({})
+-        args = Args(db=path, stale_after=3600)
+-        # now inside connect path uses real time; force via alive_pool
+-        pool = rr_balancer.alive_pool(conn, 1_700_000_000, 3600)
+-        self.assertEqual([n for n, _, _, _ in pool], ["fresh"])
+-
+-
+-
+-class RetestTest(unittest.TestCase):
+-    def test_alive_failed_and_readmit(self):
+-        conn, path = make_db()
+-        mark(conn, "good", "unknown", last_check=0)
+-        mark(conn, "bad", "unknown", last_check=0)
+-        mark(conn, "back", "failed", last_check=0)
+-        conn.execute("UPDATE nodes SET fails=2 WHERE name='bad'")
+-        conn.commit()
+-        api = FakeAPI({"good": 150, "bad": None, "back": 80})
+-        args = Args(db=path, batch=10)
+-        self.assertEqual(rr_balancer.cmd_retest(args, api), 0)
+-        st = dict(conn.execute("SELECT name, status FROM nodes").fetchall())
+-        self.assertEqual(st["good"], "alive")
+-        self.assertEqual(st["bad"], "failed")  # 3rd strike
+-        self.assertEqual(st["back"], "alive")  # readmitted, fails reset
+-        fails = conn.execute("SELECT fails FROM nodes WHERE name='back'").fetchone()[0]
+-        self.assertEqual(fails, 0)
+-
+-    def test_oldest_first_batching(self):
+-        conn, path = make_db()
+-        mark(conn, "old", "alive", delay=9, last_check=100)
+-        mark(conn, "new", "alive", delay=9, last_check=1_700_000_000)
+-        api = FakeAPI({"old": 9, "new": 9})
+-        args = Args(db=path, batch=1)
+-        rr_balancer.cmd_retest(args, api)
+-        checked = conn.execute(
+-            "SELECT name FROM nodes WHERE last_check > 1_700_000_000"
+-        ).fetchall()
+-        self.assertEqual([r[0] for r in checked], ["old"])
+-
+-    def test_all_fail_batch_keeps_nodes_alive(self):
+-        conn, path = make_db()
+-        names = ["n%d" % i for i in range(5)]
+-        for n in names:
+-            mark(conn, n, "alive", delay=100, last_check=0)
+-        api = FakeAPI({n: None for n in names})
+-        before = int(time.time())
+-        args = Args(db=path, batch=10)
+-        self.assertEqual(rr_balancer.cmd_retest(args, api), 0)
+-        rows = conn.execute(
+-            "SELECT name, status, fails, last_check FROM nodes"
+-        ).fetchall()
+-        for name, status, fails, last_check in rows:
+-            self.assertEqual(status, "alive", name)
+-            self.assertEqual(fails, 0, name)
+-            self.assertGreaterEqual(last_check, before, name)
+-
+-
+-class ValidateArgsTest(unittest.TestCase):
+-    def test_rejects_bad_retest_numbers(self):
+-        for kw in (
+-            {"cmd": "retest", "workers": 0},
+-            {"cmd": "retest", "batch": -1},
+-            {"cmd": "retest", "max_fails": 0},
+-            {"cmd": "retest", "timeout_ms": 499},
+-            {"cmd": "rotate", "stale_after": 59},
+-        ):
+-            args = Args(**kw)
+-            args.cmd = kw["cmd"]
+-            self.assertIsNotNone(rr_balancer.validate_args(args), kw)
+-
+-    def test_accepts_sane_args(self):
+-        args = Args(cmd="retest")
+-        self.assertIsNone(rr_balancer.validate_args(args))
+-        args = Args(cmd="rotate")
+-        self.assertIsNone(rr_balancer.validate_args(args))
+-
+-    def test_skip_marks_failed_and_advances(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_skip(Args(cmd="skip", name="n1", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+-        conn = sqlite3.connect(path)
+-        st = conn.execute("SELECT status FROM nodes WHERE name='n1'").fetchone()[0]
+-        self.assertEqual(st, "failed")
+-        reason = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()[0]
+-        self.assertEqual(reason, "manual-skip")
+-        conn.close()
+-
+-    def test_rejects_bad_skip_numbers(self):
+-        args = Args(cmd="skip", name="n1", stale_after=59)
+-        self.assertIsNotNone(rr_balancer.validate_args(args))
+-        args = Args(cmd="skip", name="n1", max_fails=0)
+-        self.assertIsNotNone(rr_balancer.validate_args(args))
+-
+-    def test_next_skips_current_selection(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"cur": 50, "n2": 5})
+-        api.group_members = lambda group: (["cur", "n2"], "cur")
+-        mark(conn, "cur", "alive", delay=50, uses=3)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_next(Args(cmd="next", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+-        conn = sqlite3.connect(path)
+-        st = conn.execute("SELECT status FROM nodes WHERE name='cur'").fetchone()[0]
+-        self.assertEqual(st, "failed")
+-        reason = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()[0]
+-        self.assertEqual(reason, "manual-next")
+-        conn.close()
+-
+-    def test_next_without_current_rotates_anyway(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        api.group_members = lambda group: (["n1", "n2"], None)
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_next(Args(cmd="next", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n1"))
+-
+-
+-class ConnectDbTest(unittest.TestCase):
+-    def test_wal_and_busy_timeout(self):
+-        conn, path = make_db()
+-        mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+-        self.assertEqual(mode.lower(), "wal")
+-        timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+-        self.assertEqual(timeout, 10000)
+-
+-
+-class CloseStaleTest(unittest.TestCase):
+-    def test_closes_only_prev_chained_connections(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        api.connections = [
+-            {"id": "c1", "chains": ["old-node", "n1"]},
+-            {"id": "c2", "chains": ["n2"]},
+-        ]
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.closed, ["c1"])
+-
+-    def test_no_close_when_selection_unchanged(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"old-node": 2, "n2": 5})
+-        api.group_members = lambda group: (["old-node", "n2"], "old-node")
+-        api.connections = [{"id": "c1", "chains": ["old-node"]}]
+-        mark(conn, "old-node", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "old-node"))
+-        self.assertEqual(api.closed, [])
+-
+-    def test_close_failure_never_breaks_rotation(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        api.close_fail = True
+-        api.connections = [{"id": "c1", "chains": ["old-node"]}]
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n1"))
+-        conn = sqlite3.connect(path)
+-        uses = conn.execute("SELECT uses FROM nodes WHERE name='n1'").fetchone()[0]
+-        self.assertEqual(uses, 1)
+-        conn.close()
+-
+-
+-class SeedMemoryTest(unittest.TestCase):
+-    def test_reseed_keeps_learned_rows(self):
+-        conn, path = make_db()
+-        mark(conn, "a1", "alive", delay=10, uses=5)
+-        mark(conn, "u1", "unknown")
+-        rr_balancer.seed_names(conn, ["u1", "new1"])
+-        row = conn.execute(
+-            "SELECT status, uses, delay_ms FROM nodes WHERE name='a1'"
+-        ).fetchone()
+-        self.assertEqual(row, ("alive", 5, 10))
+-        self.assertIsNotNone(
+-            conn.execute("SELECT 1 FROM nodes WHERE name='new1'").fetchone()
+-        )
+-        conn.close()
+-
+-    def test_unknown_absent_rows_pruned(self):
+-        conn, path = make_db()
+-        mark(conn, "u2", "unknown")
+-        mark(conn, "u1", "unknown")
+-        rr_balancer.seed_names(conn, ["u1"])
+-        self.assertIsNone(
+-            conn.execute("SELECT 1 FROM nodes WHERE name='u2'").fetchone()
+-        )
+-        self.assertIsNotNone(
+-            conn.execute("SELECT 1 FROM nodes WHERE name='u1'").fetchone()
+-        )
+-        conn.close()
+-
+-    def test_alive_pool_excludes_controller_ghosts(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "ghost", "alive", delay=5, uses=0, last_check=now)
+-        mark(conn, "real", "alive", delay=50, uses=0, last_check=now)
+-        pool = rr_balancer.alive_pool(conn, now, 3600, allowed={"real", "other"})
+-        self.assertEqual([n for n, _, _, _ in pool], ["real"])
+-        conn.close()
+-
+-    def test_retest_batch_skips_ghosts(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 10})
+-        api.group_members = lambda group: (["n1"], "old-node")
+-        mark(conn, "ghost", "alive", delay=5, uses=0, last_check=100)
+-        mark(conn, "n1", "unknown", last_check=100)
+-        conn.close()
+-        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+-        self.assertEqual(rc, 0)
+-        conn = sqlite3.connect(path)
+-        ghost_check = conn.execute(
+-            "SELECT last_check FROM nodes WHERE name='ghost'"
+-        ).fetchone()[0]
+-        self.assertEqual(ghost_check, 100)
+-        conn.close()
+-
+-
+-class QuarantineTest(unittest.TestCase):
+-    def test_mark_failed_sets_24h_quarantine(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "n1", "alive", delay=10, uses=0, last_check=now)
+-        conn.close()
+-        conn = rr_balancer.connect_db(path)
+-        rr_balancer._mark_failed(conn, "n1", 3, now)
+-        row = conn.execute(
+-            "SELECT status, quarantined_until FROM nodes WHERE name='n1'"
+-        ).fetchone()
+-        self.assertEqual(row[0], "failed")
+-        self.assertEqual(row[1], now + 24 * 3600)
+-        conn.close()
+-
+-    def test_pool_excludes_quarantined(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "q", "failed", last_check=now)
+-        mark(conn, "ok", "alive", delay=10, uses=0, last_check=now)
+-        conn.execute(
+-            "UPDATE nodes SET quarantined_until=? WHERE name='q'", (now + 3600,)
+-        )
+-        conn.commit()
+-        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"q", "ok"})
+-        # q is failed so pool holds only ok regardless; force alive to isolate filter
+-        conn.execute("UPDATE nodes SET status='alive' WHERE name='q'")
+-        conn.commit()
+-        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"q", "ok"})
+-        self.assertEqual([n for n, _, _, _ in pool], ["ok"])
+-        conn.close()
+-
+-    def test_expired_quarantine_readmits(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "old", "alive", delay=10, uses=0, last_check=now)
+-        conn.execute(
+-            "UPDATE nodes SET quarantined_until=? WHERE name='old'", (now - 1,)
+-        )
+-        conn.commit()
+-        pool = rr_balancer.alive_pool(conn, now, 7200, allowed={"old"})
+-        self.assertEqual([n for n, _, _, _ in pool], ["old"])
+-        conn.close()
+-
+-    def test_retest_skips_quarantined(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 10})
+-        api.group_members = lambda group: (["n1", "q"], "old-node")
+-        mark(conn, "q", "failed", last_check=100)
+-        mark(conn, "n1", "unknown", last_check=100)
+-        conn.execute(
+-            "UPDATE nodes SET quarantined_until=? WHERE name='q'",
+-            (int(time.time()) + 3600,),
+-        )
+-        conn.commit()
+-        conn.close()
+-        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+-        self.assertEqual(rc, 0)
+-        conn = sqlite3.connect(path)
+-        q_check = conn.execute(
+-            "SELECT last_check FROM nodes WHERE name='q'"
+-        ).fetchone()[0]
+-        self.assertEqual(q_check, 100)
+-        conn.close()
+-
+-    def test_migration_adds_column_idempotently(self):
+-        fd, path = tempfile.mkstemp(suffix=".db")
+-        os.close(fd)
+-        os.unlink(path)
+-        conn = sqlite3.connect(path)
+-        conn.execute(
+-            "CREATE TABLE nodes (name TEXT PRIMARY KEY, status TEXT NOT NULL "
+-            "DEFAULT 'unknown', delay_ms INTEGER, last_check INTEGER NOT NULL "
+-            "DEFAULT 0, fails INTEGER NOT NULL DEFAULT 0, "
+-            "uses INTEGER NOT NULL DEFAULT 0)"
+-        )
+-        conn.commit()
+-        conn.close()
+-        conn = rr_balancer.connect_db(path)
+-        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+-        self.assertIn("quarantined_until", cols)
+-        self.assertIn("country", cols)
+-        self.assertIn("country_checked", cols)
+-        conn.close()
+-        conn = rr_balancer.connect_db(path)
+-        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+-        self.assertIn("country", cols)
+-        self.assertNotIn("quota_fails", cols)
+-        conn.close()
+-
+-
+-class CauseCleanupTest(unittest.TestCase):
+-    """Only the causes this balancer acts on survive the plugin cleanup."""
+-
+-    def test_fresh_schema_has_no_plugin_counters(self):
+-        conn, path = make_db()
+-        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+-        for legacy in ("quota_fails", "transport_fails", "region_fails"):
+-            self.assertNotIn(legacy, cols)
+-        self.assertIn("google_fails", cols)
+-        self.assertIn("country", cols)
+-        self.assertIn("country_checked", cols)
+-        conn.close()
+-
+-    def test_skip_reason_google_records_cause_and_quarantines(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_skip(
+-            Args(cmd="skip", name="n1", reason="google", db=path), api
+-        )
+-        self.assertEqual(rc, 0)
+-        conn = sqlite3.connect(path)
+-        row = conn.execute(
+-            "SELECT google_fails, last_fail_cause, status, quarantined_until, "
+-            "last_check FROM nodes WHERE name='n1'"
+-        ).fetchone()
+-        self.assertEqual(row[:3], (1, "google", "failed"))
+-        self.assertGreater(row[3], row[4])
+-        conn.close()
+-
+-    def test_country_and_manual_causes_leave_google_counter_alone(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        mark(conn, "n1", "alive", delay=2, uses=0)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rr_balancer.cmd_skip(
+-            Args(cmd="skip", name="n1", reason="country", db=path), api
+-        )
+-        rr_balancer.cmd_skip(Args(cmd="skip", name="n2", reason="manual", db=path), api)
+-        conn = sqlite3.connect(path)
+-        rows = conn.execute(
+-            "SELECT name, google_fails, last_fail_cause FROM nodes ORDER BY name"
+-        ).fetchall()
+-        self.assertEqual(rows, [("n1", 0, "country"), ("n2", 0, "manual")])
+-        conn.close()
+-
+-    def test_legacy_counters_dropped_while_rows_survive(self):
+-        fd, path = tempfile.mkstemp(suffix=".db")
+-        os.close(fd)
+-        os.unlink(path)
+-        conn = sqlite3.connect(path)
+-        conn.execute(
+-            "CREATE TABLE nodes (name TEXT PRIMARY KEY, status TEXT NOT NULL "
+-            "DEFAULT 'unknown', delay_ms INTEGER, last_check INTEGER NOT NULL "
+-            "DEFAULT 0, fails INTEGER NOT NULL DEFAULT 0, "
+-            "uses INTEGER NOT NULL DEFAULT 0, quarantined_until INTEGER NOT NULL "
+-            "DEFAULT 0, last_fail_cause TEXT NOT NULL DEFAULT '', "
+-            "quota_fails INTEGER NOT NULL DEFAULT 0, transport_fails INTEGER "
+-            "NOT NULL DEFAULT 0, region_fails INTEGER NOT NULL DEFAULT 0, "
+-            "google_fails INTEGER NOT NULL DEFAULT 0)"
+-        )
+-        conn.execute(
+-            "INSERT INTO nodes (name, status, uses) VALUES ('kept', 'alive', 7)"
+-        )
+-        conn.commit()
+-        conn.close()
+-        conn = rr_balancer.connect_db(path)
+-        cols = [r[1] for r in conn.execute("PRAGMA table_info(nodes)").fetchall()]
+-        for legacy in ("quota_fails", "transport_fails", "region_fails"):
+-            self.assertNotIn(legacy, cols)
+-        row = conn.execute(
+-            "SELECT status, uses FROM nodes WHERE name='kept'"
+-        ).fetchone()
+-        self.assertEqual(row, ("alive", 7))
+-        conn.close()
+-
+-    def test_order_pool_uses_then_delay_only(self):
+-        pool = [
+-            ("slow", 0, 500, "US"),
+-            ("fast", 0, 5, "DE"),
+-            ("used", 1, 1, "US"),
+-        ]
+-        self.assertEqual(
+-            [row[0] for row in rr_balancer.order_pool(pool)],
+-            ["fast", "slow", "used"],
+-        )
+-
+-    def test_retest_success_clears_cause_but_keeps_country(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 10})
+-        api.group_members = lambda group: (["n1"], "old-node")
+-        mark(conn, "n1", "unknown", last_check=100, country="US")
+-        conn.execute(
+-            "UPDATE nodes SET google_fails=2, last_fail_cause='google' WHERE name='n1'"
+-        )
+-        conn.commit()
+-        conn.close()
+-        rc = rr_balancer.cmd_retest(Args(cmd="retest", db=path, batch=10), api)
+-        self.assertEqual(rc, 0)
+-        conn = sqlite3.connect(path)
+-        row = conn.execute(
+-            "SELECT google_fails, last_fail_cause, country FROM nodes WHERE name='n1'"
+-        ).fetchone()
+-        self.assertEqual(row, (2, "", "US"))
+-        conn.close()
+-
+-
+-class CountryTest(unittest.TestCase):
+-    def test_parse_trace_country_reads_loc(self):
+-        body = "fl=123abc\nh=www.cloudflare.com\nip=1.2.3.4\nts=1\nloc=us\n"
+-        self.assertEqual(rr_balancer.parse_trace_country(body), "US")
+-
+-    def test_parse_trace_country_rejects_unknown_shapes(self):
+-        self.assertIsNone(rr_balancer.parse_trace_country("ip=1.2.3.4\n"))
+-        self.assertIsNone(rr_balancer.parse_trace_country("loc=\n"))
+-        self.assertIsNone(rr_balancer.parse_trace_country("loc=USA\n"))
+-        self.assertIsNone(rr_balancer.parse_trace_country("loc=T1\n"))
+-        # Cloudflare reports loc=XX when it cannot place the exit (Tor, etc.).
+-        self.assertIsNone(rr_balancer.parse_trace_country("loc=XX\n"))
+-        self.assertIsNone(rr_balancer.parse_trace_country(""))
+-
+-    def test_probe_country_parses_body(self):
+-        class _Resp:
+-            status = 200
+-
+-            def read(self):
+-                return b"h=www.cloudflare.com\nloc=DE\nts=1\n"
+-
+-            def __enter__(self):
+-                return self
+-
+-            def __exit__(self, *exc):
+-                return False
+-
+-        class _Opener:
+-            def open(self, req, timeout=None):
+-                return _Resp()
+-
+-        with unittest.mock.patch.object(
+-            rr_balancer.urllib.request, "build_opener", return_value=_Opener()
+-        ):
+-            self.assertEqual(
+-                rr_balancer.probe_country_via_proxy(
+-                    rr_balancer.DEFAULT_TRACE_URL, rr_balancer.DEFAULT_PROXY_URL, 5.0
+-                ),
+-                "DE",
+-            )
+-
+-    def test_probe_country_returns_none_on_transport_error(self):
+-        with unittest.mock.patch.object(
+-            rr_balancer.urllib.request,
+-            "build_opener",
+-            side_effect=OSError("proxy down"),
+-        ):
+-            self.assertIsNone(
+-                rr_balancer.probe_country_via_proxy(
+-                    rr_balancer.DEFAULT_TRACE_URL, rr_balancer.DEFAULT_PROXY_URL, 1.0
+-                )
+-            )
+-
+-    def test_cmd_country_fills_batch_and_restores_selection(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "a", "alive", delay=10, uses=0, last_check=now)
+-        mark(conn, "b", "alive", delay=20, uses=0, last_check=now)
+-        api = FakeAPI({"a": 10, "b": 20})
+-        api.group_members = lambda group: (["a", "b"], "prev")
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_country_via_proxy", side_effect=["US", "DE"]
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "TRACE_SETTLE_SECONDS", 0),
+-        ):
+-            rc = rr_balancer.cmd_country(Args(cmd="country", db=path, batch=10), api)
+-        self.assertEqual(rc, 0)
+-        conn.close()
+-        conn = sqlite3.connect(path)
+-        rows = conn.execute(
+-            "SELECT name, country, country_checked FROM nodes ORDER BY name"
+-        ).fetchall()
+-        self.assertEqual([(r[0], r[1]) for r in rows], [("a", "US"), ("b", "DE")])
+-        self.assertTrue(all(row[2] > 0 for row in rows))
+-        self.assertEqual(api.selected[-1], ("PROXY", "prev"))
+-        conn.close()
+-
+-    def test_cmd_country_unknown_never_quarantines(self):
+-        conn, path = make_db()
+-        mark(conn, "a", "alive", delay=10, uses=0)
+-        api = FakeAPI({"a": 10})
+-        with (
+-            unittest.mock.patch.object(
+-                rr_balancer, "probe_country_via_proxy", return_value=None
+-            ),
+-            unittest.mock.patch.object(rr_balancer, "TRACE_SETTLE_SECONDS", 0),
+-        ):
+-            rc = rr_balancer.cmd_country(Args(cmd="country", db=path, batch=5), api)
+-        self.assertEqual(rc, 0)
+-        conn.close()
+-        conn = sqlite3.connect(path)
+-        row = conn.execute(
+-            "SELECT country, country_checked, status, quarantined_until, fails "
+-            "FROM nodes WHERE name='a'"
+-        ).fetchone()
+-        self.assertEqual(row[0], "")
+-        self.assertGreater(row[1], 0)
+-        self.assertEqual(row[2:], ("alive", 0, 0))
+-        conn.close()
+-
+-
+-class CountryLockTest(unittest.TestCase):
+-    def test_require_country_filters_to_matching_exit(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "us", "alive", delay=500, uses=0, last_check=now, country="US")
+-        mark(conn, "de", "alive", delay=10, uses=0, last_check=now, country="DE")
+-        api = FakeAPI({"us": 500, "de": 10})
+-        # Lowercase input must normalize, and the slower US exit must win.
+-        rc = rr_balancer.cmd_rotate(Args(db=path, require_country="us"), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "us"))
+-        conn.close()
+-
+-    def test_require_country_without_match_keeps_current_selection(self):
+-        conn, path = make_db()
+-        now = int(time.time())
+-        mark(conn, "de", "alive", delay=10, uses=0, last_check=now, country="DE")
+-        mark(conn, "unmeasured", "alive", delay=5, uses=0, last_check=now)
+-        api = FakeAPI({"de": 10, "unmeasured": 5})
+-        rc = rr_balancer.cmd_rotate(Args(db=path, require_country="US"), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected, [])
+-        conn.close()
+-
+-    def test_skip_with_country_reason_still_respects_lock(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"n1": 2, "n2": 5})
+-        mark(conn, "n1", "alive", delay=2, uses=0, country="US")
+-        mark(conn, "n2", "alive", delay=5, uses=0, country="US")
+-        conn.close()
+-        rc = rr_balancer.cmd_skip(
+-            Args(
+-                cmd="skip", name="n1", reason="country", db=path, require_country="US"
+-            ),
+-            api,
+-        )
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+-
+-
+-class ReportTest(unittest.TestCase):
+-    def test_report_prints_coverage_and_country_counts(self):
+-        conn, path = make_db()
+-        mark(conn, "a", "alive", delay=10, country="US")
+-        mark(conn, "b", "alive", delay=20, country="US")
+-        mark(conn, "c", "failed", delay=30, country="DE")
+-        mark(conn, "d", "unknown")
+-        conn.execute("UPDATE nodes SET country_checked=1 WHERE name IN ('a','b','c')")
+-        conn.commit()
+-        conn.close()
+-        buf = io.StringIO()
+-        with contextlib.redirect_stdout(buf):
+-            rc = rr_balancer.cmd_report(Args(cmd="report", db=path))
+-        out = buf.getvalue()
+-        self.assertEqual(rc, 0)
+-        self.assertIn("coverage 3/4 checked", out)
+-        self.assertIn("US", out)
+-        self.assertIn("DE", out)
+-        self.assertIn("unknown", out)
+-
+-
+-class CountryArgsTest(unittest.TestCase):
+-    def test_rejects_bad_require_country(self):
+-        for bad in ("USA", "1A", ""):
+-            self.assertIsNotNone(
+-                rr_balancer.validate_args(Args(cmd="rotate", require_country=bad)), bad
+-            )
+-
+-    def test_rejects_bad_country_batch_numbers(self):
+-        self.assertIsNotNone(rr_balancer.validate_args(Args(cmd="country", batch=0)))
+-        self.assertIsNotNone(
+-            rr_balancer.validate_args(Args(cmd="country", trace_timeout_ms=100))
+-        )
+-
+-    def test_accepts_sane_country_args(self):
+-        self.assertIsNone(rr_balancer.validate_args(Args(cmd="country")))
+-        self.assertIsNone(
+-            rr_balancer.validate_args(Args(cmd="rotate", require_country="us"))
+-        )
+-
+-
+-class QuotaReasonTest(unittest.TestCase):
+-    """A quota 429 quarantines the spent exit for 24h instead of reusing it."""
+-
+-    def test_rotate_quota_reason_quarantines_current_and_switches(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"cur": 50, "n2": 5})
+-        api.group_members = lambda group: (["cur", "n2"], "cur")
+-        mark(conn, "cur", "alive", delay=50, uses=3)
+-        mark(conn, "n2", "alive", delay=5, uses=0)
+-        conn.close()
+-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path, reason="quota"), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "n2"))
+-        conn = sqlite3.connect(path)
+-        cause, until = conn.execute(
+-            "SELECT last_fail_cause, quarantined_until FROM nodes WHERE name='cur'"
+-        ).fetchone()
+-        self.assertEqual(cause, "quota")
+-        self.assertGreater(until, int(time.time()))
+-        reason = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()[0]
+-        self.assertEqual(reason, "quota")
+-        conn.close()
+-
+-    def test_rotate_quota_reason_fails_open_when_no_other_candidate(self):
+-        conn, path = make_db()
+-        api = FakeAPI({"cur": 50})
+-        api.group_members = lambda group: (["cur"], "cur")
+-        mark(conn, "cur", "alive", delay=50, uses=3)
+-        conn.close()
+-        rc = rr_balancer.cmd_rotate(Args(cmd="rotate", db=path, reason="quota"), api)
+-        self.assertEqual(rc, 0)
+-        self.assertEqual(api.selected[-1], ("PROXY", "cur"))
+-        conn = sqlite3.connect(path)
+-        reason = conn.execute(
+-            "SELECT reason FROM rotation_log ORDER BY id DESC LIMIT 1"
+-        ).fetchone()[0]
+-        self.assertEqual(reason, "quota-failopen")
+-        conn.close()
+-
+-    def test_quota_reason_is_accepted_by_rotate_skip_and_next(self):
+-        parser = rr_balancer.build_parser()
+-        for argv in (
+-            ["rotate", "--reason", "quota"],
+-            ["skip", "n1", "--reason", "quota"],
+-            ["next", "--reason", "quota"],
+-        ):
+-            self.assertEqual(parser.parse_args(argv).reason, "quota", argv)
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_stable_hash_naming.py b/tests/test_stable_hash_naming.py
+deleted file mode 100644
+index c09d29d..0000000
+--- a/tests/test_stable_hash_naming.py
++++ /dev/null
+@@ -1,146 +0,0 @@
+-"""Tests for stable identity-hash proxy naming (feed-refresh persistence).
+-
+-Offline only: synthetic links and helper-level cases, no network access.
+-"""
+-
+-import os
+-import re
+-import sys
+-import unittest
+-
+-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+-
+-from proxy_converter import (
+-    ConfigGenerator,
+-    assign_stable_names,
+-    build_proxy_identity,
+-    normalize_host,
+-)
+-
+-
+-class NormalizeHostTest(unittest.TestCase):
+-    def test_normalization_uppercase_brackets_trailing_dot(self):
+-        self.assertEqual(normalize_host("Example.COM."), "example.com")
+-        self.assertEqual(normalize_host("[::1]"), "::1")
+-        self.assertEqual(normalize_host("  HOST.Example  "), "host.example")
+-        self.assertEqual(normalize_host(None), "")
+-
+-
+-class IdentityFormatTest(unittest.TestCase):
+-    def test_generated_name_format_proto_12hex(self):
+-        ident = build_proxy_identity("VLESS", "example.com", 443)
+-        self.assertRegex(ident, r"^[a-z0-9]+-[0-9a-f]{12}$")
+-        self.assertTrue(ident.startswith("vless-"))
+-
+-    def test_stability_same_link_same_name(self):
+-        first = build_proxy_identity("vless", "example.com", 443)
+-        second = build_proxy_identity("vless", "example.com", 443)
+-        self.assertEqual(first, second)
+-
+-    def test_case_and_port_form_insensitive(self):
+-        self.assertEqual(
+-            build_proxy_identity("VLESS", "Example.COM.", 443),
+-            build_proxy_identity("vless", "example.com", "443"),
+-        )
+-
+-    def test_uniqueness_different_host_or_port(self):
+-        base = build_proxy_identity("vless", "a.example", 443)
+-        self.assertNotEqual(base, build_proxy_identity("vless", "b.example", 443))
+-        self.assertNotEqual(base, build_proxy_identity("vless", "a.example", 8443))
+-        self.assertNotEqual(base, build_proxy_identity("vmess", "a.example", 443))
+-
+-    def test_empty_host_and_proto_raise(self):
+-        """Empty or missing proto/host must raise so callers fall back.
+-
+-        A hashed empty string would look like a legitimate identity and
+-        mask a broken entry; the builders must refuse instead.
+-        """
+-        for bad_host in ("", None, "   ", "[   ]"):
+-            with self.assertRaises(ValueError):
+-                build_proxy_identity("vless", bad_host, 443)
+-        for bad_proto in ("", None, " "):
+-            with self.assertRaises(ValueError):
+-                build_proxy_identity(bad_proto, "example.com", 443)
+-
+-
+-class CollisionFallbackTest(unittest.TestCase):
+-    def test_collision_sorted_suffix_order_independent(self):
+-        batch_a = [
+-            {"base_identity": "vless-abc123", "source_link": "link-2"},
+-            {"base_identity": "vless-abc123", "source_link": "link-1"},
+-            {"base_identity": "vless-zzz999", "source_link": "link-3"},
+-        ]
+-        batch_b = list(reversed(batch_a))
+-        out_a = [e["final_name"] for e in assign_stable_names(batch_a)]
+-        out_b = [e["final_name"] for e in assign_stable_names(batch_b)]
+-        self.assertEqual(out_a, out_b)
+-        self.assertEqual(out_a[0], "vless-abc123")
+-        self.assertEqual(out_a[1], "vless-abc123-2")
+-        self.assertEqual(out_a[2], "vless-zzz999")
+-
+-
+-class GeneratorNamingTest(unittest.TestCase):
+-    def test_clash_names_are_stable_and_unique(self):
+-        gen = ConfigGenerator()
+-        links = [
+-            "vless://11111111-1111-4111-8111-111111111111@b.example:443?encryption=none#r2",
+-            "vless://11111111-1111-4111-8111-111111111111@a.example:443?encryption=none#r1",
+-        ]
+-        from proxy_converter import ProxyParser
+-
+-        proxies = ProxyParser().parse_subscription_content("\n".join(links))
+-        first = [p["name"] for p in gen.generate_clash_config(proxies)["proxies"]]
+-        second = [
+-            p["name"]
+-            for p in gen.generate_clash_config(list(reversed(proxies)))["proxies"]
+-        ]
+-        self.assertEqual(first, second)
+-        self.assertEqual(len(set(first)), 2)
+-        for name in first:
+-            self.assertRegex(name, r"^vless-[0-9a-f]{12}$")
+-
+-    def test_singbox_tags_are_stable_and_unique(self):
+-        """sing-box tags must be as stable as Clash names across runs.
+-
+-        Mirrors the Clash stability test on the sing-box path: two parses,
+-        reversed input order, identical tag lists, unique, correct format.
+-        """
+-        gen = ConfigGenerator()
+-        links = [
+-            "vless://11111111-1111-4111-8111-111111111111@b.example:443?encryption=none#r2",
+-            "vless://11111111-1111-4111-8111-111111111111@a.example:443?encryption=none#r1",
+-        ]
+-        from proxy_converter import ProxyParser
+-
+-        proxies = ProxyParser().parse_subscription_content("\n".join(links))
+-        cfg1 = gen.generate_singbox_config(proxies)
+-        tags1 = [o["tag"] for o in cfg1["outbounds"] if o.get("server")]
+-        cfg2 = gen.generate_singbox_config(list(reversed(proxies)))
+-        tags2 = [o["tag"] for o in cfg2["outbounds"] if o.get("server")]
+-        self.assertEqual(tags1, tags2)
+-        self.assertEqual(len(set(tags1)), 2)
+-        for tag in tags1:
+-            self.assertRegex(tag, r"^vless-[0-9a-f]{12}$")
+-        # No remark leakage: sing-box rejects unknown outbound fields.
+-        for outbound in cfg1["outbounds"]:
+-            if outbound.get("server"):
+-                self.assertNotIn("remark", outbound)
+-
+-    def test_same_host_port_different_link_suffixes(self):
+-        """Same host+port with different links must get sorted suffixes.
+-
+-        Two entries sharing a base identity are ordered by source_link and
+-        receive base, base-2 independently of input order.
+-        """
+-        batch = [
+-            {"base_identity": "vless-shared123", "source_link": "z-link"},
+-            {"base_identity": "vless-shared123", "source_link": "a-link"},
+-        ]
+-        forward = [e["final_name"] for e in assign_stable_names(list(batch))]
+-        backward = [e["final_name"] for e in assign_stable_names(list(reversed(batch)))]
+-        self.assertEqual(forward, backward)
+-        self.assertEqual(forward, ["vless-shared123", "vless-shared123-2"])
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+```
+<!-- END_GIT_DIFF -->

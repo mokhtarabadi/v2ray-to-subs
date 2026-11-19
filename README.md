@@ -1,359 +1,133 @@
-# V2Ray Subscription Link Parser and Configuration Generator
+# V2Ray Subscription Parser — Clash (Mihomo) & SingBox Config Generator
 
-A comprehensive Python tool that downloads V2Ray subscription links, parses various proxy formats, and generates optimized configurations for SingBox and Clash with automatic URL testing and load balancing.
+A lightweight Python CLI that turns V2Ray subscription links into ready-to-run proxy configurations. It is a **V2Ray subscription parser**, **Clash Mihomo config generator**, and **SingBox config generator** in one standard-library tool. Feed it one or more subscription URLs and it downloads, decodes, deduplicates, and converts proxy share links into `clash_config.yaml` and `singbox_config.json`.
 
-> **Direct-mihomo mode (no xray needed):** the generated `clash_config.yaml`
-> carries the subscription nodes itself and mirrors the TUN + Fake-IP +
-> DNS-hijack setup from `~/Desktop/mihomo` (mixed `:7890`, TUN `stack: mixed`
-> with `dns-hijack: any:53`, DNS on `:1053`, `find-process-mode: off`,
-> private/LAN bypass). Copy it over the Desktop config and restart:
-> ```bash
-> python3 proxy_converter.py
-> cp clash_config.yaml ~/Desktop/mihomo/config.yaml
-> cd ~/Desktop/mihomo && ./manager.sh check && sudo ./manager.sh restart
-> ```
-> Routing policy: private/LAN → `DIRECT`, everything else →
-> subscription proxies (`MATCH,PROXY`). No ads rules, no process bypass and
-> no Iran/CN geo rules: this config targets a foreign server with no local
-> sidecar.
->
-> **Dashboard:** the generated config serves the official MetaCubeX dashboard
-> at <http://127.0.0.1:9090/ui> (`external-ui: ui` + metacubexd `gh-pages`
-> zip, auto-downloaded by mihomo on first start into `./ui/`, git-ignored).
-> No secret is set by default, so the same-origin UI connects without auth.
-> To protect the controller (required when exposing it, e.g. via a
-> Cloudflare Tunnel hostname), set a secret — via flag or env:
->
-> ```bash
-> python3 proxy_converter.py --controller-secret "YOUR-SECRET"
-> MIHOMO_CONTROLLER_SECRET="YOUR-SECRET" python3 proxy_converter.py
-> ```
->
-> This emits `secret: YOUR-SECRET` next to `external-controller`; the
-> dashboard then asks for it (or send `Authorization: Bearer YOUR-SECRET`
-> to the REST API). Generate one with `openssl rand -hex 32` and keep it
-> out of git (env var or a `chmod 600` file).
+Supported protocols: **VMess, VLESS, Trojan, Shadowsocks, Hysteria / Hysteria2, TUIC**, and SOCKS. It handles V2RayN, DuckSoft, SS-Android, and base64-encoded subscription formats, plus transports TCP, WebSocket, HTTP, gRPC, and HTTPUpgrade with TLS, Reality, ECH, and uTLS fingerprinting.
 
-## Features
+## Why use this converter
 
-- **Multi-Protocol Support**: VMess, VLESS, Trojan, Shadowsocks, Hysteria, TUIC
-- **Multiple Link Formats**: V2RayN, DuckSoft, SS-Android, and base64 encoded formats
-- **Configuration Generation**: SingBox JSON and Clash YAML configurations
-- **Load Balancing**: URL testing with automatic failover
-- **Enhanced Routing**: Mixed inbound and TUN inbound for system-wide proxy
-- **Comprehensive Documentation**: Based on official SingBox and Clash specifications
-
-## Supported Protocols
-
-### Proxy Protocols
-- ✅ **VMess** - Multiple formats (Standard, V2RayN, DuckSoft)
-- ✅ **VLESS** - With flow control and Reality support
-- ✅ **Trojan** - Password-based with TLS
-- ✅ **Shadowsocks** - SS-Android and V2RayN formats
-- ✅ **Hysteria** - Both v1 and v2 (hy2) protocols
-- ✅ **TUIC** - v5 protocol with congestion control
-
-### Transport Layers
-- TCP, WebSocket (WS), HTTP, gRPC, HTTPUpgrade
-- TLS with SNI, ALPN, certificate verification
-- Reality, ECH, uTLS fingerprinting support
+- **Pure converter, no sidecar.** No balancer service, systemd timer, external checker, or dashboard plugin. It generates config files and exits.
+- **Stable node names.** Proxies are named by an identity hash of protocol + host + port, so names stay constant when a feed reshuffles its remarks.
+- **Safe YAML output.** Hex and opaque scalars such as REALITY `short-id` are double-quoted so Go-YAML does not misread them as floats.
+- **TUN is off by default.** Loopback-only unless you opt in with `--tun`.
 
 ## Installation
 
-### Requirements
-- Python 3.8 or higher
-- Required packages listed in `requirements.txt`
+Requires Python 3.8 or newer.
 
-### Setup
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd v2ray-to-subs
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the tool
-python proxy_converter.py
 ```
 
-> Bringing up the live stack (units, secret, first config, panel) on a new
-> host: follow [`docs/fresh-install.md`](docs/fresh-install.md).
+Dependencies: `requests`, `PyYAML`, `urllib3`, and optionally `cryptography`.
 
 ## Usage
 
-### Basic Usage
-```python
-from proxy_converter import SubscriptionDownloader, ProxyParser, ConfigGenerator
+```bash
+# Default subscription (Patterniha Free-Configs) -> both config files
+python3 proxy_converter.py
 
-# Download subscription
-downloader = SubscriptionDownloader()
-content = downloader.download_subscription("https://example.com/subscription")
+# One or more subscription URLs; fragment #Name becomes the profile title
+python3 proxy_converter.py "https://example.com/sub#MyProfile"
+python3 proxy_converter.py "https://a.example/sub" "https://b.example/sub"
 
-# Parse proxies
-parser = ProxyParser()
-proxies = parser.parse_subscription_content(content)
+# Choose output
+python3 proxy_converter.py --only clash
+python3 proxy_converter.py --only singbox -v
 
-# Generate configurations
-generator = ConfigGenerator()
+# Write to custom paths
+python3 proxy_converter.py --clash-out out.yaml --singbox-out out.json
 
-# SingBox configuration
-singbox_config = generator.generate_singbox_config(proxies)
-with open('singbox_config.json', 'w') as f:
-    json.dump(singbox_config, f, indent=2)
+# System-wide routing (needs root / CAP_NET_ADMIN) and LAN access
+python3 proxy_converter.py --tun --allow-lan
 
-# Clash configuration
-clash_config = generator.generate_clash_config(proxies)
-with open('clash_config.yaml', 'w') as f:
-    yaml.dump(clash_config, f, default_flow_style=False)
+# Keep only the first proxy per server host
+python3 proxy_converter.py --unique-host
+
+# Protect the mihomo controller (flag or MIHOMO_CONTROLLER_SECRET env)
+python3 proxy_converter.py --controller-secret "YOUR-SECRET"
 ```
 
-### Command Line Usage
+### CLI options
+
+| Option | Meaning |
+| --- | --- |
+| `urls` | Subscription URL(s); `#Name` fragment sets the profile title |
+| `--clash-out PATH` | Clash output path (default `clash_config.yaml`) |
+| `--singbox-out PATH` | SingBox output path (default `singbox_config.json`) |
+| `--only {clash,singbox,both}` | Which config to generate (default `both`) |
+| `--tun` | Enable TUN inbound; **off by default** |
+| `--allow-lan` | Allow LAN clients and bind to all interfaces (on by default) |
+| `--controller-secret SECRET` | mihomo controller secret, or set `MIHOMO_CONTROLLER_SECRET` |
+| `-v`, `--verbose` | Verbose logging |
+| `--unique-host` | Keep only the first proxy per server host |
+
+Run `python3 proxy_converter.py --help` for the authoritative flag list.
+
+## Generated configuration structure
+
+### Clash / Mihomo (`clash_config.yaml`)
+
+- Mixed HTTP/SOCKS proxy on port `7890`, Fake-IP DNS on `0.0.0.0:1053`.
+- Optional TUN (`stack: mixed`, DNS hijack on `any:53`) enabled only with `--tun`.
+- Proxy groups: **PROXY** (manual `select`), **Auto** (url-test), **Load Balance** (consistent hashing), and **Fallback** — PROXY contains `Auto`, `Load Balance`, `Fallback`, then the individual nodes.
+- DNS resolvers are Cloudflare (`1.1.1.1`, `1.0.0.1`, `cloudflare-dns.com`); no Google resolvers.
+- Rules: private/LAN ranges go `DIRECT`, everything else matches `PROXY`.
+
+### SingBox (`singbox_config.json`)
+
+- Mixed inbound plus optional TUN inbound, FakeIP DNS with a real-IP `dns-direct` resolver.
+- One outbound per proxy plus a `urltest` group tagged `auto`, with `final: auto` when proxies exist.
+- Routing: sniff → hijack-dns → `ip_is_private` → `final: auto`.
+
+### Validate before deploying
+
 ```bash
-# Default: Patterniha Free-Configs subscription → clash_config.yaml + singbox_config.json
-python proxy_converter.py
-
-# Custom subscription URL (fragment #Name becomes the profile title)
-python proxy_converter.py "https://example.com/sub#MyProfile"
-
-# Only Clash / only sing-box
-python proxy_converter.py --only clash
-python proxy_converter.py --only singbox -v
-
-# Defaults: TUN off, loopback-only (allow-lan false, 127.0.0.1 bindings).
-# Opt in when you need system-wide routing or LAN access:
-python proxy_converter.py --tun
-python proxy_converter.py --tun --allow-lan
-
-# Validate outputs
 mihomo -t -f clash_config.yaml
 sing-box check -c singbox_config.json
 ```
 
-## Configuration Features
+## TUN mode
 
-### SingBox Configuration
-- **Mixed Inbound**: HTTP/SOCKS5 proxy on `127.0.0.1:10808`
-- **TUN Inbound**: `stack: mixed`, `mtu: 9000`, `strict-route`, private
-  subnets in `route_exclude_address` (loop-free system-wide proxy)
-- **DNS**: FakeIP by default (`198.18.0.0/15`) with real-IP exceptions for
-  LAN/NTP; hijacked port-53 handled via `hijack-dns`
-- **Routing**: sniff → hijack-dns → `ip_is_private` →
-  `final: auto` (urltest, proxy-everything)
-- **URL Test Outbound**: Automatic proxy selection based on latency
-- **Auto Interface Detection**: Prevents routing loops
+TUN is disabled by default. Pass `--tun` to create the TUN inbound; it needs root or `CAP_NET_ADMIN`. Without it, the converter emits loopback-only inbounds and does not change the host default route.
 
-### Clash Configuration
-- **Mixed Port**: HTTP/SOCKS5 proxy on port 7890 (matches `~/Desktop/mihomo`)
-- **TUN**: `stack: mixed`, `device: mihomo`, `dns-hijack: [any:53, tcp://any:53]`,
-  `route-exclude-address` for private/LAN (mirrors Desktop setup)
-- **DNS**: Fake-IP on `0.0.0.0:1053`, DoH/DoT resolvers, fallback + filter
-  (mirrors Desktop setup)
-- **Sniffer**: TLS/HTTP/QUIC with Desktop ports and skip lists
-- **Proxy Groups**:
-  - `PROXY`: Manual selection group
-  - `Auto`: url-test, automatic selection based on latency
-  - `Load Balance`: Consistent-hashing load balancing with 60s active checks
-  - `Fallback`: Failover group
-- **Rules** (first match wins): private/LAN → `DIRECT`, everything else →
-  `MATCH,PROXY`. No ads rules, no process rules and no Iran/CN geo rules:
-  the host is a foreign server with no local xray sidecar to bypass.
+## Proxy groups and balancing
 
-### Load Balancing and URL Testing
+Generated Clash configs include four groups: `PROXY` (manual selection), `Auto` (latency-based url-test), `Load Balance` (consistent-hashing load balancing), and `Fallback`. These are standard mihomo proxy groups embedded in the YAML — no external balancer, database, or timer is installed with this tool. Select a group in your client to switch behavior.
 
-Balancing is done by the external balancer (`scripts/rr_balancer.py` with
-SQLite state), not by mihomo groups — PROXY stays in `select` mode.
-It exists to keep high-volume crawling workloads on working exits:
-when a target rate-limits an exit IP, the crawler reports the cause
-and the balancer moves traffic to the next best node automatically:
+## Deduplication and multiple feeds
 
-- **Rotate**: manual only — bare `rr` picks the lowest `(uses, delay_ms)` alive node with no gates and no country lock. Gate flags (`--google-url`, `--youtube-url`, etc.) and `--require-country` still work when passed explicitly; `--keep-if-clean` keeps a clean incumbent without switching. Flag-only calls are forwarded to `rotate` with gates off, so the rescue plugin's `rr --reason quota` works; explicit subcommands (`rr skip NAME`, `rr next`) pass through unchanged
-- **Speed pick**: `rr fastest [--require-country CC]` takes the top 3 gate-clean finalists, downloads a capped 3MB file through each (~15s each), and selects the fastest. Slowness alone never quarantines anyone. On-demand only — the timer stays on retest plus refresh
-- **Tailscale exit**: peer traffic goes direct (server IP) — steering removed; the setup/teardown scripts and boot unit remain in the tree, disabled, as the documented rollback path. See `scripts/README.md`
-- **Failure causes**: `rr next --reason google|youtube|spotify|gemini|country|manual|quota` (default `manual`) records the cause and quarantines 24h; each probe cause increments its own counter. `quota` is restored for the active rescue plugin: `rr --reason quota` parks the current exit for 24h before rotating, and fails open when no other candidate is alive. Quota has no counter — the 24h quarantine is the whole mechanism. `transport` and `region` remain retired
-- **Country**: `rr country --batch 40` reads `https://www.cloudflare.com/cdn-cgi/trace` through each selected node and stores the observed exit country (`country`, `country_checked`); unreadable traces are stored as unknown, never as failures. `rr report` prints coverage (checked/total) and per-country counts
-- **Country lock**: `--require-country CC` keeps rotation inside one observed country when passed explicitly; bare `rr` and the timer use no lock. When no candidate matches, the current node is kept rather than switching country. A low delay_ms is not proof a node carries traffic: an actual `cdn-cgi/trace` through the mixed-port is the authority; quarantine a dead selectable node with `rr skip NAME`
-- **One maintenance unit**: `v2ray-to-subs.timer` → `v2ray-to-subs-maintain.service` runs `scripts/maintain.sh` every 30 minutes: retest 1000, then a country batch of 40, then a refresh only when the live config is older than 6 hours. Rotation is manual-only (`rr`). This replaces the former refresh/retest/country timers — the project now owns two units, `mihomo-subs.service` and this pair
-- **Multi-service clean gate**: before selecting a node, rotation probes Google Search, the YouTube backend, the Spotify API, and Gemini through the candidate (live mixed-port, redirects disabled). The first flagged service quarantines with its own cause (24h, per-cause counter). Up to the shared attempt budget candidates are rejected, then the best remaining is used so the client never goes dark. Per-service `--no-*-check` flags disable gates; the battery is skipped when Google is unreachable directly (infra guard)
-- **Retest**: 1000 oldest controller-present nodes on every maintenance tick, dead nodes readmitted on recovery
-- **Freshness**: nodes unchecked for over 2h sit out until rechecked
-- **Stable names**: nodes are named by identity hash (`{proto}-{12hex}` from server + port), so balancer history survives every feed refresh; the provider remark is kept in the Clash `remark` field for humans
-- **Memory**: learned rows (alive/failed with delay, uses) survive feed refreshes; only never-tested rows are pruned; pool and retest batch exclude names gone from the controller
-- **Manual escape**: `rr next` skips the current node immediately (`rr skip NAME` targets one)
-- **Subscription refresh**: feeds regenerated by the same maintenance tick when the live config is older than 6 hours
+The converter accepts one or more subscription URLs as positional arguments. Each feed is downloaded separately; a feed that fails to download is skipped with a warning, and generation continues with the feeds that succeeded. Successful feeds are parsed into one merged pool and written to a single pair of output files. A single feed keeps the same behavior as before.
 
-## Subscription Link Formats
+Two kinds of duplicates are removed:
 
-### Supported Sources
-The tool can parse subscription links from various sources:
-- Base64 encoded subscription files
-- Plain text proxy lists
-- V2RayN format configurations
-- DuckSoft format links
+- **Exact duplicates are always removed.** Identical raw share links are skipped with a `seen` set, so the same link appearing twice in a feed is emitted once.
+- **Same-host duplicates are optional.** Pass `--unique-host` to keep only the first proxy per server host. With one feed this is applied during parsing; with multiple feeds it is applied to the merged pool after all feeds are parsed, so a host repeated across different feeds is also reduced to one entry.
 
-### Example Subscription URLs
-```bash
-# Default subscription (also the manager.sh default)
-https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F
-
-# Other public subscriptions (fragment #Name becomes the profile title)
-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt
-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vmess.txt
-https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt
-```
-
-Multiple feeds can be combined in one run — each is downloaded and
-counted separately, then merged and deduped as a single pool:
+Node names are identity hashes of protocol + host + port, so even without `--unique-host` multiple links pointing at the same server share a stable name.
 
 ```bash
-python proxy_converter.py \
-  "https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt" \
-  "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs_base64.txt" \
+# Merge two feeds and drop repeated hosts across both
+python3 proxy_converter.py \
+  "https://a.example/sub#FeedA" \
+  "https://b.example/sub#FeedB" \
   --unique-host
 ```
 
-## manager.sh (easy use)
+## FAQ
 
-The repo ships a `manager.sh` wrapper (same style as `~/Desktop/mihomo/manager.sh`).
-It defaults to the Patterniha subscription above, loopback-only bindings, TUN off:
+**Does it need xray or a local sidecar?** No. The generated Clash config carries the subscription nodes directly and uses TUN + Fake-IP DNS. There is no Iran/CN geo bypass or process bypass.
 
-```bash
-./manager.sh generate                                  # both configs, defaults
-./manager.sh generate --tun                            # + TUN inbound
-./manager.sh generate --tun --allow-lan                # + LAN clients
-./manager.sh tun "https://example.com/sub#MyProfile"   # TUN + custom sub
-./manager.sh generate "https://a.example/sub" "https://b.example/sub"  # merge feeds
-./manager.sh clash | ./manager.sh singbox              # single output
-./manager.sh check                                     # mihomo -t + sing-box check
-./manager.sh deploy --tun                              # regenerate + install to ~/Desktop/mihomo
-./manager.sh help                                      # full usage
-```
+**Can I merge feeds?** Yes. Pass multiple URLs on the command line; they are downloaded separately, merged, and deduplicated.
 
-`deploy` backs up `~/Desktop/mihomo/config.yaml`, installs the fresh
-`clash_config.yaml`, and runs its `check`. Activate with:
-```bash
-cd ~/Desktop/mihomo && sudo ./manager.sh restart
-```
-then open the dashboard at <http://127.0.0.1:9090/ui>.
+**Why do node names look like hashes?** Names are `{proto}-{12hex}` derived from server + port so they remain stable across feed refreshes; the provider remark is retained for humans.
 
-## Generated Configuration Structure
+**Where do the configs go?** By default to `clash_config.yaml` and `singbox_config.json` in the current directory. Override with `--clash-out` / `--singbox-out`.
 
-### SingBox Structure
-```json
-{
-  "log": { "level": "info" },
-  "dns": { "servers": [...] },
-  "inbounds": [
-    { "type": "mixed", "tag": "mixed-in" },
-    { "type": "tun", "tag": "tun-in" }
-  ],
-  "outbounds": [
-    { "type": "vmess", "tag": "proxy-0" },
-    { "type": "vless", "tag": "proxy-1" },
-    { "type": "urltest", "tag": "url-test" }
-  ],
-  "route": { "rules": [...] }
-}
-```
-
-### Clash Structure
-```yaml
-mixed-port: 7890
-allow-lan: true
-mode: rule
-proxies:
-  - name: vless-abc123def456
-    type: vless
-proxy-groups:
-  - name: PROXY
-    type: select
-  - name: Auto
-    type: url-test
-  - name: Load Balance
-    type: load-balance
-    strategy: consistent-hashing
-  - name: Fallback
-    type: fallback
-rules:
-  - GEOIP,private,DIRECT,no-resolve
-  - MATCH,PROXY
-```
-
-## Advanced Features
-
-### Protocol-Specific Optimizations
-- **VMES/VLESS**: Flow control, Reality, ECH support
-- **Trojan**: TLS optimization, header manipulation
-- **Shadowsocks**: Plugin support, UDP over TCP
-- **Hysteria**: QUIC protocol, bandwidth control
-- **TUIC**: Congestion control, UDP relay modes
-
-### Security Features
-- **TLS Verification**: Certificate validation options
-- **SNI Support**: Custom server name indication
-- **uTLS Fingerprinting**: Anti-detection capabilities
-- **Reality Protocol**: Advanced obfuscation
-
-### Performance Optimizations
-- **Connection Multiplexing**: Reduce connection overhead
-- **Smart Routing**: Domain-based rule matching
-- **DNS Optimization**: Custom DNS servers
-- **Auto Interface Detection**: Prevent routing issues
-
-## Error Handling
-
-The tool includes comprehensive error handling:
-- **Network Errors**: Timeout and connection failure handling
-- **Parse Errors**: Graceful handling of malformed links
-- **Configuration Validation**: Output format validation
-- **Logging**: Detailed error messages and warnings
-
-## Logging
-
-Configure logging levels for debugging:
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-Log levels:
-- `INFO`: General operation messages
-- `WARNING`: Non-critical issues
-- `ERROR`: Parsing or configuration errors
-- `DEBUG`: Detailed debugging information
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
+**Is there a dashboard?** The generated Clash config exposes the standard mihomo external controller; set a secret before exposing it on a network.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- **SingBox Documentation**: Configuration format specifications
-- **Clash Documentation**: Proxy configuration standards
-- **NekoBox Analysis**: Protocol format references
-- **V2Ray Community**: Protocol specifications and examples
-
-## Support
-
-For issues and questions:
-1. Check the generated configuration files
-2. Review the log output for errors
-3. Verify subscription link accessibility
-4. Test individual proxy configurations
-
-## Changelog
-
-### v1.0.0
-- Initial release
-- Support for VMess, VLESS, Trojan, Shadowsocks, Hysteria, TUIC
-- SingBox and Clash configuration generation
-- URL testing and load balancing
-- Mixed and TUN inbound support
-- Comprehensive error handling and logging
+MIT — see [LICENSE](LICENSE).
