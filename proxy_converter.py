@@ -186,8 +186,8 @@ REALIP_SUFFIXES = [
     "connectivitycheck.gstatic.com",
 ]
 # Top exit countries used for country-based proxy groups.
-# Lean set: IT, GB, JP, HK per operator choice (Task 34).
-COUNTRY_CODES = ["IT", "GB", "JP", "HK"]
+# Expanded to top countries per operator choice.
+COUNTRY_CODES = ["US", "GB", "DE", "NL", "FR", "IT", "JP", "CA", "BR", "HK"]
 
 # Country health-check uses checker.surfshield.org which returns 200 for
 # matching country exit IP and 403 otherwise. expected-status filters nodes.
