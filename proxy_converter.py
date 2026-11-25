@@ -186,9 +186,19 @@ REALIP_SUFFIXES = [
     "connectivitycheck.gstatic.com",
 ]
 # Top exit countries used for country-based proxy groups.
-# Trimmed to US, DE, NL per operator choice (Option E) to reduce RAM
-# and group explosion; extend only with healthy members and memory budget.
-COUNTRY_CODES = ["US", "DE", "NL"]
+# Expanded to US, DE, NL, FR, BR, CA per operator choice (Task 32).
+# Cloudflare trace endpoint provides per-country filtering via body matching.
+COUNTRY_CODES = ["US", "DE", "NL", "FR", "BR", "CA"]
+
+# Cloudflare trace endpoint returns loc=XX in the response body, enabling
+# per-country filtering via expected-body. More reliable than status-only
+# checkers.
+CLOUDFLARE_TRACE_URL = "https://www.cloudflare.com/cdn-cgi/trace"
+# Body text that marks a node as failed when present (Google returns 200
+# with this message when the service is blocked for the exit country).
+SERVICE_EXCLUDE_BODY = {
+    "Google": "isn't currently supported in your country",
+}
 
 # Service-specific dedicated groups. Each service gets a select plus
 # url-test pair. The url-test health-checks a strict service URL with
@@ -203,6 +213,7 @@ SERVICE_HEALTH_URLS = {
     "ChatGPT": "https://chatgpt.com/",
     "GitHub": "https://github.com/",
     "OpenCode": "https://opencode.ai/",
+    "OpenRouter": "https://openrouter.ai/",
 }
 SERVICE_GEOSITE = {
     "Google": "google",
@@ -221,9 +232,9 @@ SERVICE_DOMAIN_FALLBACK = {
     "ChatGPT": ["chatgpt.com", "openai.com"],
     "GitHub": ["github.com", "githubusercontent.com"],
     "OpenCode": ["opencode.ai"],
+    "OpenRouter": ["openrouter.ai"],
 }
-SERVICE_ORDER = ["Google", "Apple", "Docker", "Claude", "ChatGPT", "GitHub", "OpenCode"]
-CHECKER_URL_TEMPLATE = "https://checker.surfshield.org/{cc}"
+SERVICE_ORDER = ["Google", "Apple", "Docker", "Claude", "ChatGPT", "GitHub", "OpenCode", "OpenRouter"]
 MIHOMO_CACHE_SIZE = 4096
 
 
@@ -1673,19 +1684,20 @@ class ConfigGenerator:
         """Build per-country proxy groups for mihomo.
 
         Each country gets a select group plus url-test and fallback
-        variants. The health-check URL is templated per country via
-        CHECKER_URL_TEMPLATE; a node is kept only when the checker
-        returns HTTP 200. Runtime health (not build-time probing) decides
-        membership, so all usable nodes are emitted as candidates and
-        url-test filters dead ones. Empty country groups are skipped.
+        variants. The health-check URL is the Cloudflare trace endpoint
+        (returns loc=XX in body), so a node is kept only when the trace
+        confirms the exit country matches. Runtime health decides
+        membership; all usable nodes are emitted as candidates and
+        url-test filters non-matching ones. Empty country groups skipped.
         """
         groups: List[Dict[str, Any]] = []
         if not proxy_names:
             return groups
         for cc in COUNTRY_CODES:
-            url = CHECKER_URL_TEMPLATE.format(cc=cc)
+            # Fixed Cloudflare trace URL returns loc=XX in body.
+            url = CLOUDFLARE_TRACE_URL
             # Collision guard: a proxy literally named like a group tag
-            # (e.g. "US" or "US-Auto") must not shadow the group itself.
+            # must not shadow the group itself.
             reserved = {cc, f"{cc}-Auto", f"{cc}-Fallback", f"{cc}-auto"}
             members = [n for n in proxy_names if n not in reserved]
             if not members:
@@ -1703,6 +1715,8 @@ class ConfigGenerator:
                     "type": "url-test",
                     "proxies": members,
                     "url": url,
+                    # loc=XX in trace body confirms exit country.
+                    "expected-body": f"loc={cc}",
                     "interval": self.url_test_interval,
                     "tolerance": self.url_test_tolerance,
                     "lazy": True,
@@ -1747,19 +1761,23 @@ class ConfigGenerator:
                     "proxies": [f"{service}-Auto"] + members,
                 }
             )
-            groups.append(
-                {
-                    "name": f"{service}-Auto",
-                    "type": "url-test",
-                    "proxies": members,
-                    "url": url,
-                    "interval": self.url_test_interval,
-                    "tolerance": self.url_test_tolerance,
-                    "lazy": True,
-                    "expected-status": 200,
-                    "max-failed-times": 3,
-                }
-            )
+            auto_group: Dict[str, Any] = {
+                "name": f"{service}-Auto",
+                "type": "url-test",
+                "proxies": members,
+                "url": url,
+                "interval": self.url_test_interval,
+                "tolerance": self.url_test_tolerance,
+                "lazy": True,
+                "expected-status": 200,
+                "max-failed-times": 3,
+            }
+            # Google returns 200 with a country-block message in the body;
+            # exclude nodes whose body contains that message. Other services
+            # return clean 200 or a non-200 status, so no body filter needed.
+            if service in SERVICE_EXCLUDE_BODY:
+                auto_group["exclude-body"] = SERVICE_EXCLUDE_BODY[service]
+            groups.append(auto_group)
         return groups
 
     def _mihomo_service_rules(self) -> List[str]:
