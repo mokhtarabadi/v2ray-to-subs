@@ -26,7 +26,7 @@ Dependencies: `requests`, `PyYAML`, `urllib3`, and optionally `cryptography`.
 ## Usage
 
 ```bash
-# Default subscription (OpenRay all_valid_proxies) -> both config files
+# Default subscription (barry-far All_Configs_Sub) -> both config files
 python3 proxy_converter.py
 
 # One or more subscription URLs; fragment #Name becomes the profile title
