@@ -62,8 +62,8 @@ python3 -m py_compile /home/mohammad/v2ray-to-subs/proxy_converter.py
 python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --help | grep no-allow-lan
 
 # Dry generation (LAN off, TUN off)
-python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --only both --no-allow-lan --controller-secret 123456789 \
-  --clash-out /tmp/proxy-gen-test-clash.yaml --singbox-out /tmp/proxy-gen-test-singbox.json
+python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --controller-secret 123456789 \
+  --clash-out /tmp/proxy-gen-test-clash.yaml
 
 # Unit validation
 systemd-analyze verify ~/.config/systemd/user/proxy-gen.service ~/.config/systemd/user/proxy-gen.timer ~/.config/systemd/user/mihomo.service
@@ -87,7 +87,7 @@ test ! -e /etc/systemd/system/proxy-gen.service && test ! -e /etc/systemd/system
 ## Behavior notes
 
 - TUN is off by default (no `--tun` flag passed). Enable only with explicit `--tun`.
-- LAN listen is disabled (`--no-allow-lan`), so `bind-address` is `127.0.0.1`.
+- LAN listen is enabled (default `--allow-lan`), so `bind-address` is `*` and the mixed port (8118) serves LAN clients.
 - Last selected proxy group/node is persisted via `profile.store-selected` (mihomo) and `cache_file` (sing-box), surviving restarts.
 - Auto-reload after each generation is tolerant: if mihomo is inactive, the reload is ignored (no failure).
 - Zashboard dashboard is downloaded by mihomo on first start into `~/.config/mihomo/ui`.

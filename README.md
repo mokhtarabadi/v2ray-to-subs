@@ -70,7 +70,7 @@ Run `python3 proxy_converter.py --help` for the authoritative flag list.
 
 ### Clash / Mihomo (`clash_config.yaml`)
 
-- Mixed HTTP/SOCKS proxy on port `7890`, Fake-IP DNS on `0.0.0.0:1053`.
+- Mixed HTTP/SOCKS proxy on port `8118`, Fake-IP DNS on `0.0.0.0:1053`.
 - Optional TUN (`stack: mixed`, DNS hijack on `any:53`) enabled only with `--tun`.
 - Proxy groups: **PROXY** (manual `select`), **Auto** (url-test), **Load Balance** (consistent hashing), and **Fallback** — PROXY contains `Auto`, `Load Balance`, `Fallback`, then the individual nodes.
 - DNS resolvers are Cloudflare (`1.1.1.1`, `1.0.0.1`, `cloudflare-dns.com`); no Google resolvers.

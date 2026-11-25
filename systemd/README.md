@@ -10,7 +10,7 @@ Owned files for per-user systemd units:
 
 - All units are per-user (`~/.config/systemd/user/`); never system-wide (`/etc/systemd/system/`).
 - Mihomo binds loopback only (127.0.0.1:9090) with secret `123456789`.
-- Config generation disables LAN listen (`--no-allow-lan`) and TUN (omit `--tun`).
+- Config generation enables LAN listen (default `--allow-lan`) and TUN stays off (omit `--tun`).
 - Last selected group/node persists across restarts via `store-selected` + `cache.db`.
 - Auto-reload after generation is tolerant (ignored if mihomo inactive).
 - Mihomo binary path resolved globally via `which mihomo` (currently `/usr/bin/mihomo`).

@@ -1495,7 +1495,8 @@ class ConfigGenerator:
         # intentional: proxies/groups come from the subscription (no xray
         # sidecar); no ads, geo, or Iran/CN bypass rules are emitted.
         config: Dict[str, Any] = {
-            "mixed-port": 7890,
+            "mixed-port": 8118,
+
             "allow-lan": self.allow_lan,
             # "*" by default (proxy-everything boundary serves LAN clients).
             "bind-address": "*" if self.allow_lan else "127.0.0.1",
