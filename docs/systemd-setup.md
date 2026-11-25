@@ -16,7 +16,7 @@ generated config with a local-only dashboard.
 
 | Purpose | Path |
 |---|---|
-| Repo | `/home/mohammad/v2ray-to-subs` |
+| Repo | `$HOME/v2ray-to-subs` |
 | Mihomo config dir | `~/.config/mihomo` |
 | Clash output | `~/.config/mihomo/clash_config.yaml` |
 | Sing-box output | `~/.config/mihomo/singbox_config.json` |
@@ -33,9 +33,9 @@ generated config with a local-only dashboard.
 2. Copy the three unit files into the user systemd directory:
    ```bash
    mkdir -p ~/.config/systemd/user
-   cp /home/mohammad/v2ray-to-subs/systemd/user/proxy-gen.service ~/.config/systemd/user/
-   cp /home/mohammad/v2ray-to-subs/systemd/user/proxy-gen.timer ~/.config/systemd/user/
-   cp /home/mohammad/v2ray-to-subs/systemd/user/mihomo.service ~/.config/systemd/user/
+   cp $HOME/v2ray-to-subs/systemd/user/proxy-gen.service ~/.config/systemd/user/
+   cp $HOME/v2ray-to-subs/systemd/user/proxy-gen.timer ~/.config/systemd/user/
+   cp $HOME/v2ray-to-subs/systemd/user/mihomo.service ~/.config/systemd/user/
    ```
 3. Reload the user daemon:
    ```bash
@@ -56,13 +56,13 @@ generated config with a local-only dashboard.
 
 ```bash
 # Compile check
-python3 -m py_compile /home/mohammad/v2ray-to-subs/proxy_converter.py
+python3 -m py_compile $HOME/v2ray-to-subs/proxy_converter.py
 
 # CLI flag present
-python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --help | grep no-allow-lan
+python3 $HOME/v2ray-to-subs/proxy_converter.py --help | grep no-allow-lan
 
 # Dry generation (LAN off, TUN off)
-python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --controller-secret 123456789 \
+python3 $HOME/v2ray-to-subs/proxy_converter.py --controller-secret 123456789 \
   --clash-out /tmp/proxy-gen-test-clash.yaml
 
 # Unit validation

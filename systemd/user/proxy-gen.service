@@ -1,6 +1,6 @@
 # Purpose: regenerate both configs every 6 hours.
 # TUN stays off because --tun is absent here.
-# LAN stays off via --no-allow-lan for loopback only.
+# LAN is on by default; add --no-allow-lan for loopback-only installs (e.g. cando).
 # Secret is baked into yaml so unit stores no secret env.
 # Reload is tolerant with dash prefix and ignored when mihomo is inactive.
 [Unit]
@@ -10,9 +10,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/mohammad/v2ray-to-subs
+WorkingDirectory=%h/v2ray-to-subs
 ExecStartPre=/bin/mkdir -p %h/.config/mihomo
-ExecStart=/usr/bin/python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --unique-host --controller-secret 123456789 --clash-out %h/.config/mihomo/clash_config.yaml
+ExecStart=/usr/bin/python3 %h/v2ray-to-subs/proxy_converter.py --unique-host --controller-secret 123456789 --clash-out %h/.config/mihomo/clash_config.yaml
 ExecStartPost=-/bin/sh -c 'systemctl --user is-active --quiet mihomo.service && systemctl --user reload mihomo.service'
 
 [Install]
