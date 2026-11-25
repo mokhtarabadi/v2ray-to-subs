@@ -1542,6 +1542,9 @@ class ConfigGenerator:
                 # beyond a sane default).
                 "nameserver": ["1.1.1.1"],
                 "default-nameserver": ["1.1.1.1"],
+                # respect-rules requires a non-empty proxy-server-nameserver
+                # so proxy hostnames can resolve when routed through a proxy.
+                "proxy-server-nameserver": ["1.1.1.1"],
             },
             "tun": {
                 # Interface-only mode: the device is created but mihomo
@@ -2303,6 +2306,15 @@ def main() -> None:
         action="store_true",
         default=True,
         help="Allow LAN connections and bind to all interfaces (on by default)",
+    )
+    # --allow-lan defaults True for backward compatibility.
+    # --no-allow-lan shares dest allow_lan and flips it to False for loopback only.
+    # LAN off binds 127.0.0.1 only with no external exposure and TUN stays off unless --tun is passed.
+    ap.add_argument(
+        "--no-allow-lan",
+        dest="allow_lan",
+        action="store_false",
+        help="Disable LAN listen and bind to 127.0.0.1 only",
     )
     ap.add_argument(
         "--controller-secret",

@@ -1,0 +1,23 @@
+# Purpose: run mihomo per-user from generated yaml.
+# Binary path resolved via `which mihomo` -> /usr/bin/mihomo (global install).
+# Config directory holds yaml plus ui plus cache.db.
+# Cache directory is stable so selection survives restarts via store-selected and cache.db.
+# Capabilities are omitted because user units lack privileges.
+# Reload uses HUP for soft reload without full restart.
+[Unit]
+Description=mihomo per-user proxy
+Documentation=https://wiki.metacubex.one
+After=network-online.target proxy-gen.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p %h/.config/mihomo
+ExecStart=/usr/bin/mihomo -d %h/.config/mihomo -f %h/.config/mihomo/clash_config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=default.target

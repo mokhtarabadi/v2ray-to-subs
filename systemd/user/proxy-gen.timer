@@ -1,0 +1,14 @@
+# Purpose: schedule config regeneration every 6 hours.
+# Persistent catches up after sleep or power off.
+# Accuracy default is enough for six hour cadence.
+[Unit]
+Description=Regenerate proxy configs every 6 hours
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=proxy-gen.service
+
+[Install]
+WantedBy=timers.target
