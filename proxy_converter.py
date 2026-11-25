@@ -136,7 +136,7 @@ def assign_stable_names(entries: list) -> list:
     return ordered
 
 
-DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt#Patterniha-F"
+DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/sakha1370/OpenRay/refs/heads/main/output/all_valid_proxies.txt"
 
 # ---------------------------------------------------------------------------
 # Shared bypass policy.
@@ -185,6 +185,14 @@ REALIP_SUFFIXES = [
     "detectportal.firefox.com",
     "connectivitycheck.gstatic.com",
 ]
+# Top exit countries used for country-based proxy groups.
+# A node is admitted to a country group only when the checker URL
+# https://checker.surfshield.org/{CC} returns HTTP 200 through it.
+COUNTRY_CODES = ["US", "GB", "DE", "NL", "FR", "IT", "JP", "CA", "BR"]
+CHECKER_URL_TEMPLATE = "https://checker.surfshield.org/{cc}"
+MIHOMO_CACHE_SIZE = 4096
+SINGBOX_CACHE_CAPACITY = 4096
+
 
 # mihomo client-fingerprint accepted values
 UTLS_FINGERPRINTS = {
@@ -1418,12 +1426,15 @@ class ConfigGenerator:
         proxy_groups: List[Dict[str, Any]] = []
         if proxy_names:
             auto_members = list(proxy_names)
+            country_group_names = [cc for cc in COUNTRY_CODES]
             proxy_groups.extend(
                 [
                     {
                         "name": "PROXY",
                         "type": "select",
-                        "proxies": ["Auto", "Load Balance", "Fallback"] + proxy_names,
+                        "proxies": ["Auto", "Load Balance", "Fallback"]
+                        + country_group_names
+                        + proxy_names,
                     },
                     {
                         "name": "Auto",
@@ -1471,6 +1482,10 @@ class ConfigGenerator:
                 {"name": "PROXY", "type": "select", "proxies": ["DIRECT"]}
             )
 
+        # Country-based exit groups (runtime health via checker URL).
+        if proxy_names:
+            proxy_groups.extend(self._mihomo_country_groups(proxy_names))
+
         rules = self._clash_rules()
 
         # NOTE: field-for-field aligned with /home/mohammad/Desktop/mihomo
@@ -1496,19 +1511,12 @@ class ConfigGenerator:
             # (--controller-secret / MIHOMO_CONTROLLER_SECRET). Empty default
             # keeps the old no-auth behaviour.
             **({"secret": self.controller_secret} if self.controller_secret else {}),
-            # Official MetaCubeX dashboard (metacubexd): served by mihomo
-            # itself at http://127.0.0.1:9090/ui . "ui" is relative to the
-            # mihomo working dir (mihomo -d <dir>); the zip below is fetched
+            # Official Zashboard dashboard: served by mihomo itself at
+            # http://127.0.0.1:9090/ui . "ui" is relative to the mihomo
+            # working dir (mihomo -d <dir>); the zip below is fetched
             # automatically on first start into that folder.
             "external-ui": "ui",
-            "external-ui-url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
-            "geox-url": {
-                "geoip": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat",
-                "geosite": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat",
-                "mmdb": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb",
-            },
-            "geo-auto-update": True,
-            "geo-update-interval": 24,
+            "external-ui-url": "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip",
             "profile": {
                 "store-selected": True,
                 "store-fake-ip": True,
@@ -1522,29 +1530,18 @@ class ConfigGenerator:
                 "listen": "127.0.0.1:1053",
                 "ipv6": False,
                 "cache-algorithm": "arc",
+                "cache-size": MIHOMO_CACHE_SIZE,
                 "enhanced-mode": "fake-ip",
                 "fake-ip-range": "198.18.0.1/16",
                 "fake-ip-filter-mode": "blacklist",
-                "fake-ip-filter": list(REALIP_SUFFIXES),
-                # Plain IPs only: used to resolve DoH/DoT hostnames themselves.
-                # Cloudflare resolvers: the host is outside Iran and China, so
-                # the former CN resolvers (223.5.5.5, doh.pub, alidns) were dropped.
-                "default-nameserver": ["1.1.1.1", "1.0.0.1"],
-                "nameserver": [
-                    "https://cloudflare-dns.com/dns-query",
-                    "tls://1.1.1.1",
-                ],
-                "proxy-server-nameserver": ["https://cloudflare-dns.com/dns-query"],
-                "fallback": ["tls://1.1.1.1", "tls://1.0.0.1"],
-                "fallback-filter": {
-                    # No geoip country filter: the exit is outside Iran/China,
-                    # so a CN-result heuristic is meaningless here.
-                    "ipcidr": ["240.0.0.0/4"],
-                    "domain": [
-                        "+.facebook.com",
-                        "+.twitter.com",
-                    ],
-                },
+                "fake-ip-filter": ["*.lan", "*.local", "localhost"],
+                "respect-rules": True,
+                "prefer-h3": False,
+                # Minimal upstream: a single plain IP avoids DoH bootstrap
+                # loops and keeps the "no custom DNS" intent (no resolvers
+                # beyond a sane default).
+                "nameserver": ["1.1.1.1"],
+                "default-nameserver": ["1.1.1.1"],
             },
             "tun": {
                 # Interface-only mode: the device is created but mihomo
@@ -1609,8 +1606,6 @@ class ConfigGenerator:
             # 0) LAN / private bypass (Desktop pattern)
             "DOMAIN-SUFFIX,lan,DIRECT",
             "DOMAIN,lan,DIRECT",
-            "GEOIP,private,DIRECT,no-resolve",
-            "GEOIP,lan,DIRECT,no-resolve",
             "DOMAIN-SUFFIX,local,DIRECT",
             "DOMAIN-SUFFIX,localhost,DIRECT",
             "DOMAIN-SUFFIX,localdomain,DIRECT",
@@ -1623,6 +1618,97 @@ class ConfigGenerator:
         # 2) Final catch-all (everything else → PROXY)
         rules.append("MATCH,PROXY")
         return rules
+
+    def _mihomo_country_groups(self, proxy_names: List[str]) -> List[Dict[str, Any]]:
+        """Build per-country proxy groups for mihomo.
+
+        Each country gets a select group plus url-test and fallback
+        variants. The health-check URL is templated per country via
+        CHECKER_URL_TEMPLATE; a node is kept only when the checker
+        returns HTTP 200. Runtime health (not build-time probing) decides
+        membership, so all usable nodes are emitted as candidates and
+        url-test filters dead ones. Empty country groups are skipped.
+        """
+        groups: List[Dict[str, Any]] = []
+        if not proxy_names:
+            return groups
+        for cc in COUNTRY_CODES:
+            url = CHECKER_URL_TEMPLATE.format(cc=cc)
+            # Collision guard: a proxy literally named like a group tag
+            # (e.g. "US" or "US-Auto") must not shadow the group itself.
+            reserved = {cc, f"{cc}-Auto", f"{cc}-Fallback", f"{cc}-auto"}
+            members = [n for n in proxy_names if n not in reserved]
+            if not members:
+                continue
+            groups.append(
+                {
+                    "name": cc,
+                    "type": "select",
+                    "proxies": [f"{cc}-Auto", f"{cc}-Fallback"] + members,
+                }
+            )
+            groups.append(
+                {
+                    "name": f"{cc}-Auto",
+                    "type": "url-test",
+                    "proxies": members,
+                    "url": url,
+                    "interval": self.url_test_interval,
+                    "tolerance": self.url_test_tolerance,
+                    "lazy": True,
+                    "expected-status": 200,
+                    "max-failed-times": 3,
+                }
+            )
+            groups.append(
+                {
+                    "name": f"{cc}-Fallback",
+                    "type": "fallback",
+                    "proxies": members,
+                    "url": url,
+                    "interval": self.url_test_interval,
+                    "lazy": True,
+                    "expected-status": 200,
+                    "max-failed-times": 3,
+                }
+            )
+        return groups
+
+    def _singbox_country_outbounds(self, proxy_tags: List[str]) -> List[Dict[str, Any]]:
+        """Build per-country outbounds for sing-box.
+
+        sing-box has no fallback outbound type, so a selector covers
+        manual choice and a urltest covers auto. Membership is decided
+        by runtime health against CHECKER_URL_TEMPLATE. Empty groups are
+        skipped by the caller.
+        """
+        outbounds: List[Dict[str, Any]] = []
+        if not proxy_tags:
+            return outbounds
+        for cc in COUNTRY_CODES:
+            url = CHECKER_URL_TEMPLATE.format(cc=cc)
+            reserved = {cc, f"{cc}-auto", f"{cc}-Auto", f"{cc}-Fallback"}
+            members = [t for t in proxy_tags if t not in reserved]
+            if not members:
+                continue
+            outbounds.append(
+                {
+                    "type": "selector",
+                    "tag": cc,
+                    "outbounds": [f"{cc}-auto"] + members,
+                }
+            )
+            outbounds.append(
+                {
+                    "type": "urltest",
+                    "tag": f"{cc}-auto",
+                    "outbounds": members,
+                    "url": url,
+                    "interval": "5m",
+                    "tolerance": self.url_test_tolerance,
+                }
+            )
+        return outbounds
 
     # ------------------------------------------------------------------
     # sing-box
@@ -1894,6 +1980,8 @@ class ConfigGenerator:
                     "tolerance": self.url_test_tolerance,
                 }
             )
+        if proxy_tags:
+            outbounds.extend(self._singbox_country_outbounds(proxy_tags))
 
         inbounds = [
             {
@@ -1972,24 +2060,6 @@ class ConfigGenerator:
                         "server": "1.1.1.1",
                         "tag": "dns-direct",
                     },
-                    {
-                        "type": "tls",
-                        "server": "1.1.1.1",
-                        "tag": "dns-remote",
-                    },
-                    {
-                        "type": "https",
-                        "server": "cloudflare-dns.com",
-                        "tag": "dns-doh",
-                        "path": "/dns-query",
-                        # DoH hostname itself must resolve via a plain-IP
-                        # server (mirrors mihomo default-nameserver).
-                        "domain_resolver": "dns-direct",
-                    },
-                    {
-                        "type": "local",
-                        "tag": "dns-local",
-                    },
                 ],
                 "rules": [
                     {
@@ -2003,8 +2073,10 @@ class ConfigGenerator:
                         "query_type": ["A", "AAAA"],
                     },
                 ],
-                "final": "dns-doh",
+                "final": "dns-direct",
                 "strategy": "prefer_ipv4",
+                "cache_capacity": SINGBOX_CACHE_CAPACITY,
+                "independent_cache": True,
             },
             "inbounds": inbounds,
             "outbounds": outbounds,
@@ -2016,6 +2088,31 @@ class ConfigGenerator:
                 # proxy node domain names (SNI/host).
                 "default_domain_resolver": "dns-direct",
             },
+            "experimental": {
+                "clash_api": {
+                    "external_controller": "127.0.0.1:9090",
+                    "external_ui": "ui",
+                    "external_ui_url": "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip",
+                    "default_mode": "rule",
+                    "store_selected": True,
+                },
+                "cache_file": {
+                    "enabled": True,
+                    "store_fakeip": True,
+                    "store_dns": True,
+                    "store_rdrc": True,
+                    "flush_interval": "5m",
+                },
+            },
+            "ntp": {
+                "enabled": True,
+                "server": "time.apple.com",
+                "server_port": 123,
+                "interval": "60m",
+            },
+            "http_clients": [
+                {"tag": "http-client-direct"},
+            ],
         }
         return config
 
