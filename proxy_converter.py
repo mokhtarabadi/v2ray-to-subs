@@ -187,18 +187,11 @@ REALIP_SUFFIXES = [
 ]
 # Top exit countries used for country-based proxy groups.
 # Expanded to US, DE, NL, FR, BR, CA per operator choice (Task 32).
-# Cloudflare trace endpoint provides per-country filtering via body matching.
 COUNTRY_CODES = ["US", "DE", "NL", "FR", "BR", "CA"]
 
-# Cloudflare trace endpoint returns loc=XX in the response body, enabling
-# per-country filtering via expected-body. More reliable than status-only
-# checkers.
-CLOUDFLARE_TRACE_URL = "https://www.cloudflare.com/cdn-cgi/trace"
-# Body text that marks a node as failed when present (Google returns 200
-# with this message when the service is blocked for the exit country).
-SERVICE_EXCLUDE_BODY = {
-    "Google": "isn't currently supported in your country",
-}
+# Country health-check uses checker.surfshield.org which returns 200 for
+# matching country exit IP and 403 otherwise. expected-status filters nodes.
+CHECKER_URL_TEMPLATE = "https://checker.surfshield.org/{cc}"
 
 # Service-specific dedicated groups. Each service gets a select plus
 # url-test pair. The url-test health-checks a strict service URL with
@@ -206,7 +199,7 @@ SERVICE_EXCLUDE_BODY = {
 # GEOSITE provides community domain lists for routing; DOMAIN-SUFFIX
 # covers services without a standard geosite entry.
 SERVICE_HEALTH_URLS = {
-    "Google": "https://gemini.google.com/",
+    "Google": "https://aistudio.google.com/",
     "Apple": "https://www.apple.com/",
     "Docker": "https://hub.docker.com/",
     "Claude": "https://claude.ai/",
@@ -1684,18 +1677,16 @@ class ConfigGenerator:
         """Build per-country proxy groups for mihomo.
 
         Each country gets a select group plus url-test and fallback
-        variants. The health-check URL is the Cloudflare trace endpoint
-        (returns loc=XX in body), so a node is kept only when the trace
-        confirms the exit country matches. Runtime health decides
-        membership; all usable nodes are emitted as candidates and
-        url-test filters non-matching ones. Empty country groups skipped.
+        variants. The health-check URL is templated per country via
+        CHECKER_URL_TEMPLATE (checker.surfshield.org returns 200 for
+        matching country exit IP, 403 otherwise). expected-status filters
+        nodes. Runtime health decides membership.
         """
         groups: List[Dict[str, Any]] = []
         if not proxy_names:
             return groups
         for cc in COUNTRY_CODES:
-            # Fixed Cloudflare trace URL returns loc=XX in body.
-            url = CLOUDFLARE_TRACE_URL
+            url = CHECKER_URL_TEMPLATE.format(cc=cc)
             # Collision guard: a proxy literally named like a group tag
             # must not shadow the group itself.
             reserved = {cc, f"{cc}-Auto", f"{cc}-Fallback", f"{cc}-auto"}
@@ -1715,8 +1706,6 @@ class ConfigGenerator:
                     "type": "url-test",
                     "proxies": members,
                     "url": url,
-                    # loc=XX in trace body confirms exit country.
-                    "expected-body": f"loc={cc}",
                     "interval": self.url_test_interval,
                     "tolerance": self.url_test_tolerance,
                     "lazy": True,
@@ -1772,11 +1761,6 @@ class ConfigGenerator:
                 "expected-status": 200,
                 "max-failed-times": 3,
             }
-            # Google returns 200 with a country-block message in the body;
-            # exclude nodes whose body contains that message. Other services
-            # return clean 200 or a non-200 status, so no body filter needed.
-            if service in SERVICE_EXCLUDE_BODY:
-                auto_group["exclude-body"] = SERVICE_EXCLUDE_BODY[service]
             groups.append(auto_group)
         return groups
 

@@ -12,7 +12,7 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=/home/mohammad/v2ray-to-subs
 ExecStartPre=/bin/mkdir -p %h/.config/mihomo
-ExecStart=/usr/bin/python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --only both --no-allow-lan --controller-secret 123456789 --clash-out %h/.config/mihomo/clash_config.yaml --singbox-out %h/.config/mihomo/singbox_config.json
+ExecStart=/usr/bin/python3 /home/mohammad/v2ray-to-subs/proxy_converter.py --only both --no-allow-lan --unique-host --controller-secret 123456789 --clash-out %h/.config/mihomo/clash_config.yaml --singbox-out %h/.config/mihomo/singbox_config.json
 ExecStartPost=-/bin/sh -c 'systemctl --user is-active --quiet mihomo.service && systemctl --user reload mihomo.service'
 
 [Install]

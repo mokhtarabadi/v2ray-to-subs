@@ -70,3 +70,23 @@ All component and script directories in this repository MUST maintain colocated 
 3. **Synchronization Invariant** — whenever source code inside a component directory changes behavior or data contract, the sibling `README.md` and `DECISIONS.md` MUST be inspected and updated within the same task. Silent overrides of existing architectural decisions are forbidden.
 
 > Current repository state: the root holds a single converter file (`proxy_converter.py`) and no component subdirectories, so no slice README/DECISIONS pairs apply. This standard binds if a component directory is introduced.
+
+## Agent Operational Rules (Cross-Reference)
+
+The operational rules below are normative for this project and are defined in full in `AGENTS.md` (kept there to avoid duplication). This section exists so `docs/conventions.md` documents them as required by the governance audit.
+
+1. **Decentralized Task Management** — Use individual task files in `tasks/backlog`, `tasks/in-progress`, `tasks/qa`, `tasks/completed`, `tasks/archive` as the single source of truth. See `AGENTS.md` "TASK MANAGEMENT & OPENCODE RULES".
+2. **No Monolithic State** — Creating `TODO.md` or `STATE.md` is strictly forbidden.
+3. **Zero-Autonomous-Commit (ZAC)** — Never execute `git add`, `git commit`, or `git push` autonomously; only on explicit Orchestrator/Manager instruction via the approved MCP commit path. Exception: `git mv` for task-file Kanban moves.
+4. **Mandatory End-Of-Task Sequence** — 1) Update `CHANGELOG.md`. 2) Write reasoning in the active task file. 3) Call `custom_context_qa_transition` once with the active task path and explicit `modified_files`. 4) Notify the Manager that QA/review will be chained via `brain_turn`. 5) Do not commit or close without explicit approval.
+5. **Gatekeeper Validation (Halt Protocol)** — Evaluate tasks against project rules and HALT with a warning if the Orchestrator provides non-compliant instructions.
+6. **Context Bootstrapping** — At the start of every task, call `search_memory` or `list_namespaces` to load hidden project quirks.
+7. **Buffer Isolation** — Treat every task as contextually independent; flush working assumptions between tasks.
+8. **Context Map Before Brain Calls** — Produce a verified `context_paths` manifest and record a `Context-Map:` line before any planning/verdict `brain_turn`.
+9. **Deprecated-Section Purge Rule** — Purge deprecated sections (`## Manager Decisions`, `## Admin Decision`, etc.) from `AGENTS.md` and task files; never recreate them.
+10. **Lite Mode Removal** — Lite Mode is a deprecated bypass; every task traverses the full workflow with no bypass.
+11. **Runtime-State gitignore** — `.gitignore` must cover per-project runtime state (`tasks/.sessions/`, `.opencode/goals/`, etc.) but never deliberate config like `.opencode/smart-compact.jsonc`.
+12. **Project Skills Table** — Scan local skill dirs on every audit and (re)build the Project Skills table in `AGENTS.md`.
+13. **MCP Report Generation** — Generate context/tree reports via the MCP server and hand the file path to the Manager; never read `context-reports/` inline.
+14. **Explicit Staging Contract (F5)** — Always pass an explicit `modified_files` list to `stage_and_inject_diff`; blind `git add -A .` is banned.
+15. **Parallel Index Isolation** — Use `custom_context_unstage_files` (index-only) + `stage_and_inject_diff` with `skip_add=True` for shared files; `git commit`/`git checkout`/`git push` stay forbidden.

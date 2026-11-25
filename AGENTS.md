@@ -81,9 +81,21 @@ You MUST follow these skill loading rules in every session:
 - **Task-Generator Skill:** Before creating any new task file, you MUST load the `kanban-lifecycle` skill using the `skill` tool to ensure the correct template format with `<!-- BEGIN_GIT_DIFF -->` / `<!-- END_GIT_DIFF -->` markers.
 - **Project Skills:** Before implementing any task, you MUST load every available skill matching the project's tech stack. This project is plain Python (stdlib plus PyYAML) with no matching roster skill, so none is required unless the stack changes.
 
+### Project Skills Table (local skills)
+
+Scan `[PROJECT_ROOT]/.opencode/skills/*/SKILL.md` (and equivalent local skill dirs) on every audit. One row per local skill; same column shape as the global Skill Auto-Loading Matrix. This project currently has **no local skills** (no `.opencode/` directory), so the table is empty:
+
+| Skill (local) | Trigger (when to load) | Duty (one line) |
+| --- | --- | --- |
+| *(none)* | — | No local skills installed. Stack is plain Python (stdlib + PyYAML); no roster skill matches. Add a row here whenever a local skill is introduced. |
+
 ## 🛑 CONTEXT BOOTSTRAPPING
 
 At the start of every task, you MUST call `search_memory` or `list_namespaces` to load any hidden project quirks relevant to your domain before implementing.
+
+## 🛑 CONTEXT MAP BEFORE BRAIN CALLS
+
+Before any `brain_turn` carrying a planning or verdict request, you MUST produce a verified `context_paths` manifest (graph, capped directory tree at depth 3+, extracted signatures) and record one `Context-Map:` line beside the mode line. Never pass a bare label, directory, or wildcard in `context_paths`. Classes: full (planning/implementation turns), diff-scoped (review/verdict turns), exempt (control turns, with reason). A prompt without this line is malformed. Trivial work is exempt only because it never reaches a planning call.
 
 ## 🛑 TASK MANAGEMENT & OPENCODE RULES
 

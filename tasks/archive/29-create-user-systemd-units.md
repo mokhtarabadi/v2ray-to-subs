@@ -1,9 +1,11 @@
 # Task 29: Create user systemd units for config generation and mihomo
 
-**File:** `tasks/backlog/29-create-user-systemd-units.md`
+**File:** `tasks/archive/29-create-user-systemd-units.md`
 **Source:** manager
 **Type:** feature
-**Status:** open
+**Status:** superseded
+**Superseded-By:** `30-systemd-units-research-and-creation`
+**Superseded-At:** `2026-11-25 16:14 UTC`
 **Depends on:** 28
 
 ## Source Context
@@ -73,6 +75,8 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 - **Rollback plan:** Remove unit files from ~/.config/systemd/user/ and run systemctl --user daemon-reload.
 
 ---
+
+> **Superseded:** This task was bundled into META task `30-systemd-units-research-and-creation` and archived on 2026-11-25 16:14 UTC. See `tasks/backlog/30-systemd-units-research-and-creation.md` (or its Kanban successor) for the unified execution. History preserved via `git log --follow -- tasks/archive/29-create-user-systemd-units.md`.
 
 ## Execution Log & Reasoning
 

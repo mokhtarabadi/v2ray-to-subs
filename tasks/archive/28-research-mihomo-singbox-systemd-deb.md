@@ -1,9 +1,11 @@
 # Task 28: Research mihomo and sing-box systemd units and deb links
 
-**File:** `tasks/backlog/28-research-mihomo-singbox-systemd-deb.md`
+**File:** `tasks/archive/28-research-mihomo-singbox-systemd-deb.md`
 **Source:** manager
 **Type:** discovery
-**Status:** open
+**Status:** superseded
+**Superseded-By:** `30-systemd-units-research-and-creation`
+**Superseded-At:** `2026-11-25 16:14 UTC`
 
 ## Source Context
 
@@ -69,6 +71,8 @@ The task is NOT done unless ALL of the following are true (unconditional, applie
 - **Rollback plan:** N/A (discovery only, no code changes).
 
 ---
+
+> **Superseded:** This task was bundled into META task `30-systemd-units-research-and-creation` and archived on 2026-11-25 16:14 UTC. See `tasks/backlog/30-systemd-units-research-and-creation.md` (or its Kanban successor) for the unified execution. History preserved via `git log --follow -- tasks/archive/28-research-mihomo-singbox-systemd-deb.md`.
 
 ## Execution Log & Reasoning
 
